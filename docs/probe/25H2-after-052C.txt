@@ -1,0 +1,44 @@
+OS: Microsoft Windows NT 10.0.26200.0  Build: 25H2
+Virtual screen: (0,0)-(1536,864) 1536x864  Primary work area: (0,0)-(1536,816) 1536x816
+GetShellWindow: 0x00010184 [Progman] "Program Manager" pid=10264 vis=True (0,0)-(1536,864) 1536x864 style=0x96000000 ex=0x00200080 owner=0x0 parent=0x0
+
+Sent 0x052C to Progman.
+
+Resolved: Progman=0x10184 DefViewHost=0x10184 DefView=0x10196 ListView=0x1019A Tray=0x1014E
+
+== Progman subtree ==
+0x00010184 [Progman] "Program Manager" pid=10264 vis=True (0,0)-(1536,864) 1536x864 style=0x96000000 ex=0x00200080 owner=0x0 parent=0x0
+  0x00010196 [SHELLDLL_DefView] "" pid=10264 vis=True (0,0)-(1536,864) 1536x864 style=0x56010000 ex=0x00080000 owner=0x0 parent=0x10184
+    0x0001019A [SysListView32] "FolderView" pid=10264 vis=True (0,0)-(1536,864) 1536x864 style=0x56003A40 ex=0x00000000 owner=0x0 parent=0x10196
+      0x0001019E [SysHeader32] "" pid=10264 vis=False (0,0)-(0,0) 0x0 style=0x400108C2 ex=0x00000000 owner=0x0 parent=0x1019A
+  0x00130532 [WorkerW] "" pid=10264 vis=True (0,0)-(1536,864) 1536x864 style=0x58000000 ex=0x00000000 owner=0x0 parent=0x10184
+
+== Top-level WorkerW windows ==
+0x0001029C [WorkerW] "" pid=10264 vis=False (0,0)-(133,38) 133x38 style=0x04C00000 ex=0x00000100 owner=0x0 parent=0x0
+0x00010284 [WorkerW] "" pid=13856 vis=False (0,0)-(133,38) 133x38 style=0x04C00000 ex=0x00000100 owner=0x0 parent=0x0
+0x0002026A [WorkerW] "" pid=10264 vis=False (0,0)-(133,38) 133x38 style=0x04C00000 ex=0x00000100 owner=0x0 parent=0x0
+0x00010252 [WorkerW] "" pid=10264 vis=False (0,0)-(133,38) 133x38 style=0x04C00000 ex=0x00000100 owner=0x0 parent=0x0
+0x00010254 [WorkerW] "" pid=10264 vis=False (0,0)-(133,38) 133x38 style=0x04C00000 ex=0x00000100 owner=0x0 parent=0x0
+0x000101B0 [WorkerW] "" pid=10264 vis=False (0,0)-(133,38) 133x38 style=0x04C00000 ex=0x00000100 owner=0x0 parent=0x0
+0x000101AE [WorkerW] "" pid=10264 vis=False (0,0)-(0,0) 0x0 style=0x84000000 ex=0x08000080 owner=0x0 parent=0x0
+0x000101A4 [WorkerW] "" pid=10264 vis=False (0,0)-(133,38) 133x38 style=0x04C00000 ex=0x00000100 owner=0x0 parent=0x0
+0x0001017C [WorkerW] "" pid=10264 vis=False (0,0)-(133,38) 133x38 style=0x04C00000 ex=0x00000100 owner=0x0 parent=0x0
+0x00010178 [WorkerW] "" pid=10264 vis=False (0,0)-(133,38) 133x38 style=0x04C00000 ex=0x00000100 owner=0x0 parent=0x0
+
+== Bottom of top-level z-order (last 8) ==
+  0x000100AC [IME] "Default IME" pid=9336 vis=False (0,0)-(0,0) 0x0 style=0x8C000000 ex=0x00000000 owner=0x100AA parent=0x100AA
+  0x000300A0 [IME] "Default IME" pid=9316 vis=False (0,0)-(0,0) 0x0 style=0x8C000000 ex=0x00000000 owner=0x200A2 parent=0x200A2
+  0x00010086 [IME] "Default IME" pid=5432 vis=False (0,0)-(0,0) 0x0 style=0x8C000000 ex=0x00000000 owner=0x10084 parent=0x10084
+  0x001E00DC [IME] "Default IME" pid=13096 vis=False (0,0)-(0,0) 0x0 style=0x8C000000 ex=0x00000000 owner=0x1C04FE parent=0x1C04FE
+  0x002106FA [IME] "Default IME" pid=10264 vis=False (0,0)-(0,0) 0x0 style=0x8C000000 ex=0x00000000 owner=0x40734 parent=0x40734
+  0x000307A2 [MSCTFIME UI] "MSCTFIME UI" pid=10264 vis=False (0,0)-(0,0) 0x0 style=0x8C000000 ex=0x00000000 owner=0x2106FA parent=0x2106FA
+  0x000101BC [MSCTFIME UI] "MSCTFIME UI" pid=10264 vis=False (0,0)-(0,0) 0x0 style=0x8C000000 ex=0x00000000 owner=0x30106 parent=0x30106
+  0x00030106 [IME] "Default IME" pid=10264 vis=False (0,0)-(0,0) 0x0 style=0x8C000000 ex=0x00000000 owner=0x10184 parent=0x10184
+
+== Windows directly above Progman (up to 6 visible) ==
+  0x000101D6 [DummyDWMListenerWindow] "" pid=10264 vis=True (0,0)-(0,0) 0x0 style=0x94000000 ex=0x08200080 owner=0x0 parent=0x0
+  0x000101DA [DummyDWMListenerWindow] "" pid=10264 vis=True (0,0)-(0,0) 0x0 style=0x94000000 ex=0x08200080 owner=0x0 parent=0x0
+  0x000101DC [DummyDWMListenerWindow] "" pid=10264 vis=True (0,0)-(0,0) 0x0 style=0x94000000 ex=0x08200080 owner=0x0 parent=0x0
+  0x000101DE [DummyDWMListenerWindow] "" pid=10264 vis=True (0,0)-(0,0) 0x0 style=0x94000000 ex=0x08200080 owner=0x0 parent=0x0
+  0x00010202 [DummyDWMListenerWindow] "" pid=10264 vis=True (0,0)-(0,0) 0x0 style=0x94000000 ex=0x08200080 owner=0x0 parent=0x0
+  0x000101FC [EdgeUiInputTopWndClass] "" pid=10264 vis=True (15,0)-(1536,3) 1521x3 style=0x94000000 ex=0x08200080 owner=0x0 parent=0x0
