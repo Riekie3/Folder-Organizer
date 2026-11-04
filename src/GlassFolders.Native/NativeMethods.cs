@@ -240,6 +240,9 @@ public static partial class NativeMethods
     public static partial int GetSystemMetrics(int index);
 
     [LibraryImport("user32.dll")]
+    public static partial uint GetDpiForSystem();
+
+    [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool GetCursorPos(out POINT p);
 
