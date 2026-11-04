@@ -1,0 +1,128 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>GlassFolders concept</title>
+<style>
+*{box-sizing:border-box;margin:0}
+html,body{width:1600px;height:900px;overflow:hidden;font-family:"Segoe UI Variable Display","Segoe UI",sans-serif}
+.desk{position:relative;width:1600px;height:900px;overflow:hidden;
+  background:radial-gradient(900px 700px at 78% 40%,#2f6bff 0%,#1846d8 35%,transparent 70%),
+             radial-gradient(700px 500px at 30% 85%,#3d7dff 0%,transparent 70%),
+             linear-gradient(160deg,#c9dcff 0%,#8fb4f7 35%,#3c6fe6 70%,#1c3fae 100%)}
+.bloom{position:absolute;border-radius:50%;filter:blur(2px)}
+.b1{width:900px;height:900px;left:640px;top:-80px;background:conic-gradient(from 200deg,#0b2fb0,#3f86ff,#9cc6ff,#2a5df0,#0b2fb0);opacity:.85;border-radius:46% 54% 60% 40%/50% 45% 55% 50%;transform:rotate(-18deg)}
+.b2{width:620px;height:620px;left:820px;top:120px;background:conic-gradient(from 40deg,#123cc4,#5aa0ff,#dbe9ff,#3a74ff,#123cc4);opacity:.75;border-radius:58% 42% 45% 55%/48% 60% 40% 52%;transform:rotate(25deg)}
+.b3{width:380px;height:380px;left:960px;top:260px;background:radial-gradient(circle at 40% 40%,#eaf2ff,#6ea4ff 45%,#1b48d0 80%);opacity:.8;border-radius:50% 50% 44% 56%/52% 48% 52% 48%}
+.b4{width:700px;height:500px;left:-120px;top:520px;background:conic-gradient(from 120deg,#1a4ad6,#6aa7ff,#bcd6ff,#1a4ad6);opacity:.55;border-radius:60% 40% 50% 50%;transform:rotate(12deg)}
+
+/* desktop icons */
+.col{position:absolute;left:22px;top:10px;display:flex;flex-direction:column;gap:2px;width:128px}
+.di{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 6px 7px;border-radius:18px;color:#fff;font-size:15px;text-shadow:0 1px 3px rgba(0,0,0,.45)}
+.di svg{width:58px;height:58px;filter:drop-shadow(0 6px 10px rgba(20,40,120,.35))}
+.di.sel{background:linear-gradient(160deg,rgba(255,255,255,.42),rgba(255,255,255,.16));border:1px solid rgba(255,255,255,.7);
+  box-shadow:0 0 0 1px rgba(120,170,255,.35),0 12px 30px rgba(30,70,200,.35),inset 0 1px 0 rgba(255,255,255,.8);backdrop-filter:blur(14px)}
+.sep{height:1px;margin:2px 18px;background:rgba(255,255,255,.35)}
+
+/* popup */
+.pop{position:absolute;left:250px;top:150px;width:900px;height:560px;border-radius:30px;
+  background:linear-gradient(155deg,rgba(255,255,255,.34),rgba(200,220,255,.14) 45%,rgba(120,160,255,.12));
+  border:1px solid rgba(255,255,255,.65);backdrop-filter:blur(30px) saturate(1.4);
+  box-shadow:0 30px 80px rgba(10,30,120,.45),inset 0 1px 0 rgba(255,255,255,.9),inset 0 -1px 0 rgba(255,255,255,.2)}
+.pop::before{content:"";position:absolute;inset:0;border-radius:30px;pointer-events:none;
+  background:linear-gradient(180deg,rgba(255,255,255,.28),transparent 22%)}
+.tail{position:absolute;left:226px;top:262px;width:30px;height:30px;transform:rotate(45deg);
+  background:rgba(255,255,255,.28);border-left:1px solid rgba(255,255,255,.65);border-bottom:1px solid rgba(255,255,255,.65);backdrop-filter:blur(30px)}
+.hd{position:relative;display:flex;align-items:center;gap:16px;height:96px;padding:0 30px;border-bottom:1px solid rgba(255,255,255,.35)}
+.hd svg.fold{width:56px;height:56px}
+.hd h1{color:#fff;font-size:34px;font-weight:600;letter-spacing:-.01em;text-shadow:0 2px 8px rgba(0,30,120,.35);flex:1}
+.hd .count{color:rgba(255,255,255,.8);font-size:15px;margin-right:12px}
+.btn{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;color:#fff}
+.btn:hover{background:rgba(255,255,255,.2)}
+.vdiv{width:1px;height:30px;background:rgba(255,255,255,.45)}
+.grid{position:relative;display:grid;grid-template-columns:repeat(4,1fr);row-gap:26px;padding:34px 40px 0}
+.it{display:flex;flex-direction:column;align-items:center;gap:12px;padding:16px 0 12px;border-radius:20px;color:#fff;font-size:18px;text-shadow:0 1px 4px rgba(0,30,120,.45)}
+.it.hov{background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.5);box-shadow:inset 0 1px 0 rgba(255,255,255,.6)}
+.ic{width:92px;height:92px;border-radius:24px;display:grid;place-items:center;font-weight:700;font-size:46px;color:#fff;
+  box-shadow:0 10px 22px rgba(10,30,110,.35),inset 0 1px 0 rgba(255,255,255,.45);position:relative;overflow:hidden}
+.ic::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.28),transparent 50%)}
+.dots{position:absolute;left:0;right:0;bottom:24px;display:flex;justify-content:center;gap:10px}
+.dots i{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.45)}
+.dots i:first-child{background:#fff;width:22px;border-radius:5px}
+
+/* drag hint */
+.drag{position:absolute;left:1210px;top:470px;display:flex;flex-direction:column;align-items:center;gap:6px;color:#fff;font-size:15px;opacity:.92;text-shadow:0 1px 3px rgba(0,0,0,.45)}
+
+/* taskbar */
+.tb{position:absolute;left:0;right:0;bottom:0;height:58px;background:rgba(225,236,255,.55);backdrop-filter:blur(30px);
+  border-top:1px solid rgba(255,255,255,.6);display:flex;align-items:center;justify-content:center;gap:10px}
+.tbi{width:40px;height:40px;border-radius:10px;display:grid;place-items:center}
+.search{width:210px;height:38px;border-radius:20px;background:rgba(255,255,255,.75);display:flex;align-items:center;gap:8px;padding:0 14px;color:#4a5677;font-size:15px}
+.clock{position:absolute;right:20px;bottom:9px;text-align:right;font-size:13px;color:#1b2440;line-height:1.35}
+.tray{position:absolute;right:120px;bottom:16px;display:flex;gap:12px;align-items:center}
+.tag{position:absolute;right:22px;top:18px;padding:7px 14px;border-radius:999px;background:rgba(255,255,255,.28);border:1px solid rgba(255,255,255,.6);color:#fff;font-size:13px;letter-spacing:.06em;backdrop-filter:blur(10px)}
+</style></head><body>
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <linearGradient id="fb" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7fb2ff"/><stop offset="1" stop-color="#5b5cf2"/></linearGradient>
+    <linearGradient id="fg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c38bff"/><stop offset="1" stop-color="#7b3fe8"/></linearGradient>
+    <linearGradient id="fr" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff9a9a"/><stop offset="1" stop-color="#e8455a"/></linearGradient>
+    <linearGradient id="fgr" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8ee69a"/><stop offset="1" stop-color="#2fae58"/></linearGradient>
+    <linearGradient id="fo" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd27a"/><stop offset="1" stop-color="#f08a24"/></linearGradient>
+    <linearGradient id="flap" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".85" stop-color="#fff" stop-opacity=".45"/><stop offset="1" stop-color="#fff" stop-opacity=".85"/></linearGradient>
+    <symbol id="folder" viewBox="0 0 64 64">
+      <path d="M6 14a5 5 0 0 1 5-5h13a3 3 0 0 1 2.6 1.5l1.6 2.9a3 3 0 0 0 2.6 1.6H53a5 5 0 0 1 5 5v31a5 5 0 0 1-5 5H11a5 5 0 0 1-5-5z" fill="var(--c)"/>
+      <path d="M12 26a4 4 0 0 1 3.9-3.2H57a3 3 0 0 1 2.9 3.7L54 51a5 5 0 0 1-4.8 3.8H9a3 3 0 0 1-2.9-3.7z" fill="url(#flap)" stroke="#fff" stroke-opacity=".9" stroke-width=".8"/>
+    </symbol>
+  </defs>
+</svg>
+<div class="desk">
+  <div class="bloom b4"></div><div class="bloom b1"></div><div class="bloom b2"></div><div class="bloom b3"></div>
+  <div class="tag">CONCEPT MOCKUP</div>
+
+  <div class="col">
+    <div class="di"><svg viewBox="0 0 64 64"><rect x="6" y="10" width="52" height="34" rx="4" fill="#2a8cf0"/><rect x="9" y="13" width="46" height="28" rx="2" fill="#7cc8ff"/><rect x="26" y="46" width="12" height="6" fill="#9aa8c0"/><rect x="18" y="52" width="28" height="3" rx="1.5" fill="#c2cbe0"/></svg>This PC</div>
+    <div class="di"><svg viewBox="0 0 64 64"><path d="M16 18h32l-3 38a4 4 0 0 1-4 3.6H23a4 4 0 0 1-4-3.6z" fill="#e7f1ff" stroke="#9fb6d8"/><rect x="12" y="12" width="40" height="7" rx="3" fill="#cfe0f7"/><circle cx="32" cy="38" r="8" fill="none" stroke="#2d8cf0" stroke-width="4"/></svg>Recycle Bin</div>
+    <div class="sep"></div>
+    <div class="di sel"><svg viewBox="0 0 64 64" style="--c:url(#fb)"><use href="#folder"/><path d="M26 34h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H26a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2zm3-3h6v3h-6z" fill="#fff"/></svg>Work</div>
+    <div class="di"><svg viewBox="0 0 64 64" style="--c:url(#fg)"><use href="#folder"/><rect x="22" y="34" width="20" height="11" rx="5.5" fill="#fff"/><circle cx="37" cy="39.5" r="1.6" fill="#7b3fe8"/><rect x="26" y="38.6" width="5" height="1.8" fill="#7b3fe8"/><rect x="27.6" y="37" width="1.8" height="5" fill="#7b3fe8"/></svg>Games</div>
+    <div class="di"><svg viewBox="0 0 64 64" style="--c:url(#fr)"><use href="#folder"/><path d="M28 33l11 6.5L28 46z" fill="#fff"/></svg>Media</div>
+    <div class="di"><svg viewBox="0 0 64 64" style="--c:url(#fgr)"><use href="#folder"/><circle cx="32" cy="39.5" r="6" fill="none" stroke="#fff" stroke-width="3.2" stroke-dasharray="3 1.6"/><circle cx="32" cy="39.5" r="2" fill="#fff"/></svg>Utilities</div>
+    <div class="di"><svg viewBox="0 0 64 64" style="--c:url(#fo)"><use href="#folder"/><path d="M28 34l-5 5.5 5 5.5M36 34l5 5.5-5 5.5" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Dev</div>
+  </div>
+
+  <div class="pop">
+    <div class="hd">
+      <svg class="fold" viewBox="0 0 64 64" style="--c:url(#fb)"><use href="#folder"/><path d="M26 34h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H26a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2zm3-3h6v3h-6z" fill="#fff"/></svg>
+      <h1>Work</h1>
+      <span class="count">8 apps</span>
+      <div class="btn"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg></div>
+      <div class="vdiv"></div>
+      <div class="btn"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M14 4h6v6M20 4l-7 7M10 20H4v-6M4 20l7-7"/></svg></div>
+      <div class="btn"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></div>
+    </div>
+    <div class="grid">
+      <div class="it"><div class="ic" style="background:linear-gradient(135deg,#36d1a8,#1f7fe0 55%,#1a4fc0)">e</div>Edge</div>
+      <div class="it"><div class="ic" style="background:linear-gradient(135deg,#2aa4f4,#0a5fc8)">O</div>Outlook</div>
+      <div class="it hov"><div class="ic" style="background:linear-gradient(135deg,#8b8cf7,#4b4fc6)">T</div>Teams</div>
+      <div class="it"><div class="ic" style="background:linear-gradient(135deg,#33c27a,#107040)">X</div>Excel</div>
+      <div class="it"><div class="ic" style="background:linear-gradient(135deg,#4a9bff,#1a4fbf)">W</div>Word</div>
+      <div class="it"><div class="ic" style="background:linear-gradient(135deg,#ff8a5c,#c63a1e)">P</div>PowerPoint</div>
+      <div class="it"><div class="ic" style="background:linear-gradient(135deg,#c06bf0,#7228b8)">N</div>OneNote</div>
+      <div class="it"><div class="ic" style="background:linear-gradient(135deg,#ffffff,#dfe3ea);color:#111">N</div>Notion</div>
+    </div>
+    <div class="dots"><i></i><i></i><i></i></div>
+  </div>
+
+  <div class="tb">
+    <div class="tbi"><svg width="26" height="26" viewBox="0 0 24 24"><rect x="2" y="2" width="9.5" height="9.5" rx="1.5" fill="#1a73e8"/><rect x="12.5" y="2" width="9.5" height="9.5" rx="1.5" fill="#1a73e8"/><rect x="2" y="12.5" width="9.5" height="9.5" rx="1.5" fill="#1a73e8"/><rect x="12.5" y="12.5" width="9.5" height="9.5" rx="1.5" fill="#1a73e8"/></svg></div>
+    <div class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a5677" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>Search</div>
+    <div class="tbi"><svg width="28" height="28" viewBox="0 0 24 24"><path d="M2 6a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z" fill="#f7c33a"/><rect x="2" y="9" width="20" height="11" rx="2" fill="#ffd866"/></svg></div>
+    <div class="tbi"><div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#36d1a8,#1f7fe0)"></div></div>
+    <div class="tbi"><div style="width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,#2aa4f4,#0a5fc8)"></div></div>
+  </div>
+  <div class="tray">
+    <svg width="22" height="22" viewBox="0 0 64 64" style="--c:url(#fb)"><use href="#folder"/></svg>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1b2440" stroke-width="2"><path d="M2 9a15 15 0 0 1 20 0M5 13a10 10 0 0 1 14 0M8.5 16.5a5 5 0 0 1 7 0"/><circle cx="12" cy="20" r="1" fill="#1b2440"/></svg>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1b2440" stroke-width="2"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 8a5 5 0 0 1 0 8"/></svg>
+  </div>
+  <div class="clock">3:15 PM<br>4/11/2026</div>
+</div>
+</body></html>

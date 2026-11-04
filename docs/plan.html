@@ -1,0 +1,368 @@
+<title>GlassFolders Build Plan</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column over a soft wallpaper-blue ground; glass panels only for the hero and the phase cards. */
+:root{
+  --ground:#e9eefb; --ground-2:#dfe6fb;
+  --glass:rgba(255,255,255,.62); --glass-rim:rgba(255,255,255,.9);
+  --ink:#16203a; --ink-2:#4a5677; --line:#c9d3ef;
+  --accent:#3b62e0; --accent-2:#7a6cf0; --accent-soft:#dfe5ff;
+  --opus:#5b3fd6; --opus-soft:#ebe5ff; --sonnet:#0f7a8a; --sonnet-soft:#dcf3f5;
+  --warn:#a35a00; --warn-soft:#fff0d9;
+  --shadow:0 10px 30px rgba(40,60,140,.12);
+  --f-display:"Sora","Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --ground:#0c1226; --ground-2:#111a36;
+  --glass:rgba(30,42,82,.55); --glass-rim:rgba(160,180,255,.22);
+  --ink:#e8ecfa; --ink-2:#a6b1d4; --line:#2a3766;
+  --accent:#8aa6ff; --accent-2:#a99cff; --accent-soft:#1d2a5c;
+  --opus:#b8a6ff; --opus-soft:#2a2160; --sonnet:#6fd6e2; --sonnet-soft:#103a40;
+  --warn:#ffc46b; --warn-soft:#3a2a10;
+  --shadow:0 10px 30px rgba(0,0,0,.35); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --ground:#0c1226; --ground-2:#111a36;
+  --glass:rgba(30,42,82,.55); --glass-rim:rgba(160,180,255,.22);
+  --ink:#e8ecfa; --ink-2:#a6b1d4; --line:#2a3766;
+  --accent:#8aa6ff; --accent-2:#a99cff; --accent-soft:#1d2a5c;
+  --opus:#b8a6ff; --opus-soft:#2a2160; --sonnet:#6fd6e2; --sonnet-soft:#103a40;
+  --warn:#ffc46b; --warn-soft:#3a2a10;
+  --shadow:0 10px 30px rgba(0,0,0,.35); color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:radial-gradient(1200px 600px at 85% -10%,var(--ground-2),transparent 70%),var(--ground);
+  color:var(--ink);font:15.5px/1.6 var(--f-body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:32px 64px}
+.wrap{max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:48px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.2}
+h1{font-size:clamp(30px,5vw,44px);font-weight:700;letter-spacing:-.02em}
+h2{font-size:24px;font-weight:600;letter-spacing:-.01em}
+h3{font-size:17px;font-weight:600}
+p{margin:0}
+code{font-family:var(--f-mono);font-size:.86em;background:var(--accent-soft);padding:1px 5px;border-radius:5px}
+.eyebrow{font:500 12px/1 var(--f-mono);text-transform:uppercase;letter-spacing:.12em;color:var(--accent)}
+.muted{color:var(--ink-2)}
+section{display:flex;flex-direction:column;gap:18px}
+.sec-head{display:flex;flex-direction:column;gap:6px}
+
+/* hero */
+.hero{display:grid;grid-template-columns:auto 1fr;gap:28px;align-items:center;
+  background:var(--glass);border:1px solid var(--glass-rim);border-radius:28px;padding:28px;box-shadow:var(--shadow);
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+.hero svg{width:120px;height:120px}
+.hero-text{display:flex;flex-direction:column;gap:12px;min-width:0}
+.facts{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font:500 12.5px/1 var(--f-mono);padding:7px 10px;border-radius:999px;background:var(--accent-soft);color:var(--ink);white-space:nowrap}
+@media (max-width:620px){.hero{grid-template-columns:1fr}.hero svg{width:88px;height:88px}}
+
+/* tables */
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:16px;background:var(--glass)}
+table{border-collapse:collapse;width:100%;min-width:620px;font-size:14.5px}
+th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:600 12px/1.3 var(--f-mono);text-transform:uppercase;letter-spacing:.08em;color:var(--ink-2)}
+tr:last-child td{border-bottom:0}
+td:first-child{font-weight:600;white-space:nowrap}
+
+/* priorities */
+.prio{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;counter-reset:p;padding:0;margin:0;list-style:none}
+.prio li{counter-increment:p;display:flex;gap:10px;align-items:baseline;padding:10px 12px;border-radius:12px;border:1px solid var(--line)}
+.prio li::before{content:counter(p);font:600 13px var(--f-mono);color:var(--accent)}
+
+/* phases */
+.phases{display:flex;flex-direction:column;gap:14px}
+.phase{display:grid;grid-template-columns:64px 1fr;gap:18px;padding:22px;border-radius:20px;
+  background:var(--glass);border:1px solid var(--glass-rim);box-shadow:var(--shadow)}
+.phase .num{font:700 34px/1 var(--f-display);color:var(--accent);opacity:.85}
+.phase-body{display:flex;flex-direction:column;gap:10px;min-width:0}
+.phase-top{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
+.tag{font:500 12px/1 var(--f-mono);padding:6px 9px;border-radius:999px;border:1px solid var(--line);color:var(--ink-2)}
+.model{font:600 12px/1 var(--f-mono);padding:6px 9px;border-radius:999px}
+.m-opus{background:var(--opus-soft);color:var(--opus)}
+.m-sonnet{background:var(--sonnet-soft);color:var(--sonnet)}
+.phase ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+.exit{font-size:14px;padding:8px 12px;border-radius:10px;background:var(--accent-soft)}
+.exit b{font-family:var(--f-mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;margin-right:6px}
+.stop{background:var(--warn-soft);color:var(--warn)}
+@media (max-width:620px){.phase{grid-template-columns:1fr;gap:6px}.phase .num{font-size:26px}}
+
+/* reference cards */
+.refs{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+.ref{padding:16px;border-radius:16px;border:1px solid var(--line);display:flex;flex-direction:column;gap:6px;font-size:14.5px}
+.tokens{display:flex;flex-wrap:wrap;gap:8px}
+
+/* model recommendation */
+.reco{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.reco-card{padding:20px;border-radius:18px;display:flex;flex-direction:column;gap:8px}
+.reco-card.opus{background:var(--opus-soft)}
+.reco-card.sonnet{background:var(--sonnet-soft)}
+.reco-card .big{font:700 22px/1.2 var(--f-display)}
+.reco-card.opus .big{color:var(--opus)} .reco-card.sonnet .big{color:var(--sonnet)}
+
+/* decisions */
+.decisions{display:flex;flex-direction:column;gap:10px}
+.dec{display:grid;grid-template-columns:52px 1fr;gap:12px;padding:14px 16px;border-radius:14px;border:1px dashed var(--warn);background:var(--warn-soft)}
+.dec .id{font:600 14px var(--f-mono);color:var(--warn)}
+.dec p{color:var(--ink)}
+.rec{font-weight:600}
+footer{font-size:13px;color:var(--ink-2);border-top:1px solid var(--line);padding-top:16px}
+</style>
+
+<div class="wrap">
+
+  <header class="hero">
+    <svg viewBox="0 0 120 120" aria-hidden="true">
+      <defs>
+        <linearGradient id="back" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6aa0ff"/><stop offset="1" stop-color="#6a5cf5"/></linearGradient>
+        <linearGradient id="front" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#cfe0ff" stop-opacity=".75"/><stop offset=".8" stop-color="#c9ccff" stop-opacity=".7"/><stop offset="1" stop-color="#ffffff" stop-opacity=".95"/></linearGradient>
+        <filter id="glow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="6"/></filter>
+      </defs>
+      <path d="M22 30a6 6 0 0 1 6-6h24a4 4 0 0 1 3.6 2.3l2.2 4.6a4 4 0 0 0 3.6 2.3H92a6 6 0 0 1 6 6v46a6 6 0 0 1-6 6H28a6 6 0 0 1-6-6z" fill="url(#back)" filter="url(#glow)" opacity=".55"/>
+      <path d="M22 30a6 6 0 0 1 6-6h24a4 4 0 0 1 3.6 2.3l2.2 4.6a4 4 0 0 0 3.6 2.3H92a6 6 0 0 1 6 6v46a6 6 0 0 1-6 6H28a6 6 0 0 1-6-6z" fill="url(#back)"/>
+      <path d="M38 50a6 6 0 0 1 5.8-4.6H100a4 4 0 0 1 3.9 4.9L95 90a6 6 0 0 1-5.8 4.6H30a4 4 0 0 1-3.9-4.9z" fill="url(#front)" stroke="#fff" stroke-opacity=".8"/>
+    </svg>
+    <div class="hero-text">
+      <span class="eyebrow">Development plan · drafted 3 Nov 2026</span>
+      <h1>GlassFolders</h1>
+      <p class="muted">Phone-style app folders that live on the real Windows 11 desktop, open as Liquid Glass popups, recover from Explorer restarts and stay nearly idle when you are not using them.</p>
+      <div class="facts">
+        <span class="chip">C# · .NET 10 WPF</span>
+        <span class="chip">Windows 11 25H2</span>
+        <span class="chip">9 phases → v1.0.0</span>
+        <span class="chip">Target &lt; 100 MB idle</span>
+      </div>
+    </div>
+  </header>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">Priority order from the brief</span><h2>What matters most</h2></div>
+    <ol class="prio">
+      <li>Genuine desktop integration</li>
+      <li>Explorer crash and restart recovery</li>
+      <li>Multi-monitor support</li>
+      <li>Portable backup and restore</li>
+      <li>Liquid Glass interface</li>
+      <li>Configurable animations</li>
+      <li>Very low resource use</li>
+      <li>Startup, tray and releases</li>
+    </ol>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">Inspected 3 Nov 2026</span><h2>Starting point</h2></div>
+    <div class="tbl"><table>
+      <thead><tr><th>Item</th><th>Finding</th><th>What it means</th></tr></thead>
+      <tbody>
+        <tr><td>Project folder</td><td>Only <code>Referance\</code> with 4 images. No code, no Git repo.</td><td>Starts from scratch. <code>git init</code> and connect the remote in Phase 1.</td></tr>
+        <tr><td>GitHub repo</td><td><code>Riekie3/Folder-Organizer</code> exists and is empty. <code>gh</code> is signed in.</td><td>First push creates <code>main</code>. Releases can be published from here.</td></tr>
+        <tr><td>.NET SDKs</td><td>6.0.428 and 10.0.403</td><td>Target .NET 10, the current long-term support release.</td></tr>
+        <tr><td>Windows</td><td>11 25H2, build 26200</td><td>Desktop window layout changed in 24H2. Older desktop-overlay tricks don't apply, so Phase 1 tests on this build.</td></tr>
+        <tr><td>Monitors</td><td>1 screen, 1536×864 logical (likely 1920×1080 at 125%)</td><td>2–3 monitor tests need another screen or a virtual display.</td></tr>
+        <tr><td>Installer tool</td><td>Inno Setup not installed</td><td>Install with winget in Phase 9 and in GitHub Actions.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">From the Referance folder</span><h2>Design language</h2></div>
+    <div class="refs">
+      <div class="ref"><h3>Desktop + Work popup</h3><p class="muted">Folders sit in the icon column next to This PC. Hovered folder gets a frosted tile. Popup: large frosted panel, title row with expand and close, 4×2 grid of real app icons, page dots.</p></div>
+      <div class="ref"><h3>Glass folder icon</h3><p class="muted">Blue-to-violet back plate with a frosted see-through front flap and soft glow. Becomes the default folder icon, recolourable per folder.</p></div>
+      <div class="ref"><h3>Start-menu panels</h3><p class="muted">Tall glass panels, pill search box, segmented view switch, glass toggles. Pattern library for the Settings window.</p></div>
+      <div class="ref"><h3>3×4 icon grid</h3><p class="muted">Rounded icon tiles; hover shows a lighter rounded plate behind the item. Used for item hover inside popups.</p></div>
+    </div>
+    <div class="tokens">
+      <span class="chip">Radius 8 / 16 / 28</span>
+      <span class="chip">1px white rim at 22–35%</span>
+      <span class="chip">Blue tint #3B6FE0 at 10–25%</span>
+      <span class="chip">Segoe UI Variable</span>
+      <span class="chip">Motion 120 / 200 / 320 ms</span>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">Architecture</span><h2>Key technical decisions</h2></div>
+    <div class="tbl"><table>
+      <thead><tr><th>Area</th><th>Decision</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>Desktop layer</td><td><b>Primary:</b> each folder is a small borderless window owned by the desktop (Progman), kept at the bottom of the stack, hidden from taskbar and Alt-Tab. <b>Fallback:</b> child of the desktop icon view. Picked by PoC results, both behind one <code>IDesktopHost</code> interface.</td><td>Stays under app windows, survives Win+D, never hides your real desktop icons, no "always on top" hack.</td></tr>
+        <tr><td>Hosting</td><td>One small window per folder, not one full-screen overlay.</td><td>A full-screen overlay would block desktop icon clicks.</td></tr>
+        <tr><td>Glass</td><td>Popup and Settings use Windows' own Acrylic backdrop (DWM). Desktop tiles use a static gradient and rim, no live blur. Solid fallback when transparency is off.</td><td>Windows does the blur on the GPU; nothing runs while idle.</td></tr>
+        <tr><td>Explorer watch</td><td><code>TaskbarCreated</code> message, a wait handle on the Explorer process, and a WinEvent hook on the desktop window. No polling.</td><td>Event-driven, near-zero idle cost.</td></tr>
+        <tr><td>Monitor identity</td><td>Display device path + EDID IDs from <code>QueryDisplayConfig</code>. Screen order is never saved.</td><td>Screen order changes after reboot or reconnect.</td></tr>
+        <tr><td>Positions</td><td>Stored per monitor as fractions of the work area plus DPI info, clamped on change.</td><td>Survives resolution, scaling and rotation changes.</td></tr>
+        <tr><td>Icons</td><td>Shell image factory up to 256 px, cached as PNG on disk, loaded only when a popup opens.</td><td>Real icons, including Store apps; fast reopen.</td></tr>
+        <tr><td>Launching</td><td>Opens the original <code>.lnk</code> / <code>.url</code> when the item came from a shortcut; Store apps via <code>shell:AppsFolder</code>.</td><td>Keeps arguments, working folder and run-as settings.</td></tr>
+        <tr><td>Storage</td><td>JSON in <code>%APPDATA%\GlassFolders</code>, atomic writes, schema version + migrations, rolling backups.</td><td>A crash mid-save can't corrupt your layout.</td></tr>
+        <tr><td>Tray &amp; startup</td><td>Own tray icon wrapper, <code>HKCU\…\Run</code> with <code>--tray</code>, single-instance mutex.</td><td>No admin rights, no Windows service.</td></tr>
+        <tr><td>Dependencies</td><td>None at runtime beyond .NET itself. xUnit for tests.</td><td>Low memory, nothing extra to update.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">Build sequence</span><h2>Nine phases</h2>
+      <p class="muted">Every phase ends with a green build, passing tests, a DEVLOG entry and a push to GitHub. Commits go up during the phase, not in one batch at the end.</p></div>
+    <div class="phases">
+
+      <article class="phase"><div class="num">1</div><div class="phase-body">
+        <div class="phase-top"><h3>Desktop integration proof of concept</h3><span class="tag">v0.1.0-poc</span><span class="tag">Size M</span><span class="model m-opus">Opus 5.5 · xhigh</span></div>
+        <ul>
+          <li>Git init, <code>.gitignore</code>, README, PLAN, DEVLOG; first push to <code>main</code>.</li>
+          <li>Solution skeleton: Core, Native, App, Tests on <code>net10.0-windows</code>, per-monitor DPI manifest.</li>
+          <li>Probe tool that maps the 25H2 desktop window tree and records it in ARCHITECTURE.md.</li>
+          <li>Build both desktop-host options behind <code>IDesktopHost</code>; plain draggable test tile.</li>
+          <li>Test: icons still clickable, stays behind apps, Win+D / Win+M / Task View / virtual desktops, taskbar untouched, position persists, Explorer kill + restart, DPI 100/125/150%.</li>
+        </ul>
+        <p class="exit stop"><b>Stop</b>Report results and the chosen approach before Phase 2.</p>
+      </div></article>
+
+      <article class="phase"><div class="num">2</div><div class="phase-body">
+        <div class="phase-top"><h3>Core desktop organizer</h3><span class="tag">v0.2.0</span><span class="tag">Size L</span><span class="model m-sonnet">Sonnet 5.5 · high</span></div>
+        <ul>
+          <li>Models and configuration manager with atomic writes, debounced saves and corrupt-file recovery.</li>
+          <li>Folder create, rename, delete, hide, reorder. Deleting a folder never touches the real files.</li>
+          <li>Shortcut handling for exe, lnk, url, files, folders and Store apps.</li>
+          <li>Single reusable popup: grid, adjustable columns, paging, closes on Esc, outside click, ✕ or opening another folder; kept inside the monitor work area.</li>
+          <li>Add items four ways: drop on popup, drop desktop shortcut on folder, Add Application, file picker. Drag to reorder.</li>
+          <li>Folder right-click menu (all 9 entries) and item menu. Lazy icon cache.</li>
+        </ul>
+        <p class="exit"><b>Done when</b>20+ mixed items launch correctly and survive an app restart.</p>
+      </div></article>
+
+      <article class="phase"><div class="num">3</div><div class="phase-body">
+        <div class="phase-top"><h3>Liquid Glass interface</h3><span class="tag">v0.3.0</span><span class="tag">Size L</span><span class="model m-opus">Opus 5.5 · high</span></div>
+        <ul>
+          <li>Design tokens file; Light, Dark and Follow Windows themes.</li>
+          <li>Vector glass folder icon with recolourable plate and category glyph; custom image option; optional 2×2 app preview.</li>
+          <li>Desktop tile hover state, popup with acrylic, tint, rim and gloss, header, page dots, resize grip.</li>
+          <li>Settings window with glass sidebar and all pages; folder editor dialog.</li>
+          <li>Live-preview appearance sliders; high-contrast and no-transparency fallback.</li>
+          <li>Readability screenshots on light, dark, busy and solid wallpapers.</li>
+        </ul>
+        <p class="exit"><b>Done when</b>You approve side-by-side screenshots against the main reference image.</p>
+      </div></article>
+
+      <article class="phase"><div class="num">4</div><div class="phase-body">
+        <div class="phase-top"><h3>Tray, startup and Explorer recovery</h3><span class="tag">v0.4.0</span><span class="tag">Size M</span><span class="model m-opus">Opus 5.5 · high</span></div>
+        <ul>
+          <li>Single instance; tray icon with the 7-item menu; no taskbar button.</li>
+          <li>Start with Windows, start in tray, optional delay, waits for the desktop shell.</li>
+          <li>Ordered clean exit that releases every hook, handle and the tray icon; intentional exit stops recovery.</li>
+          <li>Recovery state machine with backoff, timeout, duplicate-window guard and a "Recover now" button.</li>
+          <li>Sleep/resume and lock/unlock re-checks; rolling diagnostic log.</li>
+          <li>Script that restarts Explorer 10 times and checks the window count.</li>
+        </ul>
+        <p class="exit"><b>Done when</b>Explorer recovery and startup/tray checklists pass.</p>
+      </div></article>
+
+      <article class="phase"><div class="num">5</div><div class="phase-body">
+        <div class="phase-top"><h3>Multi-monitor support</h3><span class="tag">v0.5.0</span><span class="tag">Size M</span><span class="model m-opus">Opus 5.5 · high</span></div>
+        <ul>
+          <li>Monitor service reacting to display, DPI and work-area change messages.</li>
+          <li>Layouts keyed per monitor; folders from a missing screen move to a fallback but their home layout is never overwritten.</li>
+          <li>Folders return home when the screen reconnects.</li>
+          <li>Move to Monitor, duplicate layout, restore defaults, choose where new folders appear.</li>
+          <li>Unit tests with simulated 1, 2 and 3 monitor setups, reorders and primary swaps.</li>
+        </ul>
+        <p class="exit"><b>Done when</b>Multi-monitor checklist passes; items needing extra screens are marked.</p>
+      </div></article>
+
+      <article class="phase"><div class="num">6</div><div class="phase-body">
+        <div class="phase-top"><h3>Portable backup and restore</h3><span class="tag">v0.6.0</span><span class="tag">Size M</span><span class="model m-sonnet">Sonnet 5.5 · high</span></div>
+        <ul>
+          <li>Export ZIP with manifest, settings, folders, layouts, icons and metadata. No executables.</li>
+          <li>Safe extraction: blocks absolute paths, <code>..</code>, oversize and unknown files; checks checksums.</li>
+          <li>Import preview with Replace / Merge / Cancel; automatic backup before Replace.</li>
+          <li>Missing-path relinking with suggestions and "apply to N similar items"; missing items kept with a warning badge.</li>
+          <li>Monitor mapping dialog; automatic backups, custom location, restore from list.</li>
+        </ul>
+        <p class="exit"><b>Done when</b>Export, wipe, import round trip restores everything.</p>
+      </div></article>
+
+      <article class="phase"><div class="num">7</div><div class="phase-body">
+        <div class="phase-top"><h3>Animation control system</h3><span class="tag">v0.7.0</span><span class="tag">Size S–M</span><span class="model m-sonnet">Sonnet 5.5 · medium</span></div>
+        <ul>
+          <li>Global switch, 8 category switches, Slow / Normal / Fast; follows Windows reduced motion.</li>
+          <li>Every animation goes through one helper that jumps straight to the end state when disabled.</li>
+          <li>Open/close, transitions, hover, icon press, drag ghost, settings pages, decorative shimmer (never looping).</li>
+          <li>Animation settings page with reset; verify zero running timers when idle or off.</li>
+        </ul>
+        <p class="exit"><b>Done when</b>Animation checklist passes with everything still usable when off.</p>
+      </div></article>
+
+      <article class="phase"><div class="num">8</div><div class="phase-body">
+        <div class="phase-top"><h3>Performance and stability</h3><span class="tag">v0.9.0-rc</span><span class="tag">Size S–M</span><span class="model m-sonnet">Sonnet 5.5 · high</span><span class="model m-opus">Opus if leaks</span></div>
+        <ul>
+          <li>Measurement script: CPU, memory, GPU over 10 minutes idle with 0, 5 and 20 folders.</li>
+          <li>Targets: ~0% idle CPU, under 100 MB, popup under 100 ms warm, folders visible under 1.5 s after start.</li>
+          <li>8-hour soak and 100 Explorer restarts with no handle growth.</li>
+          <li>Results in PERFORMANCE.md.</li>
+        </ul>
+      </div></article>
+
+      <article class="phase"><div class="num">9</div><div class="phase-body">
+        <div class="phase-top"><h3>Release and packaging</h3><span class="tag">v1.0.0</span><span class="tag">Size S</span><span class="model m-sonnet">Sonnet 5.5 · medium</span></div>
+        <ul>
+          <li>One version number for app, installer, tag and About screen.</li>
+          <li>Inno Setup: per-user install, no admin, startup option, .NET runtime check, keeps settings on upgrade, asks before removing data on uninstall.</li>
+          <li>GitHub Actions build/test on push; tag builds a <b>draft</b> release with installer and SHA256SUMS.</li>
+          <li>User guide, backup guide, architecture, known issues, changelog. Full acceptance run, then publish v1.0.0.</li>
+        </ul>
+      </div></article>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">Which model, which effort</span><h2>Model recommendation</h2></div>
+    <div class="reco">
+      <div class="reco-card opus">
+        <span class="eyebrow">Switching per phase</span>
+        <span class="big">Opus 5.5 for phases 1, 3, 4, 5</span>
+        <p>Undocumented Windows behaviour, visual judgement, recovery race conditions and multi-monitor edge cases. Phase 1 at xhigh, the rest at high.</p>
+      </div>
+      <div class="reco-card sonnet">
+        <span class="eyebrow">Switching per phase</span>
+        <span class="big">Sonnet 5.5 for phases 2, 6, 7, 8, 9</span>
+        <p>Well-specified, testable work. High effort for 2, 6 and 8; medium for 7 and 9. Move Phase 8 to Opus if a leak needs diagnosing.</p>
+      </div>
+      <div class="reco-card opus">
+        <span class="eyebrow">Not switching</span>
+        <span class="big">Opus 5.5 at high throughout</span>
+        <p>Use xhigh for Phase 1 only. Run one session per phase; each starts by reading PLAN.md and DEVLOG.md.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">Risks</span><h2>What could go wrong</h2></div>
+    <div class="tbl"><table>
+      <thead><tr><th>Risk</th><th>Likelihood</th><th>Mitigation</th></tr></thead>
+      <tbody>
+        <tr><td>Desktop-owned window misbehaves on 25H2</td><td>Medium</td><td>Fallback host tested in the PoC; z-order guard.</td></tr>
+        <tr><td>A Windows update changes the desktop layout</td><td>Medium</td><td>All undocumented code isolated in one host class; probe tool; documented in Known Issues.</td></tr>
+        <tr><td>Acrylic glitches in WPF (black flash, resize artefacts)</td><td>Medium</td><td>Pre-create popup hidden; set backdrop before first show; solid fallback.</td></tr>
+        <tr><td>Memory over 100 MB</td><td>Low–Medium</td><td>Lazy icons decoded at display size; release popup visuals when closed.</td></tr>
+        <tr><td>Can't test 2–3 monitors here</td><td>High</td><td>Simulated topology tests; virtual display driver or a second screen.</td></tr>
+        <tr><td>.NET runtime missing on another PC</td><td>Medium</td><td>Installer checks and installs it, or ship self-contained.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="eyebrow">Open questions</span><h2>Decisions needed before building</h2></div>
+    <div class="decisions">
+      <div class="dec"><span class="id">D1</span><p><b>Multi-monitor testing.</b> Use a virtual display driver for now, or will you test on a PC with more screens?</p></div>
+      <div class="dec"><span class="id">D2</span><p><b>Installer size.</b> <span class="rec">Recommended:</span> small installer (~5 MB) that fetches .NET 10 if missing. Alternative: ~70 MB self-contained, no prerequisites.</p></div>
+      <div class="dec"><span class="id">D3</span><p><b>Desktop shortcut dropped into a folder.</b> Leave the original on the desktop (brief default), or add an opt-in setting that moves it into GlassFolders storage?</p></div>
+      <div class="dec"><span class="id">D4</span><p><b>Branching.</b> <span class="rec">Recommended:</span> one branch per phase, merged into <code>main</code>. Alternative: commit straight to <code>main</code>.</p></div>
+      <div class="dec"><span class="id">D5</span><p><b>License.</b> MIT, all rights reserved, or something else?</p></div>
+    </div>
+  </section>
+
+  <footer>Source: <code>D:\Rie\Claude\Folder Organizer\PLAN.md</code> · Repo: github.com/Riekie3/Folder-Organizer · Nothing built, committed or pushed yet.</footer>
+</div>
