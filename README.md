@@ -2,7 +2,7 @@
 
 Phone-style app folders on your real Windows 11 desktop, with a Liquid Glass popup.
 
-> **Status: planning.** No application code exists yet. The image below is a concept mockup, not a screenshot of working software.
+> **Status: Phase 1 (proof of concept) done.** Folders can live on the real Windows 11 desktop, survive Show desktop and Explorer restarts, and stay behind app windows. See [DEVLOG.md](DEVLOG.md). The image below is still a concept mockup, not a screenshot of the finished app.
 
 ![GlassFolders concept mockup](docs/screenshot-concept.png)
 
@@ -45,8 +45,23 @@ Full details are in [PLAN.md](PLAN.md).
 
 None yet. Stable installers will be published on the [Releases page](https://github.com/Riekie3/Folder-Organizer/releases).
 
+## Building
+
+Requires Windows 11 and the .NET 10 SDK.
+
+```
+dotnet build GlassFolders.sln
+dotnet test tests/GlassFolders.Core.Tests
+src\GlassFolders.App\bin\Debug\net10.0-windows\GlassFolders.exe
+```
+
+Right-click a folder → **Exit GlassFolders PoC** to close it.
+
 ## Repository layout
 
-- `PLAN.md` – detailed development plan
-- `docs/` – plan page and concept mockup source
+- `src/` – Core (logic and storage), Native (Win32), App (WPF)
+- `tests/` – unit tests
+- `tools/` – `DesktopProbe` (maps the Explorer desktop) and `PocVerifier` (automated desktop checks)
+- `docs/` – architecture, known issues, plan page, mockup
+- `PLAN.md` – detailed development plan · `DEVLOG.md` – progress and test results
 - `Referance/` – visual reference images used for the design

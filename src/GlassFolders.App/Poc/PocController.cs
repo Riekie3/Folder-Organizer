@@ -59,6 +59,7 @@ public sealed class PocController : IDisposable
     public void Start()
     {
         Log($"START host={_host.Name} pid={Environment.ProcessId}");
+        FolderTile.Trace = Log;
         if (!_host.RefreshDesktop())
         {
             Log("Desktop not ready at startup; waiting");

@@ -94,6 +94,7 @@ void Interactive()
 
     WinD();
     Pump(1200);
+    if (Arg("shot") is { } shot) Screenshot(shot);
     var tiles = TileHandles(pid);
     foreach (var h in tiles)
     {
@@ -128,11 +129,12 @@ void Interactive()
     Pump(800);
     Check("Esc closes the popup", LogSince(logPos).Contains("POPUP-CLOSED work") && FindWindow(null, "GlassFolders – Work") == 0);
 
-    // Outside click closes it.
+    // Outside click closes it: pick a spot on the bare desktop that neither the popup nor any folder covers.
     Click(Win32.Rect(TileById(pid, "work")).Center);
     Pump(1000);
+    var outside = BareDesktopPoint(pid, d.ListView);
     logPos = LogLength();
-    Click(free);
+    Click(outside);
     Pump(800);
     Check("clicking outside closes the popup", LogSince(logPos).Contains("POPUP-CLOSED work") && FindWindow(null, "GlassFolders – Work") == 0);
 
@@ -244,6 +246,19 @@ static List<nint> TileHandles(uint pid)
     return found;
 }
 
+// A point where Explorer's icon view is what the user would click (scans the primary work area).
+static POINT BareDesktopPoint(uint pid, nint listView)
+{
+    var work = Win32.PrimaryWorkArea();
+    for (int fy = 5; fy >= 1; fy--)
+        for (int fx = 4; fx <= 6; fx++)
+        {
+            var p = new POINT(work.Left + work.Width * fx / 10, work.Top + work.Height * fy / 6);
+            if (WindowFromPoint(p) == listView) return p;
+        }
+    return new POINT(work.Left + work.Width / 2, work.Bottom - 40);
+}
+
 static nint TileById(uint pid, string id) => TileHandles(pid).First(h => Win32.Text(h) == "GlassFolders.Tile." + id);
 
 // Returns visible foreign windows between tile and Progman in z-order, or null if Progman isn't below the tile.
@@ -260,6 +275,19 @@ static List<nint>? VisibleWindowsBetween(nint tile, nint progman, uint pid)
         list.Add(w);
     }
     return null;
+}
+
+// Full-screen capture through Windows PowerShell (System.Drawing), made DPI-aware so it grabs real pixels.
+static void Screenshot(string path)
+{
+    path = Path.GetFullPath(path);
+    Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+    string ps = "Add-Type -Name D -Namespace W -MemberDefinition '[DllImport(\"user32.dll\")] public static extern bool SetProcessDPIAware();';" +
+                "[W.D]::SetProcessDPIAware() | Out-Null; Add-Type -AssemblyName System.Windows.Forms,System.Drawing;" +
+                "$b=[System.Windows.Forms.SystemInformation]::VirtualScreen; $bmp=New-Object System.Drawing.Bitmap $b.Width,$b.Height;" +
+                "$g=[System.Drawing.Graphics]::FromImage($bmp); $g.CopyFromScreen($b.Left,$b.Top,0,0,$b.Size);" +
+                $"$bmp.Save('{path}',[System.Drawing.Imaging.ImageFormat]::Png)";
+    Process.Start(new ProcessStartInfo("powershell.exe", $"-NoProfile -Command \"{ps.Replace("\"", "\\\"")}\"") { UseShellExecute = false, CreateNoWindow = true })!.WaitForExit(15000);
 }
 
 static void Pump(int ms)

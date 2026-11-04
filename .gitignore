@@ -9,3 +9,6 @@ artifacts/
 .idea/
 .vscode/
 TestResults/
+
+# PoC screenshots show the developer's real desktop; keep them local
+docs/poc/

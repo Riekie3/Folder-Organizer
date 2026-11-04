@@ -29,6 +29,9 @@ public partial class FolderTile : UserControl
     }
 
     public string Id { get; }
+
+    /// <summary>Optional diagnostic sink for input events.</summary>
+    public static Action<string>? Trace;
     public bool IsOpen { get; private set; }
 
     /// <summary>Provides the current screen rect of the hosting window.</summary>
@@ -52,7 +55,8 @@ public partial class FolderTile : UserControl
         _pressRect = GetScreenRect?.Invoke() ?? default;
         _pressed = true;
         _dragging = false;
-        CaptureMouse();
+        bool captured = CaptureMouse();
+        Trace?.Invoke($"DOWN {Id} captured={captured} clicks={e.ClickCount}");
         e.Handled = true;
     }
 
@@ -62,16 +66,20 @@ public partial class FolderTile : UserControl
         GetCursorPos(out var now);
         int dx = now.X - _pressCursor.X, dy = now.Y - _pressCursor.Y;
         if (!_dragging && Math.Abs(dx) + Math.Abs(dy) < DragThreshold) return;
+        if (!_dragging) Trace?.Invoke($"DRAG-START {Id}");
         _dragging = true;
         DragMoved?.Invoke(this, _pressRect.Left + dx, _pressRect.Top + dy);
     }
 
     protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
     {
+        Trace?.Invoke($"UP {Id} pressed={_pressed} dragging={_dragging}");
         if (!_pressed) return;
+        // ReleaseMouseCapture raises LostMouseCapture synchronously, which clears the flags, so read them first.
+        bool wasDragging = _dragging;
         _pressed = false;
         ReleaseMouseCapture();
-        if (_dragging)
+        if (wasDragging)
         {
             var r = GetScreenRect?.Invoke() ?? default;
             DragEnded?.Invoke(this, r.Left, r.Top);
@@ -86,6 +94,7 @@ public partial class FolderTile : UserControl
 
     protected override void OnLostMouseCapture(MouseEventArgs e)
     {
+        Trace?.Invoke($"LOST-CAPTURE {Id} pressed={_pressed} dragging={_dragging}");
         _pressed = false;
         _dragging = false;
     }
