@@ -2,52 +2,76 @@ using System.IO;
 using System.Windows;
 using GlassFolders.App.Desktop;
 using GlassFolders.App.Poc;
+using GlassFolders.App.Services;
 
 namespace GlassFolders.App;
 
 /// <summary>
-/// Application entry point. Command line:
-///   --host=owned | child-defview | child-progman   desktop integration strategy (default owned)
-///   --reset                                        forget saved positions
+/// Application entry point and lifecycle manager.
+/// Supports SingleInstance IPC, system tray mode, and graceful shutdown.
 /// </summary>
 public partial class App : Application
 {
-    private Mutex? _instance;
-    private EventWaitHandle? _exitSignal;
-    private RegisteredWaitHandle? _exitWait;
+    private SingleInstance? _singleInstance;
     private PocController? _poc;
 
     public App()
     {
         DispatcherUnhandledException += (s, e) =>
         {
-            LogCrash("DispatcherUnhandledException", e.Exception);
+            DiagnosticService.Instance.LogError("DispatcherUnhandledException", e.Exception);
             e.Handled = false;
         };
 
         AppDomain.CurrentDomain.UnhandledException += (s, e) =>
         {
-            LogCrash("AppDomain.UnhandledException", e.ExceptionObject as Exception);
+            DiagnosticService.Instance.LogError("AppDomain.UnhandledException", e.ExceptionObject as Exception);
         };
     }
 
-    protected override void OnStartup(StartupEventArgs e)
+    protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
-        _instance = new Mutex(true, @"Local\GlassFolders.Poc.SingleInstance", out bool first);
-        if (!first)
+        _singleInstance = new SingleInstance();
+        if (!_singleInstance.IsFirstInstance)
         {
+            // Forward command to the running instance and exit
+            await SingleInstance.SendCommandAsync("SHOW_SETTINGS");
             Shutdown();
             return;
         }
 
+        // Wire IPC command listener
+        _singleInstance.CommandReceived += cmd =>
+        {
+            Dispatcher.BeginInvoke(() =>
+            {
+                if (cmd == "SHOW_SETTINGS")
+                {
+                    _poc?.OpenSettings();
+                }
+                else if (cmd.StartsWith("PAGE:"))
+                {
+                    _poc?.OpenSettings(cmd["PAGE:".Length..]);
+                }
+            });
+        };
+
+        _singleInstance.ExitRequested += () =>
+        {
+            Dispatcher.BeginInvoke(() => Shutdown());
+        };
+
+        bool isTrayMode = e.Args.Contains("--tray");
         string? hostArg = e.Args.FirstOrDefault(a => a.StartsWith("--host="))?["--host=".Length..];
         bool reset = e.Args.Contains("--reset");
 
-        // Lets tools (and later the installer) ask a running instance to exit cleanly.
-        _exitSignal = new EventWaitHandle(false, EventResetMode.AutoReset, @"Local\GlassFolders.Poc.Exit");
-        _exitWait = ThreadPool.RegisterWaitForSingleObject(_exitSignal, (_, _) => Dispatcher.BeginInvoke(() => Shutdown()), null, Timeout.Infinite, true);
+        if (isTrayMode)
+        {
+            DiagnosticService.Instance.LogInfo("GlassFolders started in --tray mode. Waiting for Windows shell...");
+            await StartupService.WaitForShellReadyAsync();
+        }
 
         try
         {
@@ -56,8 +80,8 @@ public partial class App : Application
         }
         catch (Exception ex)
         {
-            LogCrash("StartupException", ex);
-            MessageBox.Show($"GlassFolders failed to start:\n\n{ex.Message}\n\nSee %LOCALAPPDATA%\\GlassFolders\\poc\\crash.log for details.",
+            DiagnosticService.Instance.LogError("StartupException", ex);
+            MessageBox.Show($"GlassFolders failed to start:\n\n{ex.Message}\n\nSee %LOCALAPPDATA%\\GlassFolders\\logs for details.",
                 "GlassFolders Error", MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown();
         }
@@ -66,23 +90,7 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         _poc?.Dispose();
-        _exitWait?.Unregister(null);
-        _exitSignal?.Dispose();
-        _instance?.Dispose();
+        _singleInstance?.Dispose();
         base.OnExit(e);
-    }
-
-    private static void LogCrash(string context, Exception? ex)
-    {
-        if (ex is null) return;
-        string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GlassFolders", "poc");
-        try
-        {
-            Directory.CreateDirectory(dir);
-            string log = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] {context}: {ex}\n";
-            File.AppendAllText(Path.Combine(dir, "crash.log"), log);
-            File.AppendAllText(Path.Combine(dir, "poc.log"), log);
-        }
-        catch { }
     }
 }

@@ -110,3 +110,23 @@ Branch `phase/3-liquid-glass`.
 - Solution builds with 0 warnings and 0 errors (`dotnet build -c Release -warnaserror`).
 - 25/25 unit tests passing.
 
+
+---
+
+## Phase 4 — Windows integration & Explorer recovery (2026-11-07) · `v0.4.0`
+
+Branch `phase/4-integration-recovery`.
+
+### Done
+- `Services/SingleInstance.cs`: Enforced single-instance via named mutex (`Local\GlassFolders.SingleInstance`) and bidirectional local Named Pipe IPC (`GlassFolders.IpcPipe`). Secondary launches communicate with the primary instance to focus settings without duplicate instances. Support for `Local\GlassFolders.Exit` graceful exit signal.
+- `Services/TrayService.cs` & `GlassFolders.Native/TrayNative.cs`: Pure Win32 `Shell_NotifyIconW` implementation with custom 32-bit ARGB glossy folder icon (including amber paused badge variant). Glass tray context menu with the 7 items (New Folder, Show/Hide Desktop Folders, Pause GlassFolders, Settings, Explorer Recovery / Recover Now, About, Exit). Recreates icon automatically on `TaskbarCreated` broadcast. Zero taskbar button presence.
+- `Services/StartupService.cs`: Manages `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` entry with `--tray` argument. Implemented `WaitForShellReadyAsync` to ensure the Windows shell (Progman & Taskbar) is initialized before attaching tiles at boot.
+- `Services/ExplorerRecoveryService.cs`: Full recovery state machine (`Healthy -> ShellLost -> WaitingForShell -> Reattaching -> Verifying -> Healthy | Failed`). Handles Explorer crashes/restarts, session locks/unlocks (`WTSRegisterSessionNotification`), and sleep/resumes (`WM_POWERBROADCAST`) with exponential backoff (250 ms -> 8 s, max 2 min) and verification.
+- `Services/DiagnosticService.cs`: Thread-safe rolling diagnostic logger keeping up to 5 × 1 MB files under `%LOCALAPPDATA%\GlassFolders\logs`.
+- Pause Mode vs. Hide-All Mode: Separate toggles for hiding desktop surfaces visually vs. full pause mode which deallocates active resources and suspends hooks.
+- `UI/SettingsWindow.xaml`: Added "Explorer Recovery" page with live status badge, last event timestamp, reattach counter, "Recover Now" button, and logs viewer integration.
+- `tests/manual/restart-explorer.ps1`: Automated stress testing script looping Explorer restarts and verifying desktop window counts using Win32 `EnumWindows`.
+
+### Test results
+- 26/26 unit tests pass in `GlassFolders.Core.Tests`.
+- Release build clean with 0 warnings and 0 errors (`-warnaserror`).

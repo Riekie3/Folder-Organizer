@@ -93,6 +93,26 @@ public sealed class ConfigurationManagerTests : IDisposable
     }
 
     [Fact]
+    public void AppSettings_supports_startup_and_logging_options()
+    {
+        var settings = new AppSettings
+        {
+            StartWithWindows = true,
+            StartupDelaySeconds = 10,
+            LogLevel = "Debug",
+            CheckMissingTargets = false
+        };
+
+        _configManager.SaveSettings(settings);
+        var loaded = _configManager.LoadSettings();
+
+        Assert.True(loaded.StartWithWindows);
+        Assert.Equal(10, loaded.StartupDelaySeconds);
+        Assert.Equal("Debug", loaded.LogLevel);
+        Assert.False(loaded.CheckMissingTargets);
+    }
+
+    [Fact]
     public void Corrupted_folders_json_falls_back_to_bak()
     {
         var config1 = ConfigurationManager.CreateDefaultFolders();

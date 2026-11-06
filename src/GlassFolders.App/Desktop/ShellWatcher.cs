@@ -8,8 +8,9 @@ namespace GlassFolders.App.Desktop;
 /// Event-driven Explorer watch (no polling):
 ///  - "TaskbarCreated" broadcast: Explorer finished (re)creating the shell.
 ///  - WinEvent EVENT_OBJECT_DESTROY scoped to Explorer's process: the Progman window went away.
+///  - WM_WTSSESSION_CHANGE: session lock / unlock detection.
+///  - WM_POWERBROADCAST: system sleep / resume detection.
 /// A hidden top-level window is used because broadcasts are not delivered to message-only windows.
-/// Phase 1 minimal version; the full ExplorerRecoveryService replaces it in Phase 4.
 /// </summary>
 public sealed class ShellWatcher : IDisposable
 {
@@ -18,9 +19,11 @@ public sealed class ShellWatcher : IDisposable
     private readonly WinEventProc _winEventProc; // keep delegate alive for the native hook
     private nint _hook;
     private nint _watchedProgman;
+    private bool _sessionRegistered;
 
     public event Action? ShellLost;
     public event Action? ShellReady;
+    public event Action? SystemResumed;
 
     /// <summary>Messages the hidden window receives that other services may care about (display/settings changes).</summary>
     public event Action<uint>? SystemMessage;
@@ -38,6 +41,12 @@ public sealed class ShellWatcher : IDisposable
         };
         _window = new HwndSource(p);
         _window.AddHook(WndProc);
+
+        try
+        {
+            _sessionRegistered = WTSRegisterSessionNotification(_window.Handle, NOTIFY_FOR_THIS_SESSION);
+        }
+        catch { }
     }
 
     public nint Handle => _window.Handle;
@@ -63,13 +72,42 @@ public sealed class ShellWatcher : IDisposable
 
     private nint WndProc(nint hwnd, int msg, nint wParam, nint lParam, ref bool handled)
     {
-        if ((uint)msg == _taskbarCreated) ShellReady?.Invoke();
-        else if ((uint)msg is WM_DISPLAYCHANGE or WM_SETTINGCHANGE or WM_DPICHANGED) SystemMessage?.Invoke((uint)msg);
+        uint uMsg = (uint)msg;
+        if (uMsg == _taskbarCreated)
+        {
+            ShellReady?.Invoke();
+        }
+        else if (uMsg == WM_WTSSESSION_CHANGE)
+        {
+            if ((uint)wParam == WTS_SESSION_UNLOCK)
+            {
+                SystemResumed?.Invoke();
+            }
+        }
+        else if (uMsg == WM_POWERBROADCAST)
+        {
+            uint powerEvent = (uint)wParam;
+            if (powerEvent is PBT_APMRESUMEAUTOMATIC or PBT_APMRESUMESUSPEND)
+            {
+                SystemResumed?.Invoke();
+            }
+        }
+        else if (uMsg is WM_DISPLAYCHANGE or WM_SETTINGCHANGE or WM_DPICHANGED)
+        {
+            SystemMessage?.Invoke(uMsg);
+        }
+
         return 0;
     }
 
     public void Dispose()
     {
+        if (_sessionRegistered && _window.Handle != 0)
+        {
+            try { WTSUnRegisterSessionNotification(_window.Handle); } catch { }
+            _sessionRegistered = false;
+        }
+
         if (_hook != 0) UnhookWinEvent(_hook);
         _hook = 0;
         _window.Dispose();
