@@ -4,10 +4,12 @@ using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
 using GlassFolders.App.Services;
+using GlassFolders.Core.Backup;
 using GlassFolders.Core.Config;
 using GlassFolders.Core.Folders;
 using GlassFolders.Core.Models;
 using GlassFolders.Native;
+using Microsoft.Win32;
 
 namespace GlassFolders.App.UI;
 
@@ -20,6 +22,7 @@ public partial class SettingsWindow : Window
     private readonly FolderManager _folderManager;
     private readonly ExplorerRecoveryService? _recoveryService;
     private readonly MonitorService? _monitorService;
+    private readonly BackupService _backupService;
     private readonly AppSettings _settings;
 
     public event Action? SettingsChanged;
@@ -36,6 +39,7 @@ public partial class SettingsWindow : Window
         _folderManager = folderManager;
         _recoveryService = recoveryService;
         _monitorService = monitorService;
+        _backupService = new BackupService();
         _settings = _configManager.LoadSettings();
 
         LoadSettingsToUi();
@@ -104,7 +108,6 @@ public partial class SettingsWindow : Window
         TxtRecoveryLastEvent.Text = $"{_recoveryService.LastEventMessage} ({_recoveryService.LastEventTime:HH:mm:ss})";
         TxtReattachCount.Text = _recoveryService.ReattachCount.ToString();
 
-        // Update badge color based on state
         switch (state)
         {
             case RecoveryState.Healthy:
@@ -130,6 +133,7 @@ public partial class SettingsWindow : Window
     private void OnNavAppearanceClicked(object sender, RoutedEventArgs e) => ShowPage("Appearance");
     private void OnNavLayoutClicked(object sender, RoutedEventArgs e) => ShowPage("Layout");
     private void OnNavRecoveryClicked(object sender, RoutedEventArgs e) => ShowPage("Recovery");
+    private void OnNavBackupClicked(object sender, RoutedEventArgs e) => ShowPage("Backup");
     private void OnNavAboutClicked(object sender, RoutedEventArgs e) => ShowPage("About");
 
     public void ShowPage(string page)
@@ -138,6 +142,7 @@ public partial class SettingsWindow : Window
         PageAppearance.Visibility = page == "Appearance" ? Visibility.Visible : Visibility.Collapsed;
         PageLayout.Visibility = page == "Layout" ? Visibility.Visible : Visibility.Collapsed;
         PageRecovery.Visibility = page == "Recovery" ? Visibility.Visible : Visibility.Collapsed;
+        PageBackup.Visibility = page == "Backup" ? Visibility.Visible : Visibility.Collapsed;
         PageAbout.Visibility = page == "About" ? Visibility.Visible : Visibility.Collapsed;
 
         TxtPageTitle.Text = page switch
@@ -145,6 +150,7 @@ public partial class SettingsWindow : Window
             "Appearance" => "Appearance & Glass Effects",
             "Layout" => "Desktop Layout & Displays",
             "Recovery" => "Explorer Recovery & Shell",
+            "Backup" => "Portable Backup & Restore",
             "About" => "About GlassFolders",
             _ => "General Settings"
         };
@@ -227,6 +233,99 @@ public partial class SettingsWindow : Window
             Process.Start(new ProcessStartInfo("explorer.exe", dir) { UseShellExecute = true });
         }
         catch { }
+    }
+
+    private void OnBtnExportBackupClicked(object sender, RoutedEventArgs e)
+    {
+        var sfd = new SaveFileDialog
+        {
+            Title = "Export Portable Backup",
+            Filter = "GlassFolders Backup (*.zip)|*.zip",
+            FileName = $"GlassFolders-Backup-{DateTime.Now:yyyyMMdd}.zip"
+        };
+
+        if (sfd.ShowDialog() == true)
+        {
+            try
+            {
+                var monitorKeys = _monitorService?.Monitors.Select(m => m.Key).ToList();
+                string iconCache = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GlassFolders", "IconCache");
+                _backupService.Export(sfd.FileName, _configManager, monitorKeys, iconCache);
+                MessageBox.Show("Backup successfully exported!", "Export Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                DiagnosticService.Instance.LogError("Export backup failed", ex);
+                MessageBox.Show($"Failed to export backup:\n\n{ex.Message}", "Export Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+    }
+
+    private void OnBtnImportBackupClicked(object sender, RoutedEventArgs e)
+    {
+        var ofd = new OpenFileDialog
+        {
+            Title = "Select Backup to Restore",
+            Filter = "GlassFolders Backup (*.zip)|*.zip"
+        };
+
+        if (ofd.ShowDialog() == true)
+        {
+            try
+            {
+                var plan = ImportPlanner.CreatePlan(ofd.FileName, _folderManager);
+
+                string message = $"Backup archive contents:\n" +
+                                 $"• Total Folders: {plan.TotalFolders}\n" +
+                                 $"• Total Items: {plan.TotalItems}\n" +
+                                 $"• Created on PC: {plan.Manifest.MachineName} ({plan.Manifest.CreatedAt:yyyy-MM-dd HH:mm})\n\n" +
+                                 $"Choose an import action:\n" +
+                                 $"• Yes: Replace your existing folders completely.\n" +
+                                 $"• No: Merge imported folders into your existing setup.\n" +
+                                 $"• Cancel: Abort restore.\n\n" +
+                                 $"(A safety auto-backup of your current state will be created first.)";
+
+                var result = MessageBox.Show(message, "Restore Backup", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+                if (result == MessageBoxResult.Cancel) return;
+
+                var mode = result == MessageBoxResult.Yes ? ImportMode.Replace : ImportMode.Merge;
+                _backupService.ApplyImport(plan, mode, _configManager, _folderManager);
+
+                RefreshFoldersList();
+                MessageBox.Show("Backup successfully restored!", "Restore Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                DiagnosticService.Instance.LogError("Import backup failed", ex);
+                MessageBox.Show($"Failed to restore backup:\n\n{ex.Message}", "Restore Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+    }
+
+    private void OnBtnResetDefaultsClicked(object sender, RoutedEventArgs e)
+    {
+        var res = MessageBox.Show(
+            "Are you sure you want to reset all folders and settings to factory defaults?\n\nAn automatic safety backup will be created first.",
+            "Confirm Reset", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+
+        if (res == MessageBoxResult.Yes)
+        {
+            try
+            {
+                _backupService.CreateAutoBackup(_configManager, "reset");
+                var defaults = ConfigurationManager.CreateDefaultFolders();
+                _configManager.SaveFolders(defaults);
+                _configManager.SaveSettings(new AppSettings());
+                _folderManager.Reload();
+                RefreshFoldersList();
+                LoadSettingsToUi();
+                MessageBox.Show("Configuration reset to defaults.", "Reset Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                DiagnosticService.Instance.LogError("Reset to defaults failed", ex);
+            }
+        }
     }
 
     private void SaveSettings()

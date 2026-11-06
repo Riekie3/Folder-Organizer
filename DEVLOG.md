@@ -149,3 +149,22 @@ Branch `phase/5-multi-monitor`.
 ### Test results
 - 39/39 unit tests pass in `GlassFolders.Core.Tests`.
 - Release build clean with 0 warnings and 0 errors (`-warnaserror`).
+
+---
+
+## Phase 6 — Portable backup & restore (2026-11-07) · `v0.6.0`
+
+Branch `phase/6-backup-restore`.
+
+### Done
+- `Core/Backup/BackupManifest.cs`: Manifest schema recording application version, schema version, timestamp, machine name, monitor list, and SHA-256 checksums for each archive entry.
+- `Core/Backup/ZipSafety.cs`: Zip security validation preventing zip slip directory traversal (`..`), absolute paths, zip bombs (>50 MB / >500 entries), and disallowing executable/script file types (`.exe`, `.bat`, `.cmd`, `.dll`, `.vbs`, `.ps1`, `.scr`).
+- `Core/Backup/PathRelinker.cs`: Intelligent path recovery for items with missing targets across machines, supporting environment variable expansion (`%LOCALAPPDATA%`, `%PROGRAMFILES%`), user profile directory substitution, 32/64-bit Program Files translation, and System32 tool discovery.
+- `Core/Backup/ImportPlanner.cs`: Pre-flight backup archive inspection, checksum verification, missing target evaluation, and ID collision analysis.
+- `Core/Backup/BackupService.cs`: Portable ZIP creation with icons and manifest; automated rolling backups (max 10 kept) before any replace, merge, or reset action; Replace and Merge import modes (merging unique items for matching names and regenerating IDs on collision).
+- `UI/SettingsWindow.xaml`: Added "Backup & Restore" settings page with "Export Backup (.zip)...", "Import & Restore Backup...", and "Reset to Factory Defaults" with confirmation and automated pre-reset backup.
+- Comprehensive unit tests: `BackupRestoreTests.cs` testing full round-trip export/import, path traversal blocking, executable rejection, auto-backup rotation (max 10), merge item unioning, and PathRelinker environment variable expansion (45/45 tests passed).
+
+### Test results
+- 45/45 unit tests pass in `GlassFolders.Core.Tests`.
+- Release build clean with 0 warnings and 0 errors (`-warnaserror`).
