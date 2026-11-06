@@ -19,26 +19,38 @@ public partial class SettingsWindow : Window
     private readonly ConfigurationManager _configManager;
     private readonly FolderManager _folderManager;
     private readonly ExplorerRecoveryService? _recoveryService;
+    private readonly MonitorService? _monitorService;
     private readonly AppSettings _settings;
 
     public event Action? SettingsChanged;
     public event Action<FolderDef>? FolderCreated;
 
-    public SettingsWindow(ConfigurationManager configManager, FolderManager folderManager, ExplorerRecoveryService? recoveryService = null)
+    public SettingsWindow(
+        ConfigurationManager configManager,
+        FolderManager folderManager,
+        ExplorerRecoveryService? recoveryService = null,
+        MonitorService? monitorService = null)
     {
         InitializeComponent();
         _configManager = configManager;
         _folderManager = folderManager;
         _recoveryService = recoveryService;
+        _monitorService = monitorService;
         _settings = _configManager.LoadSettings();
 
         LoadSettingsToUi();
         RefreshFoldersList();
+        RefreshMonitorsList();
         UpdateRecoveryUi();
 
         if (_recoveryService != null)
         {
             _recoveryService.StateChanged += _ => Dispatcher.Invoke(UpdateRecoveryUi);
+        }
+
+        if (_monitorService != null)
+        {
+            _monitorService.MonitorsChanged += _ => Dispatcher.Invoke(RefreshMonitorsList);
         }
 
         SourceInitialized += (_, _) =>
@@ -72,6 +84,15 @@ public partial class SettingsWindow : Window
     {
         FoldersList.ItemsSource = null;
         FoldersList.ItemsSource = _folderManager.Folders;
+    }
+
+    private void RefreshMonitorsList()
+    {
+        if (_monitorService != null)
+        {
+            MonitorsList.ItemsSource = null;
+            MonitorsList.ItemsSource = _monitorService.Monitors;
+        }
     }
 
     private void UpdateRecoveryUi()
@@ -122,16 +143,21 @@ public partial class SettingsWindow : Window
         TxtPageTitle.Text = page switch
         {
             "Appearance" => "Appearance & Glass Effects",
-            "Layout" => "Desktop Layout & Folders",
+            "Layout" => "Desktop Layout & Displays",
             "Recovery" => "Explorer Recovery & Shell",
             "About" => "About GlassFolders",
             _ => "General Settings"
         };
 
         if (page == "Layout")
+        {
             RefreshFoldersList();
+            RefreshMonitorsList();
+        }
         else if (page == "Recovery")
+        {
             UpdateRecoveryUi();
+        }
     }
 
     private void OnGridSliderChanged(object sender, RoutedPropertyChangedEventArgs<double> e)

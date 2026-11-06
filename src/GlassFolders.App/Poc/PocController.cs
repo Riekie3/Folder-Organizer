@@ -10,6 +10,7 @@ using GlassFolders.App.Services;
 using GlassFolders.App.UI;
 using GlassFolders.Core.Config;
 using GlassFolders.Core.Folders;
+using GlassFolders.Core.Layout;
 using GlassFolders.Core.Models;
 using GlassFolders.Core.Poc;
 using GlassFolders.Native;
@@ -21,7 +22,7 @@ namespace GlassFolders.App.Poc;
 
 /// <summary>
 /// Drives the desktop organizer: manages folders on the desktop layer,
-/// launches applications/shortcuts, handles drag &amp; drop, system tray integration,
+/// multi-monitor placement and displacement, application launching, system tray integration,
 /// and automated recovery via ExplorerRecoveryService.
 /// </summary>
 public sealed class PocController : IDisposable
@@ -30,6 +31,8 @@ public sealed class PocController : IDisposable
     private readonly ShellWatcher _watcher;
     private readonly ExplorerRecoveryService _recoveryService;
     private readonly TrayService _tray;
+    private readonly MonitorService _monitorService;
+    private readonly MonitorDisplacementManager _displacementManager;
     private readonly TileLayoutStore _store;
     private readonly TileLayout _layout;
     private readonly ConfigurationManager _configManager;
@@ -65,6 +68,8 @@ public sealed class PocController : IDisposable
         _watcher = new ShellWatcher();
         _recoveryService = new ExplorerRecoveryService(Dispatcher.CurrentDispatcher);
         _tray = new TrayService();
+        _monitorService = new MonitorService();
+        _displacementManager = new MonitorDisplacementManager();
 
         // Wire recovery state machine
         _recoveryService.ReattachCallback = DoReattach;
@@ -77,6 +82,16 @@ public sealed class PocController : IDisposable
             _recoveryService.NotifyShellReady();
         };
         _watcher.SystemResumed += () => _recoveryService.NotifySystemResume();
+
+        // Wire display and monitor change events
+        _watcher.SystemMessage += msg =>
+        {
+            if (msg is WM_DISPLAYCHANGE or WM_DPICHANGED or WM_SETTINGCHANGE)
+            {
+                _monitorService.NotifyDisplayChanged();
+            }
+        };
+        _monitorService.MonitorsChanged += OnMonitorsChanged;
 
         // Wire system tray actions
         _tray.NewFolderRequested += OpenNewFolderDialog;
@@ -101,9 +116,28 @@ public sealed class PocController : IDisposable
         }
 
         CreateAllTiles();
-        _watcher.Watch(_host.Desktop!.Progman);
+        if (_host.Desktop != null)
+            _watcher.Watch(_host.Desktop.Progman);
+
         WriteState("READY");
         _recoveryService.RecordEvent("Startup complete, desktop ready");
+    }
+
+    private void OnMonitorsChanged(IReadOnlyList<MonitorDescriptor> monitors)
+    {
+        double scale = GetDpiForSystem() / 96.0;
+        int tileW = (int)(104 * scale), tileH = (int)(112 * scale);
+        _displacementManager.UpdateMonitors(monitors, tileW, tileH);
+
+        foreach (var (id, pair) in _tiles)
+        {
+            var p = _displacementManager.GetPlacement(id);
+            if (p != null)
+            {
+                _host.Move(pair.Surface, p.AbsoluteX, p.AbsoluteY);
+            }
+        }
+        WriteState("MONITORS-CHANGED");
     }
 
     public void OpenSettings(string? initialPage = null)
@@ -116,7 +150,7 @@ public sealed class PocController : IDisposable
             return;
         }
 
-        _activeSettingsWindow = new SettingsWindow(_configManager, _folderManager, _recoveryService);
+        _activeSettingsWindow = new SettingsWindow(_configManager, _folderManager, _recoveryService, _monitorService);
         _activeSettingsWindow.FolderCreated += newFolder =>
         {
             var work = Win32.PrimaryWorkArea();
@@ -211,6 +245,13 @@ public sealed class PocController : IDisposable
 
     private void CreateTile(FolderDef folder, int x, int y)
     {
+        double scale = GetDpiForSystem() / 96.0;
+        int tileW = (int)(104 * scale), tileH = (int)(112 * scale);
+
+        // Register with multi-monitor displacement manager
+        var (relX, relY) = PositionMath.ToRelative(x, y, _monitorService.PrimaryMonitor.WorkArea, tileW, tileH);
+        _displacementManager.RegisterFolder(folder.Id, _monitorService.PrimaryMonitor.Key, relX, relY, _monitorService.Monitors, tileW, tileH);
+
         Color colorA = ParseColor(folder.ColorA, Color.FromRgb(0x7F, 0xB2, 0xFF));
         Color colorB = ParseColor(folder.ColorB, Color.FromRgb(0x5B, 0x5C, 0xF2));
 
@@ -224,6 +265,7 @@ public sealed class PocController : IDisposable
         tile.DragMoved += (t, nx, ny) => _host.Move(_tiles[t.Id].Surface, nx, ny);
         tile.DragEnded += (t, nx, ny) =>
         {
+            _displacementManager.SetPosition(t.Id, nx, ny, _monitorService.Monitors, tileW, tileH);
             _layout.Set(t.Id, nx, ny);
             _store.Save(_layout);
             _folderManager.SetFolderPosition(t.Id, nx, ny);
@@ -298,6 +340,36 @@ public sealed class PocController : IDisposable
             }
         };
         menu.Items.Add(edit);
+
+        // Move to Monitor submenu
+        var moveSub = new MenuItem { Header = "Move to Monitor" };
+        foreach (var mon in _monitorService.Monitors)
+        {
+            var mItem = new MenuItem
+            {
+                Header = mon.Name,
+                IsChecked = string.Equals(_displacementManager.GetPlacement(folder.Id)?.HomeMonitorKey, mon.Key, StringComparison.OrdinalIgnoreCase)
+            };
+            mItem.Click += (_, _) =>
+            {
+                double scale = GetDpiForSystem() / 96.0;
+                int tileW = (int)(104 * scale), tileH = (int)(112 * scale);
+                if (_displacementManager.MoveToMonitor(folder.Id, mon.Key, _monitorService.Monitors, tileW, tileH))
+                {
+                    var p = _displacementManager.GetPlacement(folder.Id);
+                    if (p != null && _tiles.TryGetValue(folder.Id, out var pair))
+                    {
+                        _host.Move(pair.Surface, p.AbsoluteX, p.AbsoluteY);
+                        _layout.Set(folder.Id, p.AbsoluteX, p.AbsoluteY);
+                        _store.Save(_layout);
+                        _folderManager.SetFolderPosition(folder.Id, p.AbsoluteX, p.AbsoluteY);
+                        DiagnosticService.Instance.LogInfo($"Moved folder '{folder.Name}' to monitor '{mon.Name}' at ({p.AbsoluteX}, {p.AbsoluteY})");
+                    }
+                }
+            };
+            moveSub.Items.Add(mItem);
+        }
+        menu.Items.Add(moveSub);
 
         var settings = new MenuItem { Header = "Settings..." };
         settings.Click += (_, _) => OpenSettings();
@@ -415,6 +487,7 @@ public sealed class PocController : IDisposable
         {
             DiagnosticService.Instance.LogInfo($"Reattach complete: kept={kept}, recreated={recreated}, progman=(none)");
         }
+
         WriteState("REATTACHED");
         return true;
     }
@@ -459,10 +532,23 @@ public sealed class PocController : IDisposable
             reattachCount = _recoveryService.ReattachCount,
             recoveryState = _recoveryService.State.ToString(),
             popupOpen = _popupFor,
+            monitors = _monitorService.Monitors.Select(m => new { key = m.Key, name = m.Name, workArea = m.WorkArea.ToString() }).ToArray(),
             tiles = _tiles.Values.Select(v =>
             {
                 var r = v.Surface.ScreenRect;
-                return new { id = v.Tile.Id, hwnd = (long)v.Surface.Hwnd, left = r.Left, top = r.Top, right = r.Right, bottom = r.Bottom, attached = _host.IsAttached(v.Surface) };
+                var placement = _displacementManager.GetPlacement(v.Tile.Id);
+                return new
+                {
+                    id = v.Tile.Id,
+                    hwnd = (long)v.Surface.Hwnd,
+                    left = r.Left,
+                    top = r.Top,
+                    right = r.Right,
+                    bottom = r.Bottom,
+                    homeMonitor = placement?.HomeMonitorKey,
+                    isDisplaced = placement?.IsDisplaced ?? false,
+                    attached = _host.IsAttached(v.Surface)
+                };
             }).ToArray(),
             utc = DateTime.UtcNow,
         };
@@ -486,6 +572,7 @@ public sealed class PocController : IDisposable
         _recoveryService.Dispose();
 
         _tray.Dispose();
+        _monitorService.Dispose();
         _popup?.Close();
         _activeSettingsWindow?.Close();
 

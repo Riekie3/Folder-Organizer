@@ -130,3 +130,22 @@ Branch `phase/4-integration-recovery`.
 ### Test results
 - 26/26 unit tests pass in `GlassFolders.Core.Tests`.
 - Release build clean with 0 warnings and 0 errors (`-warnaserror`).
+
+---
+
+## Phase 5 — Multi-monitor support (2026-11-07) · `v0.5.0`
+
+Branch `phase/5-multi-monitor`.
+
+### Done
+- `Core/Layout/PositionMath.cs`: Math utilities for converting absolute coordinates to work-area relative fractions (0.0..1.0) and back, coordinate clamping inside monitor bounds (supporting negative multi-monitor offsets), grid snapping, and spiral collision avoidance (`FindNearestFreeCell`).
+- `Core/Layout/MonitorModels.cs` & `MonitorDisplacementManager.cs`: Multi-monitor layout models and displacement state manager. Folders remember their `HomeMonitorKey` and relative coordinates. When a secondary monitor is unplugged, folders temporarily displace onto the primary monitor with `IsDisplaced = true` without overwriting saved home layouts. Reconnecting the display automatically returns folders to their home screen. Dragging displaced folders is temporary unless explicitly requested ("Keep here").
+- `GlassFolders.Native/DisplayConfigNative.cs`: Win32 `EnumDisplayMonitors` and `GetMonitorInfoExW` P/Invoke bindings.
+- `Services/MonitorService.cs`: Hardware and logical display monitor enumeration, work area discovery, and debounced 300 ms event processing for `WM_DISPLAYCHANGE`, `WM_DPICHANGED`, and `WM_SETTINGCHANGE`.
+- Context menu: "Move to Monitor ▸" submenu on desktop tiles dynamically populated with connected monitor names.
+- `UI/SettingsWindow.xaml`: Updated "Desktop Layout" tab with connected displays view (name, resolution, work area, primary badge) and monitor arrangement overview.
+- Comprehensive unit tests: `PositionMathTests.cs` and `MonitorDisplacementTests.cs` covering 1-, 2-, and 3-monitor setups, negative coordinate spaces, monitor disconnects, reconnects, temporary dragging, and primary monitor swapping (39/39 tests passed).
+
+### Test results
+- 39/39 unit tests pass in `GlassFolders.Core.Tests`.
+- Release build clean with 0 warnings and 0 errors (`-warnaserror`).
