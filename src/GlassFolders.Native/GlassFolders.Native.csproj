@@ -2,4 +2,7 @@
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
   </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\GlassFolders.Core\GlassFolders.Core.csproj" />
+  </ItemGroup>
 </Project>

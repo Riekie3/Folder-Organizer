@@ -6,34 +6,37 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
 using GlassFolders.App.Desktop;
+using GlassFolders.App.Services;
+using GlassFolders.App.UI;
+using GlassFolders.Core.Config;
+using GlassFolders.Core.Folders;
+using GlassFolders.Core.Models;
 using GlassFolders.Core.Poc;
 using GlassFolders.Native;
+using GlassFolders.Native.Shell;
+using Microsoft.Win32;
 using static GlassFolders.Native.NativeMethods;
 
 namespace GlassFolders.App.Poc;
 
 /// <summary>
-/// Drives the Phase 1 proof of concept: three folder tiles on the desktop, click to open a popup,
-/// drag to move, positions saved, and re-attachment after Explorer restarts.
-/// Writes a state file and a log that tools/PocVerifier reads.
+/// Drives the core desktop organizer: manages folders on the desktop layer,
+/// launches real applications/shortcuts, handles drag &amp; drop, and recovers after Explorer restarts.
 /// </summary>
 public sealed class PocController : IDisposable
 {
-    private static readonly (string Id, string Label, Color A, Color B)[] Folders =
-    [
-        ("work", "Work", Color.FromRgb(0x7F, 0xB2, 0xFF), Color.FromRgb(0x5B, 0x5C, 0xF2)),
-        ("games", "Games", Color.FromRgb(0xC3, 0x8B, 0xFF), Color.FromRgb(0x7B, 0x3F, 0xE8)),
-        ("media", "Media", Color.FromRgb(0xFF, 0x9A, 0x9A), Color.FromRgb(0xE8, 0x45, 0x5A)),
-    ];
-
     private readonly IDesktopHost _host;
     private readonly ShellWatcher _watcher;
     private readonly TileLayoutStore _store;
     private readonly TileLayout _layout;
+    private readonly ConfigurationManager _configManager;
+    private readonly FolderManager _folderManager;
+    private readonly IconCacheService _iconCache;
+    private readonly ShellShortcutResolver _resolver;
     private readonly Dictionary<string, (FolderTile Tile, DesktopSurface Surface)> _tiles = [];
     private readonly string _dataDir;
     private readonly DispatcherTimer _retryTimer;
-    private PocPopup? _popup;
+    private FolderPopup? _popup;
     private string? _popupFor;
     private string? _lastClosedPopupId;
     private long _lastClosedPopupTimestamp;
@@ -50,6 +53,12 @@ public sealed class PocController : IDisposable
 
         _store = new TileLayoutStore(layoutPath);
         _layout = _store.Load();
+
+        _configManager = new ConfigurationManager();
+        _folderManager = new FolderManager(_configManager);
+        _iconCache = new IconCacheService();
+        _resolver = new ShellShortcutResolver();
+
         _host = DesktopHostFactory.Create(kind);
         _watcher = new ShellWatcher();
         _watcher.ShellLost += () => { Log("SHELL-LOST"); ScheduleReattach(); };
@@ -79,20 +88,29 @@ public sealed class PocController : IDisposable
         double scale = GetDpiForSystem() / 96.0;
         int tileW = (int)(104 * scale), tileH = (int)(112 * scale);
 
-        for (int i = 0; i < Folders.Length; i++)
+        var folders = _folderManager.Folders.Where(f => f.IsVisible).ToList();
+        for (int i = 0; i < folders.Count; i++)
         {
-            var f = Folders[i];
+            var f = folders[i];
             var saved = _layout.Find(f.Id);
-            int x = saved?.X ?? work.Right - tileW - (int)(24 * scale);
-            int y = saved?.Y ?? work.Top + (int)(24 * scale) + i * (tileH + (int)(12 * scale));
-            CreateTile(f.Id, f.Label, f.A, f.B, x, y);
+            int defX = work.Right - tileW - (int)(24 * scale);
+            int defY = work.Top + (int)(24 * scale) + i * (tileH + (int)(12 * scale));
+            int x = saved?.X ?? (f.X > 0 ? f.X : defX);
+            int y = saved?.Y ?? (f.Y > 0 ? f.Y : defY);
+            CreateTile(f, x, y);
         }
     }
 
-    private void CreateTile(string id, string label, Color a, Color b, int x, int y)
+    private void CreateTile(FolderDef folder, int x, int y)
     {
-        var tile = new FolderTile(id, label, a, b);
-        var surface = _host.CreateSurface(id, tile, x, y);
+        Color colorA = ParseColor(folder.ColorA, Color.FromRgb(0x7F, 0xB2, 0xFF));
+        Color colorB = ParseColor(folder.ColorB, Color.FromRgb(0x5B, 0x5C, 0xF2));
+
+        var tile = new FolderTile(folder.Id, folder.Name, colorA, colorB);
+        tile.SetGlyph(folder.Glyph);
+        tile.SetItemCount(folder.Items.Count);
+
+        var surface = _host.CreateSurface(folder.Id, tile, x, y);
         tile.GetScreenRect = () => surface.ScreenRect;
         tile.Clicked += OnTileClicked;
         tile.DragMoved += (t, nx, ny) => _host.Move(_tiles[t.Id].Surface, nx, ny);
@@ -100,25 +118,98 @@ public sealed class PocController : IDisposable
         {
             _layout.Set(t.Id, nx, ny);
             _store.Save(_layout);
+            _folderManager.SetFolderPosition(t.Id, nx, ny);
             Log($"MOVED {t.Id} {nx} {ny}");
             WriteState("MOVED");
         };
-        tile.ContextMenu = BuildMenu();
+
+        tile.FilesDropped += (t, files) =>
+        {
+            foreach (string file in files)
+            {
+                var item = _resolver.Resolve(file);
+                _folderManager.AddItem(t.Id, item);
+            }
+            var f = _folderManager.GetFolder(t.Id);
+            if (f is not null) tile.SetItemCount(f.Items.Count);
+            Log($"DROPPED-FILES {t.Id} count={files.Length}");
+        };
+
+        tile.ContextMenu = BuildMenu(folder, tile);
         surface.Lost += s =>
         {
             if (_exiting) return;
             Log($"SURFACE-LOST {s.Id}");
             ScheduleReattach();
         };
-        _tiles[id] = (tile, surface);
+        _tiles[folder.Id] = (tile, surface);
     }
 
-    private ContextMenu BuildMenu()
+    private ContextMenu BuildMenu(FolderDef folder, FolderTile tile)
     {
         var menu = new ContextMenu();
+
+        var open = new MenuItem { Header = "Open Folder" };
+        open.Click += (_, _) => OnTileClicked(tile);
+        menu.Items.Add(open);
+
+        var add = new MenuItem { Header = "Add Shortcuts / Files..." };
+        add.Click += (_, _) =>
+        {
+            var ofd = new OpenFileDialog
+            {
+                Title = $"Add to {folder.Name}",
+                Filter = "All Files (*.*)|*.*|Shortcuts (*.lnk)|*.lnk|Applications (*.exe)|*.exe",
+                Multiselect = true
+            };
+            if (ofd.ShowDialog() == true)
+            {
+                foreach (string file in ofd.FileNames)
+                {
+                    var item = _resolver.Resolve(file);
+                    _folderManager.AddItem(folder.Id, item);
+                }
+                tile.SetItemCount(folder.Items.Count);
+            }
+        };
+        menu.Items.Add(add);
+
+        var rename = new MenuItem { Header = "Rename Folder..." };
+        rename.Click += (_, _) =>
+        {
+            string? newName = PromptRename(folder.Name);
+            if (!string.IsNullOrWhiteSpace(newName) && newName != folder.Name)
+            {
+                _folderManager.RenameFolder(folder.Id, newName.Trim());
+                tile.SetLabel(newName.Trim());
+            }
+        };
+        menu.Items.Add(rename);
+
+        menu.Items.Add(new Separator());
+
+        var delete = new MenuItem { Header = "Delete Folder" };
+        delete.Click += (_, _) =>
+        {
+            var res = MessageBox.Show(
+                $"Remove folder \"{folder.Name}\" from GlassFolders?\n\nYour actual files and applications will NOT be deleted.",
+                "Delete Folder", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (res == MessageBoxResult.Yes)
+            {
+                _folderManager.DeleteFolder(folder.Id);
+                if (_tiles.TryGetValue(folder.Id, out var pair))
+                {
+                    pair.Surface.Dispose();
+                    _tiles.Remove(folder.Id);
+                }
+            }
+        };
+        menu.Items.Add(delete);
+
         var exit = new MenuItem { Header = "Exit GlassFolders PoC" };
         exit.Click += (_, _) => Application.Current.Shutdown();
         menu.Items.Add(exit);
+
         return menu;
     }
 
@@ -134,11 +225,15 @@ public sealed class PocController : IDisposable
             return;
         }
 
+        var folder = _folderManager.GetFolder(tile.Id);
+        if (folder is null) return;
+
         var rect = _tiles[tile.Id].Surface.ScreenRect;
-        var popup = new PocPopup(tile.Id switch { "work" => "Work", "games" => "Games", _ => "Media" }, rect);
+        var popup = new FolderPopup(folder, _folderManager, _iconCache, _resolver, rect);
         popup.Closed += (_, _) =>
         {
             tile.SetOpen(false);
+            tile.SetItemCount(folder.Items.Count);
             if (_popup == popup)
             {
                 _popup = null;
@@ -167,7 +262,6 @@ public sealed class PocController : IDisposable
         }
     }
 
-    /// <summary>Idempotent: keeps live surfaces (re-owning/re-parenting them), recreates dead ones, never duplicates.</summary>
     private void Reattach()
     {
         if (_exiting) return;
@@ -195,10 +289,11 @@ public sealed class PocController : IDisposable
         double scale = GetDpiForSystem() / 96.0;
         int tileW = (int)(104 * scale), tileH = (int)(112 * scale);
 
+        var folders = _folderManager.Folders.Where(f => f.IsVisible).ToList();
         int kept = 0, recreated = 0;
-        for (int i = 0; i < Folders.Length; i++)
+        for (int i = 0; i < folders.Count; i++)
         {
-            var f = Folders[i];
+            var f = folders[i];
             if (_tiles.TryGetValue(f.Id, out var t) && _host.Reattach(t.Surface))
             {
                 kept++;
@@ -216,7 +311,7 @@ public sealed class PocController : IDisposable
             int defY = work.Top + (int)(24 * scale) + i * (tileH + (int)(12 * scale));
             int targetX = saved?.X ?? (last.Width > 0 ? last.Left : defX);
             int targetY = saved?.Y ?? (last.Height > 0 ? last.Top : defY);
-            CreateTile(f.Id, f.Label, f.A, f.B, targetX, targetY);
+            CreateTile(f, targetX, targetY);
             recreated++;
         }
 
@@ -255,6 +350,39 @@ public sealed class PocController : IDisposable
         Debug.WriteLine(line);
         try { File.AppendAllText(Path.Combine(_dataDir, "poc.log"), line + Environment.NewLine); }
         catch (IOException) { }
+    }
+
+    private static Color ParseColor(string hex, Color fallback)
+    {
+        try { return (Color)ColorConverter.ConvertFromString(hex); }
+        catch { return fallback; }
+    }
+
+    private static string? PromptRename(string currentName)
+    {
+        var win = new Window
+        {
+            Title = "Rename Folder",
+            Width = 320,
+            Height = 140,
+            WindowStartupLocation = WindowStartupLocation.CenterScreen,
+            WindowStyle = WindowStyle.ToolWindow,
+            ResizeMode = ResizeMode.NoResize,
+            Background = new SolidColorBrush(Color.FromRgb(0x20, 0x24, 0x38))
+        };
+
+        var sp = new StackPanel { Margin = new Thickness(16) };
+        var txt = new TextBox { Text = currentName, Margin = new Thickness(0, 0, 0, 16), FontSize = 14 };
+        var btnOk = new Button { Content = "OK", Width = 80, Height = 28, IsDefault = true, HorizontalAlignment = HorizontalAlignment.Right };
+
+        btnOk.Click += (_, _) => win.DialogResult = true;
+        sp.Children.Add(txt);
+        sp.Children.Add(btnOk);
+        win.Content = sp;
+        txt.SelectAll();
+        txt.Focus();
+
+        return win.ShowDialog() == true ? txt.Text : null;
     }
 
     public void Dispose()
