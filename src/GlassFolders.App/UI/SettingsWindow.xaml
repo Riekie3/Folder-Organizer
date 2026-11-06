@@ -53,7 +53,7 @@
                     </StackPanel>
 
                     <!-- Version indicator at bottom -->
-                    <TextBlock Grid.Row="2" Text="v0.4.0" FontSize="10" Foreground="{StaticResource BrushTextMuted}"
+                    <TextBlock Grid.Row="2" Text="v0.5.0" FontSize="10" Foreground="{StaticResource BrushTextMuted}"
                                HorizontalAlignment="Center"/>
                 </Grid>
             </Border>
@@ -143,6 +143,31 @@
                         <StackPanel x:Name="PageLayout" Visibility="Collapsed">
                             <Border Style="{StaticResource GlassCard}" Margin="0,0,0,14">
                                 <StackPanel>
+                                    <TextBlock Text="Connected Displays (Multi-Monitor)" FontSize="14" FontWeight="SemiBold"
+                                               Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,8"/>
+                                    <TextBlock Text="GlassFolders pins folders relative to their home display. If a display is disconnected, folders temporarily displace to the primary display without losing their home layout."
+                                               FontSize="12" Foreground="{StaticResource BrushTextSecondary}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+
+                                    <ItemsControl x:Name="MonitorsList">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="#1AFFFFFF" CornerRadius="8" Padding="12,10" Margin="0,0,0,6">
+                                                    <DockPanel LastChildFill="True">
+                                                        <TextBlock Text="🖥️" FontSize="16" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                                        <StackPanel VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="White"/>
+                                                            <TextBlock Text="{Binding WorkArea, StringFormat='Work Area: {0}'}" FontSize="11" Foreground="#80FFFFFF" Margin="0,2,0,0"/>
+                                                        </StackPanel>
+                                                    </DockPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource GlassCard}" Margin="0,0,0,14">
+                                <StackPanel>
                                     <DockPanel LastChildFill="False" Margin="0,0,0,12">
                                         <TextBlock Text="Desktop Folders" FontSize="14" FontWeight="SemiBold"
                                                    Foreground="{StaticResource BrushTextPrimary}" VerticalAlignment="Center"/>
@@ -225,10 +250,10 @@
                             <Border Style="{StaticResource GlassCard}">
                                 <StackPanel>
                                     <TextBlock Text="GlassFolders" FontSize="18" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}"/>
-                                    <TextBlock Text="Version 0.4.0 · Phase 4 Integration &amp; Recovery" FontSize="12" Foreground="{StaticResource BrushAccent}" Margin="0,2,0,12"/>
+                                    <TextBlock Text="Version 0.5.0 · Phase 5 Multi-Monitor" FontSize="12" Foreground="{StaticResource BrushAccent}" Margin="0,2,0,12"/>
                                     <TextBlock Text="Phone-style app folders on your real Windows 11 desktop, with a Liquid Glass popup."
                                                FontSize="13" Foreground="{StaticResource BrushTextSecondary}" TextWrapping="Wrap" Margin="0,0,0,16"/>
-                                    <TextBlock Text="Architecture: .NET 10 (LTS) WPF · Win32 DWM Acrylic · Per-Monitor-V2 DPI · System Tray"
+                                    <TextBlock Text="Architecture: .NET 10 (LTS) WPF · Win32 DWM Acrylic · Per-Monitor-V2 DPI · Multi-Monitor Support"
                                                FontSize="11" Foreground="{StaticResource BrushTextMuted}" Margin="0,0,0,4"/>
                                     <TextBlock Text="Developed with pair-programming on Windows 11 25H2."
                                                FontSize="11" Foreground="{StaticResource BrushTextMuted}" Margin="0,0,0,16"/>
