@@ -6,7 +6,12 @@
     <AssemblyName>GlassFolders</AssemblyName>
     <RootNamespace>GlassFolders.App</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\..\assets\app.ico</ApplicationIcon>
   </PropertyGroup>
+  <ItemGroup>
+    <Resource Include="..\..\assets\app.ico" Link="assets\app.ico" />
+    <Resource Include="..\..\assets\app-icon.png" Link="assets\app-icon.png" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\GlassFolders.Core\GlassFolders.Core.csproj" />
     <ProjectReference Include="..\GlassFolders.Native\GlassFolders.Native.csproj" />

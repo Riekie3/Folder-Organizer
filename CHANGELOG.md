@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.1] - 2026-11-07
 
 ### Added
+- **Fluent 2 Liquid Glass App Icon**: Designed and packed high-resolution multi-frame Windows icon (`assets/app.ico` and `assets/app-icon.png`) containing 256x256, 128x128, 64x64, 48x48, 32x32, 24x24, and 16x16 frames with transparent feathered alpha. Integrated into `GlassFolders.exe` via `<ApplicationIcon>`, Inno Setup installer via `SetupIconFile`, and `SettingsWindow` sidebar & About dialogs.
+- **IconPacker Utility**: Created `tools/IconPacker` to automate background removal, edge anti-aliasing, and multi-resolution `.ico` generation directly in C#.
 - **Zero-Footprint Portable Mode**: Centralized path resolution in `AppPaths.cs`. If `portable.flag` exists next to `GlassFolders.exe`, configuration, logs, and icon caches are automatically directed to local `<exeDir>\data` and `<exeDir>\data\local` folders without touching user `%APPDATA%`.
 - **Precompiled Release Packages**: Built `artifacts/GlassFolders-Setup-v1.0.1.exe` using Inno Setup compiler and generated standalone portable bundle `artifacts/GlassFolders-v1.0.1-portable.zip` with verified `artifacts/SHA256SUMS.txt`.
 - **Desktop Tile Direct Rename**: Added "Rename Folder..." directly into desktop tile context menu for seamless folder updates.
@@ -58,7 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Portable ZIP Backup & Restore**: Complete archive backup subsystem (`BackupService`) exporting all folder configurations, layout coordinate trees, and custom icon caches.
-- **Security-Hardened ZIP Engine**: `ZipSafety` validation preventing ZipSlip directory traversal (`..`), path escaping, decompression bomb attacks (>50 MB / >500 entries), and blocking executable payloads (`.exe`, `.bat`, `.cmd`, `.dll`, `.ps1`).
+- **Security-Hardened ZIP Engine**: `ZipSafety` validation preventing ZipSlip directory traversal (`..`), path escaping, decompression bomb attacks (>50 MB / >500 entries), and blocking executable payloads (`.exe`, `.bat`, `.cmd`, `.dll`, `.vbs`, `.ps1`, `.scr`).
 - **Path Relinker Heuristics**: Automated missing target resolution matching relative user folders (`%USERPROFILE%`, `%APPDATA%`, `%LOCALAPPDATA%`, `%PROGRAMFILES%`) and System32 utilities when restoring archives across different machines or usernames.
 - **Pre-Flight Import Planner**: SHA-256 integrity verification, missing path analysis, and preview modal displaying relinking suggestions before applying changes.
 - **Backup & Restore UI**: Modern glass management panel in Settings with Replace vs. Merge import modes and rolling pre-action rollback history (up to 10 snapshots).

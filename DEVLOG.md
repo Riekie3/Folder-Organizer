@@ -207,6 +207,8 @@ Branch `phase/9-release-packaging`.
 Branch `main`.
 
 ### Done
+- **App Icon Creation & Packaging**: Designed and generated high-resolution Fluent 2 Liquid Glass app icon (`assets/app.ico` and `assets/app-icon.png`). Multi-resolution frames (256, 128, 64, 48, 32, 24, 16) with transparent alpha. Configured in `GlassFolders.App.csproj` via `<ApplicationIcon>`, embedded in `SettingsWindow.xaml`, and applied to Inno Setup installer executable via `SetupIconFile`.
+- **IconPacker Tool**: Added `tools/IconPacker` utility automating foreground extraction, anti-aliased edge feathering, and `.ico` binary packing.
 - **Hotfix 0 (Startup Auto-Close ArgumentException)**: Fixed .NET 10 `GC.Collect` call in `GlassFolders.App/Poc/PocController.cs:PerformMemoryTrim()`. Passing `blocking: false` with `GCCollectionMode.Aggressive` threw `System.ArgumentException: AggressiveGC requires setting the blocking parameter to true`, which terminated the process when `_memoryTrimTimer` fired 5 seconds after startup. Changed `blocking` to `true`, added `GC.WaitForPendingFinalizers()`, and wrapped in defensive exception logging.
 - **Hotfix 1 (Drag & Drop COM Exception)**: Fixed COM `IShellLinkW::GetPath` P/Invoke signature in `GlassFolders.Native/Shell/ShellShortcutResolver.cs`. Replaced `out byte pfd` with `nint pfd` (0/null pointer), resolving a 592-byte stack overwrite `AccessViolationException` when resolving `.lnk` files on drag and drop.
 - **Hotfix 2 (Open File Location Resolution)**: Implemented `ResolveLocationCandidate` in `GlassFolders.Native/Shell/ShellLauncher.cs`. Checks target path first, and searches Windows, System32, and `%PATH%` for unrooted executables (e.g., `explorer.exe`, `notepad.exe`), opening File Explorer with `/select,"<path>"`.

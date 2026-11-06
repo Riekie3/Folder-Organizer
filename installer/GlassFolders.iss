@@ -6,6 +6,7 @@
 #define MyAppPublisher "Riekie3"
 #define MyAppURL "https://github.com/Riekie3/Folder-Organizer"
 #define MyAppExeName "GlassFolders.exe"
+#define MyAppIcon "..\assets\app.ico"
 
 [Setup]
 AppId={{8F4B891A-2D85-4E7B-9E39-C462C09247E1}
@@ -20,6 +21,7 @@ DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir=..\artifacts
 OutputBaseFilename=GlassFolders-Setup-v{#MyAppVersion}
+SetupIconFile={#MyAppIcon}
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
