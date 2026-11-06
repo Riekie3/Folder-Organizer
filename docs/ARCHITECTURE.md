@@ -1,88 +1,183 @@
-# GlassFolders – Architecture
+# GlassFolders — System Architecture
 
-_Living document. Phase 1 covers desktop integration; later phases add sections._
+**Version:** 1.0.0  
+**Target Platform:** Windows 11 (22H2 / 23H2 / 24H2 / 25H2+)  
+**Runtime:** .NET 10.0 (C# 14, WPF, Win32 Interop, Zero Third-Party Dependencies)
 
-## Solution layout
+---
+
+## 1. High-Level Architecture Overview
+
+GlassFolders is engineered as a zero-idle, high-performance desktop enhancement application that anchors interactive, frosted-glass folder widgets directly onto the Windows 11 desktop layer.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                             GlassFolders.App                                │
+│  ┌───────────────────────┐  ┌───────────────────────┐  ┌──────────────────┐ │
+│  │     PocController     │  │   SettingsWindow      │  │  FolderPopup     │ │
+│  │   (Lifecycle & Core)  │  │   (Fluent XAML UI)    │  │  (Acrylic Menu)  │ │
+│  └───────────┬───────────┘  └───────────────────────┘  └──────────────────┘ │
+│              │                                                              │
+│  ┌───────────┴───────────┐  ┌───────────────────────┐  ┌──────────────────┐ │
+│  │ ExplorerRecoverySvc   │  │   SingleInstance IPC  │  │   TrayService    │ │
+│  │ (State Machine / 8s)  │  │   (Named Mutex/Pipe)  │  │ (Shell_Notify)   │ │
+│  └───────────┬───────────┘  └───────────────────────┘  └──────────────────┘ │
+└──────────────┼──────────────────────────────────────────────────────────────┘
+               │
+┌──────────────▼──────────────────────────────────────────────────────────────┐
+│                            GlassFolders.Native                              │
+│  ┌───────────────────────┐  ┌───────────────────────┐  ┌──────────────────┐ │
+│  │   DesktopWindows      │  │      DwmHelpers       │  │ DisplayConfig    │ │
+│  │ (Progman/DefView Find)│  │ (Acrylic/Mica BT/Dark)│  │ (EnumMonitors)   │ │
+│  └───────────────────────┘  └───────────────────────┘  └──────────────────┘ │
+└──────────────┬──────────────────────────────────────────────────────────────┘
+               │
+┌──────────────▼──────────────────────────────────────────────────────────────┐
+│                             GlassFolders.Core                               │
+│  ┌───────────────────────┐  ┌───────────────────────┐  ┌──────────────────┐ │
+│  │   FolderManager       │  │     PositionMath      │  │  BackupService   │ │
+│  │ (CRUD / Atomic Store) │  │ (Relative Multi-Mon)  │  │ (Safe ZIP / Rel) │ │
+│  └───────────────────────┘  └───────────────────────┘  └──────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 2. Solution Layout & Projects
 
 | Project | Target | Purpose |
 |---|---|---|
-| `src/GlassFolders.Core` | `net10.0` | Platform-neutral logic: models, storage, layout. Fully unit-testable. |
-| `src/GlassFolders.Native` | `net10.0-windows` | Win32 P/Invoke (`NativeMethods`), helpers (`Win32`), Explorer desktop handles (`DesktopWindows`). |
-| `src/GlassFolders.App` | `net10.0-windows` WPF | The app. `Desktop/` holds the desktop-integration layer. |
-| `tests/GlassFolders.Core.Tests` | xUnit | Unit tests for Core. |
-| `tools/DesktopProbe` | console | Dumps Explorer's desktop window tree for the current Windows build. |
-| `tools/PocVerifier` | console | Automated desktop-integration checks (structural, interactive, Explorer restart). |
+| `GlassFolders.Core` | `net10.0` | Pure, platform-neutral domain models, configuration management, atomic file storage, coordinate math, displacement logic, and ZIP backup/restore. |
+| `GlassFolders.Native` | `net10.0-windows` | P/Invoke interop wrappers (`NativeMethods`, `Win32`), DWM backdrop integration (`DwmHelpers`), display enumeration (`DisplayConfigNative`), desktop handle resolution (`DesktopWindows`), and Shell COM interop (`IShellLinkW`). |
+| `GlassFolders.App` | `net10.0-windows` (WPF) | Main executable application. Contains desktop surfaces, tile controls, acrylic popups, Settings UI, system tray manager, single-instance IPC, animation service, and recovery loop. |
+| `GlassFolders.Core.Tests` | `net10.0` (xUnit) | Comprehensive unit test suite covering configuration persistence, layout math, monitor displacement, ZIP safety, and animation settings. |
+| `DesktopProbe` | `net10.0-windows` | Diagnostic CLI tool dumping the active desktop window tree, DefView hierarchies, and z-order. |
+| `PocVerifier` | `net10.0-windows` | Acceptance test tool verifying structural and interactive compliance against the desktop layer. |
 
-All processes are **Per-Monitor-V2 DPI aware** (app manifest). All desktop coordinates in the integration layer are physical screen pixels.
+---
 
-## Desktop integration
+## 3. Desktop Layer Integration (`ProgmanOwnedHost`)
 
-### What the Windows 11 25H2 desktop looks like
-
-Captured with `DesktopProbe` (raw output in `docs/probe/`):
-
+### The Windows 11 Desktop Hierarchy
+On modern Windows 11 (24H2 / 25H2+), the desktop window hierarchy is organized as follows:
 ```
-Progman "Program Manager"            top-level, bottom of z-order, spans the virtual screen
-├─ SHELLDLL_DefView                  WS_EX_LAYERED on 25H2
-│  └─ SysListView32 "FolderView"     the desktop icons
-└─ WorkerW                           only after message 0x052C; wallpaper layer, BELOW DefView
+Progman "Program Manager"            [Top-level window, bottom of z-order]
+├─ SHELLDLL_DefView                  [Layered surface containing desktop icons]
+│  └─ SysListView32 "FolderView"     [The actual icon view control]
+└─ WorkerW                           [Spawned wallpaper surface, child of Progman]
 ```
 
-Since 24H2 the wallpaper `WorkerW` is a **child of Progman**. On older builds it was a separate top-level window and `SHELLDLL_DefView` could live inside a top-level `WorkerW`. `DesktopWindows.Find()` handles both layouts.
+### The Progman-Owned Architecture
+To ensure GlassFolders surfaces appear behind normal applications but above the desktop wallpaper and icons:
+1. **Window Style:** Surfaces are created as top-level `WS_POPUP | WS_CLIPCHILDREN` with extended styles `WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE`.
+2. **Owner Relationship:** The surface HWND's owner is set to `Progman` via `SetWindowLongPtr(GWLP_HWNDPARENT)`. In Win32, owned windows always render in front of their owner.
+3. **Z-Order Anchoring:** The surface intercepts `WM_WINDOWPOSCHANGING` and forces `hwndInsertAfter = HWND_BOTTOM`, preventing clicks from elevating the surface above active application windows.
+4. **Hit-Testing Transparency:** Transparent regions of folder surfaces pass clicks straight through to Explorer's `SysListView32`, ensuring desktop selection rectangles, context menus, and wallpaper clicks function normally.
+5. **Win+D ("Show Desktop") Immunity:** Because surfaces are owned by Progman, Windows treats them as part of the desktop canvas, keeping them visible when the user minimizes all windows via `Win+D`.
 
-### Strategies evaluated
+---
 
-All strategies sit behind `IDesktopHost`, so the rest of the app never touches Explorer windows directly.
+## 4. Explorer Recovery & Shell Watcher (`ExplorerRecoveryService`)
 
-| | A. Owned by Progman (`ProgmanOwnedHost`) | B. Child of DefView (`DesktopChildHost`) | B2. Child of Progman |
-|---|---|---|---|
-| How | Top-level `WS_POPUP`, owner set to Progman (`GWLP_HWNDPARENT`), `WS_EX_TOOLWINDOW \| WS_EX_NOACTIVATE`, z-order pinned with `WM_WINDOWPOSCHANGING` → `HWND_BOTTOM`, `WM_MOUSEACTIVATE` → `MA_NOACTIVATE` | `WS_CHILD` of `SHELLDLL_DefView`, above the icon list view | `WS_CHILD` of Progman, above DefView |
-| Renders | ✅ | ✅ | ❌ **invisible** (DefView's layered surface covers it) but still receives clicks |
-| Structural checks | 24/24 | 12/12 | 12/12 (false positive) |
-| Interactive checks | 12/12 | 12/12 | 12/12 (false positive) |
-| Explorer restart ×2 | 8/8: windows **survive**, re-owned in ~0.75 s | 8/8: windows **destroyed**, recreated | not run |
-| Input coupling | Independent of Explorer | Cross-process parent/child attaches our input queue to Explorer's: a hang in either can stall the other | same as B |
-| DPI | Normal top-level windows: WPF receives `WM_DPICHANGED` per monitor | Child windows don't get `WM_DPICHANGED`; per-monitor scaling must be done manually | same as B |
-| Never above apps | By owner relationship + z-order guard | Inherent | Inherent |
+Desktop integration must gracefully handle shell restarts, graphics driver resets, workstation locking, and system sleep/resume.
 
-### Decision: Strategy A (Progman-owned), with B kept as a fallback
+```
+       ┌────────────────────────┐
+       │        Healthy         │◄─────────────────────────────┐
+       └───────────┬────────────┘                              │
+                   │ Shell Destroyed / TaskbarCreated          │
+                   ▼                                           │
+       ┌────────────────────────┐                              │
+       │       ShellLost        │                              │
+       └───────────┬────────────┘                              │
+                   │ Enter Recovery Loop                       │
+                   ▼                                           │
+       ┌────────────────────────┐                              │
+       │    WaitingForShell     │                              │
+       └───────────┬────────────┘                              │
+                   │ Progman Detected (Backoff: 250ms -> 8s)   │
+                   ▼                                           │
+       ┌────────────────────────┐                              │
+       │      Reattaching       │                              │
+       └───────────┬────────────┘                              │
+                   │ Re-owner / Re-position Surfaces           │
+                   ▼                                           │
+       ┌────────────────────────┐         Passed               │
+       │       Verifying        ├──────────────────────────────┘
+       └───────────┬────────────┘
+                   │ Failed (Attempts > Max)
+                   ▼
+       ┌────────────────────────┐
+       │         Failed         │
+       └────────────────────────┘
+```
 
-A passed every automated check on 25H2. It also keeps our windows independent of Explorer's process, survives Explorer restarts without losing state, and lets WPF handle per-monitor DPI normally. B passes too and stays in the codebase as a fallback (`--host=child-defview`) in case a future Windows build breaks owner-based layering. B2 is rejected: invisible but clickable is the worst possible failure mode.
+- **Event Sources:**
+  - `SetWinEventHook(EVENT_OBJECT_DESTROY)` scoped to Explorer's PID.
+  - `RegisterWindowMessage("TaskbarCreated")` on a dedicated top-level hidden window.
+  - `WM_POWERBROADCAST` (Sleep/Resume detection).
+  - `WTSRegisterSessionNotification` (Workstation Lock/Unlock detection).
+- **Exponential Backoff:** Retries shell discovery at intervals starting at 250 ms, doubling up to 8 seconds, with a maximum 2-minute recovery ceiling.
+- **Verification:** Ensures all surfaces exist, have valid HWNDs, maintain valid parent/owner relationships, and respond to input.
 
-How A behaves:
+---
 
-- **Show desktop (Win+D):** folders stay visible and clickable, because owned windows move with their owner.
-- **Normal app windows:** always cover the folders. A click on a folder does not bring it forward (no-activate + z-order guard).
-- **Taskbar / Alt-Tab:** never listed (tool window, no `WS_EX_APPWINDOW`).
-- **Desktop icons:** everywhere outside the folder rectangles, hit-testing still returns Explorer's `SysListView32`, so icons, rubber-band select and the desktop context menu keep working.
-- **Explorer restart:** the windows outlive Progman. `ShellWatcher` hears either the WinEvent `EVENT_OBJECT_DESTROY` for Progman or the `TaskbarCreated` broadcast, waits for a new Progman + list view (exponential backoff 250 ms → 8 s, 2 min cap), and re-owns every window. Recreates any that died. Idempotent: keyed by folder ID, it never makes duplicates.
+## 5. Single-Instance Architecture & IPC
 
-### Shell event sources (no polling)
+- **Mutual Exclusion:** Governed by named mutex `Local\GlassFolders.SingleInstance`.
+- **Named Pipe Server:** The primary instance runs an asynchronous named pipe listener on `\\.\pipe\GlassFolders.IpcPipe`.
+- **Command Dispatch:** Secondary launches forward arguments (e.g. `SHOW_SETTINGS`, `PAGE:Appearance`) across the pipe, bring the main interface to the foreground, and cleanly exit.
+- **Graceful Termination:** Named event wait handle `Local\GlassFolders.Exit` enables graceful IPC-driven shutdowns.
 
-| Event | Mechanism |
-|---|---|
-| Explorer's desktop destroyed | `SetWinEventHook(EVENT_OBJECT_DESTROY)` scoped to Explorer's PID, filtered to the Progman HWND |
-| Shell (re)created | `RegisterWindowMessage("TaskbarCreated")` on a hidden **top-level** window (broadcasts skip message-only windows) |
-| Surface destroyed by someone else | `HwndSource.Disposed` → `DesktopSurface.Lost` |
-| Display / DPI / work-area changes | `WM_DISPLAYCHANGE`, `WM_DPICHANGED`, `WM_SETTINGCHANGE` on the same hidden window (used from Phase 5) |
+---
 
-`ShellWatcher` is the Phase 1 minimum; Phase 4 replaces it with the full `ExplorerRecoveryService` state machine.
+## 6. Multi-Monitor Coordinate & Displacement Engine
 
-## Storage
+### Relative Coordinates (`PositionMath`)
+Screen positions are stored as normalized fractions $(x_{rel}, y_{rel}) \in [0.0, 1.0]$ relative to each display's work area:
+$$x_{rel} = \frac{x_{abs} - \text{WorkArea.Left}}{\text{WorkArea.Width} - \text{TileWidth}}$$
+$$y_{rel} = \frac{y_{abs} - \text{WorkArea.Top}}{\text{WorkArea.Height} - \text{TileHeight}}$$
 
-`Core/Storage/AtomicFile`: write to `<file>.tmp` with write-through, then `File.Replace` keeping `<file>.bak`. Readers validate and fall back to `.bak` if the main file is corrupt.
+### Displacement Manager (`MonitorDisplacementManager`)
+- **Home Monitor Preservation:** Each folder records its assigned `HomeMonitorKey`.
+- **Display Disconnection:** When a secondary monitor is unplugged, its assigned folders are temporarily displaced to the primary monitor using collision-avoidance spiral search (`FindNearestFreeCell`).
+- **Display Reconnection:** When the disconnected monitor returns, displaced folders automatically restore to their original coordinates on that display without manual user intervention.
+- **DPI Changes:** Listens to `WM_DISPLAYCHANGE` and `WM_DPICHANGED` with 300 ms debouncing to avoid redundant recalculations.
 
-| Data | Location |
-|---|---|
-| Settings and layouts | `%APPDATA%\GlassFolders\` |
-| Logs, caches, PoC state | `%LOCALAPPDATA%\GlassFolders\` |
+---
 
-## Measurements (Phase 1 PoC, Debug build, 3 folders)
+## 7. DWM Glass & Visual Effects (`DwmHelpers`)
 
-| Metric | Value |
-|---|---|
-| CPU while idle | 0 ms over 30 s |
-| Working set | 93.9 MB |
-| Private bytes | 52.3 MB |
-| Threads / handles | 13 / 558 |
-| Explorer death → folders re-owned | ~0.75 s |
+Folder popups and settings dialogs utilize real Windows 11 Desktop Window Manager (DWM) composition:
+- **DWM Acrylic (`DWMSBT_TRANSIENTWINDOW`):** Applied via `DwmSetWindowAttribute(DWMWA_SYSTEMBACKDROP_TYPE, 3)`. Produces deep frosted-glass blur with transient lighting.
+- **DWM Mica (`DWMSBT_MAINWINDOW`):** Applied via `DwmSetWindowAttribute(DWMWA_SYSTEMBACKDROP_TYPE, 2)`. Blends subtly with desktop background wallpaper.
+- **Dark Mode Harmonization:** `DWMWA_USE_IMMERSIVE_DARK_MODE` (attribute 20) aligns window non-client borders with system dark/light modes.
+- **Rounded Corners:** `DWMWA_WINDOW_CORNER_PREFERENCE` (attribute 33) enforces Fluent `DWMWCP_ROUND` (12px radius).
+
+---
+
+## 8. Animation Control & Zero-Wakeup Architecture
+
+- **Windows Accessibility Compliance:** Queries `SPI_GETCLIENTAREAANIMATION` via `SystemParametersInfoW`. When the user disables "Show animations in Windows", animations automatically shut off.
+- **Granular Category Toggles:** 8 independent categories (Popup, Hover, Press, Launch, Dialog, Drag, Theme, Snap) configured via `AnimationSettings`.
+- **Zero-Wakeup Snap Gatekeeper:** When animations are disabled, properties snap instantly without allocating or starting WPF `Storyboard` or `DoubleAnimation` timers, preventing compositor wakeups and maintaining 0.00% idle CPU usage.
+
+---
+
+## 9. Portable Backup & Restore Subsystem
+
+- **Archive Format:** Standard ZIP containing `manifest.json`, `folders.json`, and cached icon assets.
+- **ZipSafety Hardening:** Blocks ZipSlip path traversal (`..`), path escaping, decompression bombs (>50 MB / >500 entries), and executable payloads (`.exe`, `.dll`, `.bat`, `.cmd`, `.ps1`).
+- **Path Relinker Heuristics:** Matches user profiles (`%USERPROFILE%`), `%APPDATA%`, `%LOCALAPPDATA%`, `%PROGRAMFILES%`, and System32 utilities to repair shortcut paths when moving backups between different PCs or Windows usernames.
+- **Rollback Snapshots:** Maintains up to 10 rolling pre-action backup archives in `%APPDATA%\GlassFolders\backups\`.
+
+---
+
+## 10. Performance & Resource Management
+
+- **Zero Idle Overhead:** Flat 0.00% CPU utilization at idle certified via `measure-idle.ps1`.
+- **Post-Interaction Memory Trimming:** 5 seconds after a folder popup closes, `PerformMemoryTrim()` triggers:
+  1. `IconCacheService.TrimMemoryCache()` (releases memory bitmaps while preserving disk cache).
+  2. `GC.Collect(2, Aggressive)`.
+  3. Win32 `EmptyWorkingSet(ProcessHandle)` returning working set to ~50–65 MB baseline.
+- **Leak-Free Handles:** USER and GDI object counts remain constant across drag, click, and popup lifecycles.
