@@ -1,31 +1,6 @@
 # GlassFolders – Development log
 
-Newest first. Each phase records what was done, test results, decisions and what's left.
-
----
-
-## Phase 2 — Core desktop organizer (2026-11-07) · `v0.2.0`
-
-Branch `phase/2-core-organizer`.
-
-### Done
-- Core domain models: `FolderDef`, `FolderItem`, `AppSettings`, `FoldersConfiguration` with AOT/trim-compatible System.Text.Json source generation (`ConfigurationJsonContext`).
-- `ConfigurationManager`: handles atomic loading/saving of `%APPDATA%\GlassFolders\folders.json` and `settings.json`, automatic creation of default folders (Work, Games, Media), and corrupted file recovery via `.bak` fallback.
-- `FolderManager`: domain service for CRUD operations on folders and items (create, rename, delete, set appearance, set position, add item, remove item, reorder items). Deleting folders or removing items never deletes physical source files or applications.
-- `IShortcutResolver` & `ShellShortcutResolver`: resolves `.lnk` via COM `IShellLinkW` / `IPersistFile`, `.url` internet shortcuts, executables, files, directories, and Store apps (`shell:AppsFolder\<AUMID>`). Stores both original shortcut path and resolved target.
-- `ShellLauncher`: executes original `.lnk` / `.url` when present (preserving arguments, working directory, elevation, and custom icons) and falls back to target path; provides `OpenLocation` to reveal targets in File Explorer (`explorer.exe /select,"<path>"`).
-- `IconCacheService`: two-tier icon cache (in-memory `ConcurrentDictionary` + `%LOCALAPPDATA%\GlassFolders\IconCache` disk PNGs) with high-quality 32-bit system icon extraction via `ExtractIconEx` and `SHGetFileInfo`.
-- Enhanced `FolderTile`: category glyphs (Briefcase, Gamepad, Play, Gear, Code, Folder), live item count badge, drag-and-drop file receiving directly on the desktop tile, and full context menu (Open, Add Files, Rename, Delete, Exit).
-- `FolderPopup`: frosted glass popup window with 4×3 grid (12 items per page), page dots, pagination navigation, launch-on-click, empty state notice, OLE drag-and-drop file receiving, and item context menu (Open, Open file location, Rename, Remove from folder).
-- Unit tests: expanded test suite from 7 to 25 tests covering `StorageTests`, `FolderManagerTests`, and `ConfigurationManagerTests`. All 25/25 passing in both Debug and Release.
-
-### Test results (Windows 11 25H2, 1 monitor, 1920×1080 @125 %)
-- Unit tests: 25/25 passed (0 failures, 100% pass rate).
-- Build: 0 warnings, 0 errors in both Debug and Release (verified with `-warnaserror`).
-- Persistence: dynamic folder creations, renames, additions, and deletions persist across app restarts and recover cleanly from corrupted files.
-
-### Next / Phase 3
-- Phase 3: Liquid Glass interface (tokens, theme switching, DWM acrylic backdrops, full appearance controls, and settings window).
+Each phase records what was done, test results, decisions and what's left.
 
 ---
 
@@ -109,7 +84,6 @@ Branch `phase/3-liquid-glass`.
 ### Test results
 - Solution builds with 0 warnings and 0 errors (`dotnet build -c Release -warnaserror`).
 - 25/25 unit tests passing.
-
 
 ---
 
@@ -204,7 +178,6 @@ Branch `phase/8-performance-rc`.
 - 48/48 unit tests pass in `GlassFolders.Core.Tests`.
 - Release build clean with 0 warnings and 0 errors (`-warnaserror`).
 
-
 ---
 
 ## Phase 9 — Release packaging & documentation (2026-11-07) · `v1.0.0`
@@ -226,3 +199,27 @@ Branch `phase/9-release-packaging`.
 ### Test results
 - 48/48 unit tests pass in `GlassFolders.Core.Tests`.
 - Release build clean with 0 warnings and 0 errors (`-warnaserror`).
+
+---
+
+## Post-Phase 9 — Hotfixes, Portable Mode & Installer Packaging (2026-11-07) · `v1.0.1`
+
+Branch `main`.
+
+### Done
+- **Hotfix 1 (Drag & Drop COM Exception)**: Fixed COM `IShellLinkW::GetPath` P/Invoke signature in `GlassFolders.Native/Shell/ShellShortcutResolver.cs`. Replaced `out byte pfd` with `nint pfd` (0/null pointer), resolving a 592-byte stack overwrite `AccessViolationException` when resolving `.lnk` files on drag and drop.
+- **Hotfix 2 (Open File Location Resolution)**: Implemented `ResolveLocationCandidate` in `GlassFolders.Native/Shell/ShellLauncher.cs`. Checks target path first, and searches Windows, System32, and `%PATH%` for unrooted executables (e.g., `explorer.exe`, `notepad.exe`), opening File Explorer with `/select,"<path>"`.
+- **Hotfix 3 (Modal File Dialog Deactivation)**: Added `_isShowingDialog` protection flag in `GlassFolders.App/UI/FolderPopup.xaml.cs` to prevent the popup window from closing on `Deactivated` while modal file dialogs are active.
+- **Tile Menu Direct Rename**: Added "Rename Folder..." directly into the desktop tile context menu with live dialog and persistence.
+- **Desktop Badge & Popup Synchronization**: Subscribed `PocController` to `_folderManager.Changed` to ensure desktop badge counts and open popups instantly update on item addition or deletion.
+- **Zero-Footprint Portable Mode**: Created `GlassFolders.Core/Config/AppPaths.cs` to dynamically detect `portable.flag` adjacent to `GlassFolders.exe`. Automatically routes data, settings, backups, logs, and icon caches to local `<exeDir>\data` and `<exeDir>\data\local` folders without touching user `%APPDATA%`.
+- **Packaging & Artifacts**:
+  - Compiled production installer `artifacts/GlassFolders-Setup-v1.0.0.exe` using Inno Setup compiler (`ISCC.exe`). Verified silent per-user installation (`/VERYSILENT /SUPPRESSMSGBOXES /NORESTART`) into `%LOCALAPPDATA%\Programs\GlassFolders` and silent uninstallation.
+  - Packaged standalone portable archive `artifacts/GlassFolders-v1.0.0-portable.zip` containing binaries, `portable.flag`, `README.md`, and `LICENSE`.
+  - Generated `artifacts/SHA256SUMS.txt` with SHA-256 hashes for both distribution packages.
+- **Automated Tests**: Added `tests/GlassFolders.Core.Tests/AppPathsTests.cs`. All 65/65 tests passing.
+
+### Test results
+- 65/65 unit tests pass in `GlassFolders.Core.Tests`.
+- Release build clean with 0 warnings and 0 errors (`-warnaserror`).
+- Silent installer and uninstaller verified cleanly on Windows 11.

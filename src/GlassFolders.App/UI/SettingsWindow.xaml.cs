@@ -312,7 +312,7 @@ public partial class SettingsWindow : Window
             try
             {
                 var monitorKeys = _monitorService?.Monitors.Select(m => m.Key).ToList();
-                string iconCache = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GlassFolders", "IconCache");
+                string iconCache = AppPaths.IconCacheDir;
                 _backupService.Export(sfd.FileName, _configManager, monitorKeys, iconCache);
                 MessageBox.Show("Backup successfully exported!", "Export Complete", MessageBoxButton.OK, MessageBoxImage.Information);
             }

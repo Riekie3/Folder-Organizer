@@ -7,6 +7,7 @@ namespace GlassFolders.Core.Config;
 /// <summary>
 /// Manages loading and atomic saving of settings and folders definitions.
 /// Automatically recovers from corrupted files using .bak fallback and default seeding.
+/// Supports standard user AppData as well as portable mode.
 /// </summary>
 public sealed class ConfigurationManager
 {
@@ -16,7 +17,7 @@ public sealed class ConfigurationManager
 
     public ConfigurationManager(string? baseDir = null)
     {
-        string dir = baseDir ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GlassFolders");
+        string dir = baseDir ?? AppPaths.BaseAppDataDir;
         Directory.CreateDirectory(dir);
         _foldersPath = Path.Combine(dir, "folders.json");
         _settingsPath = Path.Combine(dir, "settings.json");

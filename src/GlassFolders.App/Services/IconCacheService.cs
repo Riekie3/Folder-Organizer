@@ -6,13 +6,14 @@ using System.Text;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media.Imaging;
+using GlassFolders.Core.Config;
 using GlassFolders.Core.Models;
 
 namespace GlassFolders.App.Services;
 
 /// <summary>
 /// Extracts and caches application and file icons (up to 256px / high-DPI).
-/// Uses a two-tier cache: in-memory cache + %LOCALAPPDATA%\GlassFolders\IconCache disk PNGs.
+/// Uses a two-tier cache: in-memory cache + disk PNGs.
 /// Supports memory cache trimming to keep working set strictly below 100 MB.
 /// </summary>
 public sealed partial class IconCacheService
@@ -22,7 +23,7 @@ public sealed partial class IconCacheService
 
     public IconCacheService(string? cacheDir = null)
     {
-        _diskCacheDir = cacheDir ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GlassFolders", "IconCache");
+        _diskCacheDir = cacheDir ?? AppPaths.IconCacheDir;
         try { Directory.CreateDirectory(_diskCacheDir); } catch { }
     }
 

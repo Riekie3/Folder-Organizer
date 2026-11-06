@@ -52,9 +52,9 @@ public sealed class PocController : IDisposable
 
     public PocController(DesktopHostKind kind, bool resetLayout)
     {
-        _dataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GlassFolders", "poc");
+        _dataDir = Path.Combine(AppPaths.BaseLocalAppDataDir, "poc");
         Directory.CreateDirectory(_dataDir);
-        string layoutPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GlassFolders", $"poc-layout-{kind}.json");
+        string layoutPath = Path.Combine(AppPaths.BaseAppDataDir, $"poc-layout-{kind}.json");
         if (resetLayout && File.Exists(layoutPath)) File.Delete(layoutPath);
 
         _store = new TileLayoutStore(layoutPath);

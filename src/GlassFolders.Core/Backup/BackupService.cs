@@ -20,7 +20,7 @@ public sealed class BackupService
 
     public BackupService(string? baseDir = null)
     {
-        string root = baseDir ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GlassFolders");
+        string root = baseDir ?? AppPaths.BaseAppDataDir;
         _backupsDirectory = Path.Combine(root, "Backups");
         try { Directory.CreateDirectory(_backupsDirectory); } catch { }
     }
@@ -45,7 +45,7 @@ public sealed class BackupService
 
         var manifest = new BackupManifest
         {
-            AppVersion = "0.6.0",
+            AppVersion = "1.0.0",
             SchemaVersion = 1,
             CreatedAt = DateTime.UtcNow,
             MachineName = Environment.MachineName,

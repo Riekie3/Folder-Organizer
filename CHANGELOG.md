@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.1] - 2026-11-07
+
+### Added
+- **Zero-Footprint Portable Mode**: Centralized path resolution in `AppPaths.cs`. If `portable.flag` exists next to `GlassFolders.exe`, configuration, logs, and icon caches are automatically directed to local `<exeDir>\data` and `<exeDir>\data\local` folders without touching user `%APPDATA%`.
+- **Precompiled Release Packages**: Built `artifacts/GlassFolders-Setup-v1.0.0.exe` using Inno Setup compiler and generated standalone portable bundle `artifacts/GlassFolders-v1.0.0-portable.zip` with verified `artifacts/SHA256SUMS.txt`.
+- **Desktop Tile Direct Rename**: Added "Rename Folder..." directly into desktop tile context menu for seamless folder updates.
+- **Dynamic Tile Synchronization**: Linked `PocController` directly to `FolderManager.Changed` events to instantly reflect item badge count changes and newly added shortcuts on desktop tiles.
+- **Portable Architecture Unit Tests**: Added `AppPathsTests` covering AppData, LocalAppData, and portable path routing, bringing the test suite to 65 passing automated tests.
+
+### Fixed
+- **Drag & Drop Crash (AccessViolationException)**: Corrected COM P/Invoke signature for `IShellLinkW::GetPath` in `ShellShortcutResolver.cs` by replacing `out byte pfd` with `nint pfd` (null pointer), preventing a 592-byte stack overwrite crash when dropping `.lnk` files.
+- **Open File Location**: Resolved issue where "Open file location" did nothing for system binaries or unrooted paths; `ResolveLocationCandidate` in `ShellLauncher.cs` now resolves executables via `%PATH%`, System32, and Windows root.
+- **File Dialog Deactivation Conflict**: Added `_isShowingDialog` guard to `FolderPopup.xaml.cs` to prevent window dismissal when opening modal file pickers.
+
+---
+
 ## [1.0.0] - 2026-11-07
 
 ### Added

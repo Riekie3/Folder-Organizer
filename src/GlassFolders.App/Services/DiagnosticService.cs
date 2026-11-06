@@ -1,4 +1,5 @@
 using System.IO;
+using GlassFolders.Core.Config;
 
 namespace GlassFolders.App.Services;
 
@@ -12,7 +13,8 @@ public enum DiagnosticLogLevel
 
 /// <summary>
 /// Thread-safe rolling diagnostic logging service.
-/// Keeps up to 5 rolling files of 1 MB each in %LOCALAPPDATA%\GlassFolders\logs.
+/// Keeps up to 5 rolling files of 1 MB each in logs directory.
+/// Supports standard local appdata as well as portable mode.
 /// </summary>
 public sealed class DiagnosticService
 {
@@ -30,7 +32,7 @@ public sealed class DiagnosticService
 
     public DiagnosticService()
     {
-        _logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GlassFolders", "logs");
+        _logDir = AppPaths.LogsDir;
         _mainLogFile = Path.Combine(_logDir, "glassfolders.log");
         try
         {
