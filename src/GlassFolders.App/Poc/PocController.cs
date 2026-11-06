@@ -23,7 +23,7 @@ namespace GlassFolders.App.Poc;
 /// <summary>
 /// Drives the desktop organizer: manages folders on the desktop layer,
 /// multi-monitor placement and displacement, application launching, system tray integration,
-/// and automated recovery via ExplorerRecoveryService.
+/// memory management/trimming, and automated recovery via ExplorerRecoveryService.
 /// </summary>
 public sealed class PocController : IDisposable
 {
@@ -41,6 +41,7 @@ public sealed class PocController : IDisposable
     private readonly ShellShortcutResolver _resolver;
     private readonly Dictionary<string, (FolderTile Tile, DesktopSurface Surface)> _tiles = [];
     private readonly string _dataDir;
+    private readonly DispatcherTimer _memoryTrimTimer;
     private FolderPopup? _popup;
     private string? _popupFor;
     private string? _lastClosedPopupId;
@@ -70,6 +71,13 @@ public sealed class PocController : IDisposable
         _tray = new TrayService();
         _monitorService = new MonitorService();
         _displacementManager = new MonitorDisplacementManager();
+
+        _memoryTrimTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+        _memoryTrimTimer.Tick += (_, _) =>
+        {
+            _memoryTrimTimer.Stop();
+            PerformMemoryTrim();
+        };
 
         // Wire recovery state machine
         _recoveryService.ReattachCallback = DoReattach;
@@ -121,6 +129,20 @@ public sealed class PocController : IDisposable
 
         WriteState("READY");
         _recoveryService.RecordEvent("Startup complete, desktop ready");
+
+        _memoryTrimTimer.Start();
+    }
+
+    private void PerformMemoryTrim()
+    {
+        IconCacheService.TrimMemoryCache();
+        GC.Collect(2, GCCollectionMode.Aggressive, false, true);
+        try
+        {
+            EmptyWorkingSet(Process.GetCurrentProcess().Handle);
+        }
+        catch { }
+        DiagnosticService.Instance.LogDebug($"Memory trimmed. WorkingSet: {Process.GetCurrentProcess().WorkingSet64 / (1024 * 1024)} MB");
     }
 
     private void OnMonitorsChanged(IReadOnlyList<MonitorDescriptor> monitors)
@@ -162,7 +184,13 @@ public sealed class PocController : IDisposable
             CreateTile(newFolder, defX, defY);
         };
 
-        _activeSettingsWindow.Closed += (_, _) => _activeSettingsWindow = null;
+        _activeSettingsWindow.Closed += (_, _) =>
+        {
+            _activeSettingsWindow = null;
+            _memoryTrimTimer.Stop();
+            _memoryTrimTimer.Start();
+        };
+
         if (initialPage != null) _activeSettingsWindow.ShowPage(initialPage);
         _activeSettingsWindow.Show();
         _activeSettingsWindow.Activate();
@@ -215,6 +243,7 @@ public sealed class PocController : IDisposable
         if (pause)
         {
             _popup?.Close();
+            PerformMemoryTrim();
             DiagnosticService.Instance.LogInfo("GlassFolders paused: desktop surfaces hidden, idle resources minimized");
         }
         else
@@ -428,6 +457,8 @@ public sealed class PocController : IDisposable
             _popup = null;
             _popupFor = null;
             WriteState("POPUP-CLOSED");
+            _memoryTrimTimer.Stop();
+            _memoryTrimTimer.Start();
         };
 
         _popup.Show();
@@ -568,6 +599,7 @@ public sealed class PocController : IDisposable
         _exiting = true;
 
         DiagnosticService.Instance.LogInfo("Beginning clean ordered shutdown of GlassFolders...");
+        _memoryTrimTimer.Stop();
         _recoveryService.IsShuttingDown = true;
         _recoveryService.Dispose();
 

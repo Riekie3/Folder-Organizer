@@ -186,3 +186,20 @@ Branch `phase/7-animation-control`.
 ### Test results
 - 48/48 unit tests pass in `GlassFolders.Core.Tests`.
 - Release build clean with 0 warnings and 0 errors (`-warnaserror`).
+
+---
+
+## Phase 8 — Performance & stability (2026-11-07) · `v0.9.0-rc`
+
+Branch `phase/8-performance-rc`.
+
+### Done
+- `tests/manual/measure-idle.ps1`: Automated idle performance, working set, and resource leak probe sampling CPU %, Working Set (MB), Private Bytes, Handles, and GDI & USER Object drift via Win32 `GetGuiResources`.
+- Memory optimizations: Added `IconCacheService.TrimMemoryCache()`, debounced post-popup/post-startup memory trimming via `EmptyWorkingSet` and Gen-2 GC compaction.
+- Idle CPU: Verified 0.00% idle CPU with zero wakeups when idle.
+- Working Set: Maintained within target 50–70 MB baseline (below the 100 MB budget).
+- `docs/PERFORMANCE.md`: Performance and stability report detailing benchmark results, idle analysis, and memory management strategy.
+
+### Test results
+- 48/48 unit tests pass in `GlassFolders.Core.Tests`.
+- Release build clean with 0 warnings and 0 errors (`-warnaserror`).

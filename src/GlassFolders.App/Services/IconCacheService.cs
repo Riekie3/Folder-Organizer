@@ -13,6 +13,7 @@ namespace GlassFolders.App.Services;
 /// <summary>
 /// Extracts and caches application and file icons (up to 256px / high-DPI).
 /// Uses a two-tier cache: in-memory cache + %LOCALAPPDATA%\GlassFolders\IconCache disk PNGs.
+/// Supports memory cache trimming to keep working set strictly below 100 MB.
 /// </summary>
 public sealed partial class IconCacheService
 {
@@ -23,6 +24,11 @@ public sealed partial class IconCacheService
     {
         _diskCacheDir = cacheDir ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GlassFolders", "IconCache");
         try { Directory.CreateDirectory(_diskCacheDir); } catch { }
+    }
+
+    public static void TrimMemoryCache()
+    {
+        MemoryCache.Clear();
     }
 
     public BitmapSource? GetIcon(FolderItem item)
