@@ -10,7 +10,7 @@ namespace GlassFolders.Core.Folders;
 public sealed class FolderManager
 {
     private readonly ConfigurationManager _configManager;
-    private readonly FoldersConfiguration _config;
+    private FoldersConfiguration _config;
 
     public event Action? Changed;
 
@@ -23,6 +23,12 @@ public sealed class FolderManager
     public IReadOnlyList<FolderDef> Folders => _config.Folders;
 
     public FolderDef? GetFolder(string id) => _config.Folders.FirstOrDefault(f => f.Id == id);
+
+    public void Reload()
+    {
+        _config = _configManager.LoadFolders();
+        Changed?.Invoke();
+    }
 
     public FolderDef CreateFolder(string name, string colorA = "#7FB2FF", string colorB = "#5B5CF2", string glyph = "Folder", int x = 100, int y = 100)
     {
