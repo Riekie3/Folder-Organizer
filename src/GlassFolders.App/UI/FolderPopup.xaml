@@ -3,7 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ShowInTaskbar="False" ResizeMode="NoResize" SizeToContent="WidthAndHeight"
-        Title="GlassFolders Popup" Topmost="True">
+        Title="GlassFolders Popup" Topmost="True"
+        AllowDrop="True" DragEnter="OnDragOver" DragOver="OnDragOver" Drop="OnDrop">
 
     <Window.Resources>
         <Style x:Key="ItemTileStyle" TargetType="Button">
@@ -34,7 +35,7 @@
     <!-- Main Container Card with 1px light rim and DWM acrylic backdrop -->
     <Border x:Name="PopupCard" Margin="16" Width="440" MinHeight="310" CornerRadius="28" BorderThickness="1"
             BorderBrush="{StaticResource BrushGlassBorderBright}" Background="{StaticResource BrushPopupBackground}"
-            Effect="{StaticResource ShadowPopup}" AllowDrop="True" Drop="OnDrop" DragOver="OnDragOver">
+            Effect="{StaticResource ShadowPopup}" AllowDrop="True" Drop="OnDrop" DragOver="OnDragOver" DragEnter="OnDragOver">
         <Grid ClipToBounds="True">
             <!-- Subtle Top Gloss Highlight -->
             <Border VerticalAlignment="Top" Height="40" Background="{StaticResource BrushTopGloss}"

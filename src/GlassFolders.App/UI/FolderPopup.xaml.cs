@@ -31,6 +31,7 @@ public partial class FolderPopup : Window
     private readonly RECT _anchor;
     private int _currentPage = 0;
     private bool _closing;
+    private bool _isShowingDialog;
 
     public FolderPopup(FolderDef folder, FolderManager folderManager, IconCacheService iconCache, IShortcutResolver resolver, RECT anchor)
     {
@@ -47,7 +48,10 @@ public partial class FolderPopup : Window
         ApplyGlyph();
 
         PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape) Close(); };
-        Deactivated += (_, _) => { if (!_closing) Close(); };
+        Deactivated += (_, _) =>
+        {
+            if (!_closing && !_isShowingDialog) Close();
+        };
         Closing += (_, _) => _closing = true;
 
         SourceInitialized += (_, _) =>
@@ -61,6 +65,8 @@ public partial class FolderPopup : Window
     }
 
     public string FolderId => _folder.Id;
+
+    public void RefreshItems() => RenderPage();
 
     private int TotalPages => Math.Max(1, (int)Math.Ceiling(_folder.Items.Count / (double)PageSize));
 
@@ -250,6 +256,10 @@ public partial class FolderPopup : Window
 
         var loc = new MenuItem { Header = "Open file location" };
         loc.Click += (_, _) => { ShellLauncher.OpenLocation(item); Close(); };
+        if (item.Type == FolderItemType.Url)
+        {
+            loc.IsEnabled = false;
+        }
         menu.Items.Add(loc);
 
         menu.Items.Add(new Separator());
@@ -257,12 +267,21 @@ public partial class FolderPopup : Window
         var rename = new MenuItem { Header = "Rename..." };
         rename.Click += (_, _) =>
         {
-            string? newName = PromptRename(item.DisplayName);
-            if (!string.IsNullOrWhiteSpace(newName) && newName != item.DisplayName)
+            _isShowingDialog = true;
+            try
             {
-                item.DisplayName = newName.Trim();
-                _folderManager.SetFolderPosition(_folder.Id, _folder.X, _folder.Y); // trigger save
-                RenderPage();
+                string? newName = PromptRename(item.DisplayName, "Rename Item", this);
+                if (!string.IsNullOrWhiteSpace(newName) && newName != item.DisplayName)
+                {
+                    item.DisplayName = newName.Trim();
+                    _folderManager.SetFolderPosition(_folder.Id, _folder.X, _folder.Y); // triggers save
+                    RenderPage();
+                }
+            }
+            finally
+            {
+                _isShowingDialog = false;
+                Activate();
             }
         };
         menu.Items.Add(rename);
@@ -314,21 +333,34 @@ public partial class FolderPopup : Window
 
     private void OnBtnAddClicked(object sender, RoutedEventArgs e)
     {
-        var ofd = new OpenFileDialog
+        _isShowingDialog = true;
+        try
         {
-            Title = $"Add shortcuts or files to {_folder.Name}",
-            Filter = "All Files (*.*)|*.*|Shortcuts (*.lnk)|*.lnk|Applications (*.exe)|*.exe",
-            Multiselect = true
-        };
-
-        if (ofd.ShowDialog() == true)
-        {
-            foreach (string file in ofd.FileNames)
+            var ofd = new OpenFileDialog
             {
-                var item = _resolver.Resolve(file);
-                _folderManager.AddItem(_folder.Id, item);
+                Title = $"Add shortcuts or files to {_folder.Name}",
+                Filter = "All Files (*.*)|*.*|Shortcuts (*.lnk)|*.lnk|Applications (*.exe)|*.exe",
+                Multiselect = true
+            };
+
+            if (ofd.ShowDialog(this) == true)
+            {
+                foreach (string file in ofd.FileNames)
+                {
+                    var item = _resolver.Resolve(file);
+                    _folderManager.AddItem(_folder.Id, item);
+                }
+                RenderPage();
             }
-            RenderPage();
+        }
+        catch (Exception ex)
+        {
+            DiagnosticService.Instance.LogError("Error in OnBtnAddClicked", ex);
+        }
+        finally
+        {
+            _isShowingDialog = false;
+            Activate();
         }
     }
 
@@ -336,7 +368,7 @@ public partial class FolderPopup : Window
     {
         if (e.Data.GetDataPresent(DataFormats.FileDrop))
         {
-            e.Effects = DragDropEffects.Copy;
+            e.Effects = DragDropEffects.Copy | DragDropEffects.Link;
             e.Handled = true;
         }
     }
@@ -345,36 +377,56 @@ public partial class FolderPopup : Window
     {
         if (e.Data.GetDataPresent(DataFormats.FileDrop))
         {
-            var files = (string[])e.Data.GetData(DataFormats.FileDrop);
-            if (files is not null)
+            try
             {
-                foreach (string file in files)
+                if (e.Data.GetData(DataFormats.FileDrop) is string[] files && files.Length > 0)
                 {
-                    var item = _resolver.Resolve(file);
-                    _folderManager.AddItem(_folder.Id, item);
+                    foreach (string file in files)
+                    {
+                        var item = _resolver.Resolve(file);
+                        _folderManager.AddItem(_folder.Id, item);
+                    }
+                    RenderPage();
                 }
-                RenderPage();
+            }
+            catch (Exception ex)
+            {
+                DiagnosticService.Instance.LogError("Error in FolderPopup OnDrop", ex);
             }
             e.Handled = true;
         }
     }
 
-    private static string? PromptRename(string currentName)
+    public static string? PromptRename(string currentName, string title = "Rename", Window? owner = null)
     {
         var win = new Window
         {
-            Title = "Rename Item",
-            Width = 320,
-            Height = 150,
-            WindowStartupLocation = WindowStartupLocation.CenterScreen,
+            Title = title,
+            Width = 340,
+            Height = 160,
+            WindowStartupLocation = owner != null ? WindowStartupLocation.CenterOwner : WindowStartupLocation.CenterScreen,
+            Owner = owner,
             WindowStyle = WindowStyle.ToolWindow,
             ResizeMode = ResizeMode.NoResize,
             Background = new SolidColorBrush(Color.FromRgb(0x20, 0x24, 0x38))
         };
 
         var sp = new StackPanel { Margin = new Thickness(16) };
-        var txt = new TextBox { Text = currentName, Margin = new Thickness(0, 0, 0, 16), FontSize = 14 };
-        var btnOk = new Button { Content = "OK", Width = 80, Height = 28, IsDefault = true, HorizontalAlignment = HorizontalAlignment.Right };
+        var txt = new TextBox
+        {
+            Text = currentName,
+            Margin = new Thickness(0, 0, 0, 16),
+            FontSize = 14,
+            Padding = new Thickness(6, 4, 6, 4)
+        };
+        var btnOk = new Button
+        {
+            Content = "OK",
+            Width = 80,
+            Height = 28,
+            IsDefault = true,
+            HorizontalAlignment = HorizontalAlignment.Right
+        };
 
         btnOk.Click += (_, _) => win.DialogResult = true;
         sp.Children.Add(txt);

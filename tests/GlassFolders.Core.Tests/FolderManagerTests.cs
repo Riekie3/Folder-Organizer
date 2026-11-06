@@ -107,6 +107,23 @@ public sealed class FolderManagerTests : IDisposable
     }
 
     [Fact]
+    public void Changed_event_fires_on_add_rename_and_remove()
+    {
+        int changedCount = 0;
+        _folderManager.Changed += () => changedCount++;
+
+        var item = new FolderItem { DisplayName = "New App", TargetPath = "C:\\test.exe" };
+        _folderManager.AddItem("work", item);
+        Assert.Equal(1, changedCount);
+
+        _folderManager.RenameFolder("work", "Office");
+        Assert.Equal(2, changedCount);
+
+        _folderManager.RemoveItem("work", item.Id);
+        Assert.Equal(3, changedCount);
+    }
+
+    [Fact]
     public void Reorder_item_swaps_positions()
     {
         var work = _folderManager.GetFolder("work")!;

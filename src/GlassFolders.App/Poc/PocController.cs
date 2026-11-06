@@ -109,6 +109,28 @@ public sealed class PocController : IDisposable
         _tray.RecoverNowRequested += () => _recoveryService.RecoverNow();
         _tray.AboutRequested += () => OpenSettings("About");
         _tray.ExitRequested += () => Application.Current.Shutdown();
+
+        // Wire folder manager updates to sync desktop tiles and popups
+        _folderManager.Changed += OnFolderManagerChanged;
+    }
+
+    private void OnFolderManagerChanged()
+    {
+        foreach (var (id, pair) in _tiles)
+        {
+            var f = _folderManager.GetFolder(id);
+            if (f is not null)
+            {
+                pair.Tile.SetItemCount(f.Items.Count);
+                pair.Tile.SetLabel(f.Name);
+                pair.Tile.SetGlyph(f.Glyph);
+                pair.Tile.SetColors(ParseColor(f.ColorA, Colors.Blue), ParseColor(f.ColorB, Colors.Navy));
+            }
+        }
+        if (_popup is not null && _popup.IsLoaded)
+        {
+            _popup.RefreshItems();
+        }
     }
 
     public void Start()
@@ -304,14 +326,21 @@ public sealed class PocController : IDisposable
 
         tile.FilesDropped += (t, files) =>
         {
-            foreach (string file in files)
+            try
             {
-                var item = _resolver.Resolve(file);
-                _folderManager.AddItem(t.Id, item);
+                foreach (string file in files)
+                {
+                    var item = _resolver.Resolve(file);
+                    _folderManager.AddItem(t.Id, item);
+                }
+                var f = _folderManager.GetFolder(t.Id);
+                if (f is not null) tile.SetItemCount(f.Items.Count);
+                DiagnosticService.Instance.LogInfo($"Dropped {files.Length} files into folder '{folder.Name}'");
             }
-            var f = _folderManager.GetFolder(t.Id);
-            if (f is not null) tile.SetItemCount(f.Items.Count);
-            DiagnosticService.Instance.LogInfo($"Dropped {files.Length} files into folder '{folder.Name}'");
+            catch (Exception ex)
+            {
+                DiagnosticService.Instance.LogError($"Failed to add dropped files to folder '{folder.Name}'", ex);
+            }
         };
 
         tile.ContextMenu = BuildMenu(folder, tile);
@@ -333,23 +362,46 @@ public sealed class PocController : IDisposable
         open.Click += (_, _) => OnTileClicked(tile);
         menu.Items.Add(open);
 
+        var rename = new MenuItem { Header = "Rename Folder..." };
+        rename.Click += (_, _) =>
+        {
+            string? newName = FolderPopup.PromptRename(folder.Name, "Rename Folder");
+            if (!string.IsNullOrWhiteSpace(newName) && newName != folder.Name)
+            {
+                _folderManager.RenameFolder(folder.Id, newName.Trim());
+                tile.SetLabel(newName.Trim());
+                DiagnosticService.Instance.LogInfo($"Renamed folder '{folder.Id}' to '{newName.Trim()}'");
+            }
+        };
+        menu.Items.Add(rename);
+
         var add = new MenuItem { Header = "Add Shortcuts / Files..." };
         add.Click += (_, _) =>
         {
-            var ofd = new OpenFileDialog
+            try
             {
-                Title = $"Add to {folder.Name}",
-                Filter = "All Files (*.*)|*.*|Shortcuts (*.lnk)|*.lnk|Applications (*.exe)|*.exe",
-                Multiselect = true
-            };
-            if (ofd.ShowDialog() == true)
-            {
-                foreach (string file in ofd.FileNames)
+                var ofd = new OpenFileDialog
                 {
-                    var item = _resolver.Resolve(file);
-                    _folderManager.AddItem(folder.Id, item);
+                    Title = $"Add to {folder.Name}",
+                    Filter = "All Files (*.*)|*.*|Shortcuts (*.lnk)|*.lnk|Applications (*.exe)|*.exe",
+                    Multiselect = true
+                };
+                if (ofd.ShowDialog() == true)
+                {
+                    foreach (string file in ofd.FileNames)
+                    {
+                        var item = _resolver.Resolve(file);
+                        _folderManager.AddItem(folder.Id, item);
+                    }
+                    var f = _folderManager.GetFolder(folder.Id);
+                    if (f is not null) tile.SetItemCount(f.Items.Count);
+                    DiagnosticService.Instance.LogInfo($"Added {ofd.FileNames.Length} files to '{folder.Name}'");
                 }
-                tile.SetItemCount(folder.Items.Count);
+            }
+            catch (Exception ex)
+            {
+                DiagnosticService.Instance.LogError($"Error adding files to folder '{folder.Name}'", ex);
+                MessageBox.Show($"Failed to add selected files:\n\n{ex.Message}", "GlassFolders Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         };
         menu.Items.Add(add);
@@ -357,7 +409,8 @@ public sealed class PocController : IDisposable
         var edit = new MenuItem { Header = "Edit Appearance..." };
         edit.Click += (_, _) =>
         {
-            var dialog = new FolderEditorDialog(folder);
+            var currentFolder = _folderManager.GetFolder(folder.Id) ?? folder;
+            var dialog = new FolderEditorDialog(currentFolder);
             if (dialog.ShowDialog() == true)
             {
                 var res = dialog.ResultFolder;

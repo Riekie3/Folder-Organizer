@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using GlassFolders.App.Services;
 using GlassFolders.App.Themes;
 using GlassFolders.Core.Models;
 using GlassFolders.Native;
@@ -31,7 +32,9 @@ public partial class FolderTile : UserControl
         MouseEnter += (_, _) => SetPlate();
         MouseLeave += (_, _) => SetPlate();
 
+        DragEnter += OnTileDragOver;
         DragOver += OnTileDragOver;
+        DragLeave += (_, _) => SetPlate();
         Drop += OnTileDrop;
     }
 
@@ -163,7 +166,7 @@ public partial class FolderTile : UserControl
     {
         if (e.Data.GetDataPresent(DataFormats.FileDrop))
         {
-            e.Effects = DragDropEffects.Link;
+            e.Effects = DragDropEffects.Copy | DragDropEffects.Link;
             Plate.Opacity = 1.0;
         }
         else
@@ -178,9 +181,16 @@ public partial class FolderTile : UserControl
         SetPlate();
         if (e.Data.GetDataPresent(DataFormats.FileDrop))
         {
-            if (e.Data.GetData(DataFormats.FileDrop) is string[] files && files.Length > 0)
+            try
             {
-                FilesDropped?.Invoke(this, files);
+                if (e.Data.GetData(DataFormats.FileDrop) is string[] files && files.Length > 0)
+                {
+                    FilesDropped?.Invoke(this, files);
+                }
+            }
+            catch (Exception ex)
+            {
+                DiagnosticService.Instance.LogError("Error handling dropped files on tile", ex);
             }
         }
         e.Handled = true;

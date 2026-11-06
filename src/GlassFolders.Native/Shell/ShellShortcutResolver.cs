@@ -93,7 +93,7 @@ public sealed class ShellShortcutResolver : IShortcutResolver
         if (File.Exists(item.TargetPath)) return true;
         if (!string.IsNullOrEmpty(item.ShortcutPath) && File.Exists(item.ShortcutPath)) return true;
 
-        // Check in PATH for standalone exe names
+        // Check in Windows/System32/PATH for standalone exe names
         if (item.Type == FolderItemType.Executable && !Path.IsPathRooted(item.TargetPath))
         {
             string? found = FindInPath(item.TargetPath);
@@ -103,6 +103,20 @@ public sealed class ShellShortcutResolver : IShortcutResolver
         return false;
     }
 
+    private static IShellLinkW CreateShellLink()
+    {
+        try
+        {
+            return (IShellLinkW)new ShellLink();
+        }
+        catch
+        {
+            var clsid = new Guid("00021401-0000-0000-C000-000000000046");
+            var type = Type.GetTypeFromCLSID(clsid, throwOnError: true)!;
+            return (IShellLinkW)Activator.CreateInstance(type)!;
+        }
+    }
+
     private static FolderItem ResolveLnk(string lnkPath)
     {
         string fullLnk = Path.GetFullPath(lnkPath);
@@ -110,29 +124,54 @@ public sealed class ShellShortcutResolver : IShortcutResolver
 
         try
         {
-            var link = (IShellLinkW)new ShellLink();
+            var link = CreateShellLink();
             var persist = (IPersistFile)link;
             persist.Load(fullLnk, 0);
 
-            var targetSb = new StringBuilder(1024);
-            link.GetPath(targetSb, targetSb.Capacity, out _, 0);
-            string target = targetSb.ToString();
+            string target = string.Empty;
+            try
+            {
+                var targetSb = new StringBuilder(1024);
+                // pfd is NULL (0) so Windows does not write a WIN32_FIND_DATA structure to unallocated stack
+                link.GetPath(targetSb, targetSb.Capacity, 0, 0);
+                target = targetSb.ToString();
+            }
+            catch { }
 
-            var argsSb = new StringBuilder(1024);
-            link.GetArguments(argsSb, argsSb.Capacity);
-            string args = argsSb.ToString();
+            string args = string.Empty;
+            try
+            {
+                var argsSb = new StringBuilder(1024);
+                link.GetArguments(argsSb, argsSb.Capacity);
+                args = argsSb.ToString();
+            }
+            catch { }
 
-            var workDirSb = new StringBuilder(1024);
-            link.GetWorkingDirectory(workDirSb, workDirSb.Capacity);
-            string workDir = workDirSb.ToString();
+            string workDir = string.Empty;
+            try
+            {
+                var workDirSb = new StringBuilder(1024);
+                link.GetWorkingDirectory(workDirSb, workDirSb.Capacity);
+                workDir = workDirSb.ToString();
+            }
+            catch { }
 
-            var iconSb = new StringBuilder(1024);
-            link.GetIconLocation(iconSb, iconSb.Capacity, out int iconIndex);
-            string iconLocation = iconSb.ToString();
+            string iconLocation = string.Empty;
+            int iconIndex = 0;
+            try
+            {
+                var iconSb = new StringBuilder(1024);
+                link.GetIconLocation(iconSb, iconSb.Capacity, out iconIndex);
+                iconLocation = iconSb.ToString();
+            }
+            catch { }
 
             FolderItemType type = FolderItemType.Shortcut;
-            if (Directory.Exists(target)) type = FolderItemType.Folder;
-            else if (target.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) type = FolderItemType.Executable;
+            if (!string.IsNullOrWhiteSpace(target))
+            {
+                if (Directory.Exists(target)) type = FolderItemType.Folder;
+                else if (target.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) type = FolderItemType.Executable;
+            }
 
             return new FolderItem
             {
@@ -201,20 +240,27 @@ public sealed class ShellShortcutResolver : IShortcutResolver
 
     private static string? FindInPath(string fileName)
     {
-        string? envPath = Environment.GetEnvironmentVariable("PATH");
-        if (string.IsNullOrEmpty(envPath)) return null;
-
-        foreach (string path in envPath.Split(';', StringSplitOptions.RemoveEmptyEntries))
+        try
         {
-            try
+            string win = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), fileName);
+            if (File.Exists(win)) return win;
+
+            string sys = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), fileName);
+            if (File.Exists(sys)) return sys;
+
+            string? envPath = Environment.GetEnvironmentVariable("PATH");
+            if (!string.IsNullOrEmpty(envPath))
             {
-                string full = Path.Combine(path.Trim(), fileName);
-                if (File.Exists(full)) return full;
-                if (!fileName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) && File.Exists(full + ".exe"))
-                    return full + ".exe";
+                foreach (string path in envPath.Split(';', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    string full = Path.Combine(path.Trim(), fileName);
+                    if (File.Exists(full)) return full;
+                    if (!fileName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) && File.Exists(full + ".exe"))
+                        return full + ".exe";
+                }
             }
-            catch { }
         }
+        catch { }
         return null;
     }
 }
@@ -224,7 +270,7 @@ public sealed class ShellShortcutResolver : IShortcutResolver
 [Guid("000214F9-0000-0000-C000-000000000046")]
 internal interface IShellLinkW
 {
-    void GetPath([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder pszFile, int cchMaxPath, out byte pfd, uint fFlags);
+    void GetPath([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder pszFile, int cchMaxPath, nint pfd, uint fFlags);
     void GetIDList(out nint ppidl);
     void SetIDList(nint pidl);
     void GetDescription([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder pszName, int cchMaxName);
