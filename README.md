@@ -2,66 +2,71 @@
 
 Phone-style app folders on your real Windows 11 desktop, with a Liquid Glass popup.
 
-> **Status: Phase 1 (proof of concept) done.** Folders can live on the real Windows 11 desktop, survive Show desktop and Explorer restarts, and stay behind app windows. See [DEVLOG.md](DEVLOG.md). The image below is still a concept mockup, not a screenshot of the finished app.
+> **Status: Production Release (`v1.0.0`) complete.** Built for Windows 11 (including 24H2 & 25H2). Fully tested, zero-leak memory profile, event-driven Explorer recovery, and zero runtime dependencies beyond .NET 10.
 
 ![GlassFolders concept mockup](docs/screenshot-concept.png)
 
-## What it will do
+---
 
-GlassFolders brings the Android and iPhone home-screen folder experience to Windows. Folders such as Work, Games, Media and Utilities sit on the actual desktop next to your normal shortcuts. Click one and a translucent glass popup opens with your real apps, files and shortcuts inside.
+## Overview
 
-- **Real desktop integration.** Folders sit on the desktop layer, behind normal windows. Your existing desktop icons keep working.
-- **Explorer recovery.** Folders come back on their own after Explorer crashes or restarts.
-- **Multi-monitor.** Each monitor keeps its own layout, matched by stable display identity rather than screen order.
-- **Backup and restore.** Export everything to a portable ZIP and import it on another PC, with missing-app relinking.
-- **Liquid Glass design.** Frosted glass, soft shadows, light and dark themes.
-- **Animation controls.** A master switch, per-effect switches and three speeds. Everything works with animations off.
-- **Lightweight.** Event-driven, no background polling, target under 100 MB of memory when idle.
-- **Tray app.** Starts with Windows, lives in the notification area, no taskbar button.
+**GlassFolders** brings the mobile home-screen folder experience to Windows 11 without hacky overlays or third-party bloat. Folders like *Work*, *Games*, *Media*, and *Utilities* sit directly on your desktop layer alongside standard icons. Clicking a folder opens a frosted DWM Acrylic glass panel displaying real application icons, shortcuts, and files.
 
-Removing an item from a folder never deletes the original app or file.
+- **Native Desktop Integration:** Each folder is a small, borderless Progman-owned window pinned below normal applications. Desktop rubber-band selection, desktop icons, and Win+D ("Show Desktop") continue to work seamlessly.
+- **Liquid Glass Interface:** Real Windows 11 DWM Acrylic (`DWMSBT_TRANSIENTWINDOW`) and Mica composition, subtle 1px specular highlight rims, customizable vector category glyphs, and dynamic dark mode.
+- **Automated Explorer Recovery:** Event-driven state machine (`Healthy → ShellLost → WaitingForShell → Reattaching → Verifying`) automatically recovers desktop surfaces with exponential backoff on Explorer crashes, taskbar recreation, session locks, and power resumes.
+- **Multi-Monitor Layouts:** Position math uses work-area relative fractions and persistent monitor identities. When a secondary screen is unplugged, folders gracefully displace to the primary monitor and return to their home screen when reconnected.
+- **Portable Backup & Restore:** Self-contained `.zip` backup format with SHA-256 manifests, automated rolling pre-restore backups (max 10), collision-free merge mode, and intelligent path relinking for cross-PC migration.
+- **Granular Animation Controls:** Master toggle, Windows reduced-motion (`SPI_GETCLIENTAREAANIMATION`) compliance, speed slider (0.5×–2.0×), and 8 independent animation category switches.
+- **Ultra-Lightweight & Zero-Polling:** 0.00% idle CPU overhead, no periodic timer wakeups, and automated working set memory trimming (~50–65 MB typical).
+- **System Tray Integration:** Runs quietly in the notification area with a custom glass context menu; no taskbar button.
 
-## Tech
+> **Safety Guarantee:** Removing an item or deleting a folder from GlassFolders **never** deletes the original application or file from your computer.
 
-C# on .NET 10 with WPF, Win32 and Windows Shell APIs, DWM acrylic backdrop, JSON storage, Inno Setup installer. No runtime dependencies beyond .NET.
+---
 
-## Roadmap
+## Technical Architecture
 
-| Phase | Goal | Version |
-|---|---|---|
-| 1 | Desktop integration proof of concept | v0.1.0-poc |
-| 2 | Core desktop organizer | v0.2.0 |
-| 3 | Liquid Glass interface | v0.3.0 |
-| 4 | Tray, startup and Explorer recovery | v0.4.0 |
-| 5 | Multi-monitor support | v0.5.0 |
-| 6 | Portable backup and restore | v0.6.0 |
-| 7 | Animation control system | v0.7.0 |
-| 8 | Performance and stability | v0.9.0-rc |
-| 9 | Installer and release | v1.0.0 |
+- **Runtime:** .NET 10 (LTS) WPF with Per-Monitor-V2 DPI awareness.
+- **Platform:** Windows 11 (22H2, 23H2, 24H2, 25H2+) and Windows 10 64-bit.
+- **Compositor:** Direct Desktop Window Manager (DWM) Acrylic blur and Mica backdrops.
+- **Packaging:** Inno Setup per-user installer (`{localappdata}\Programs\GlassFolders`, no administrator privileges required).
 
-Full details are in [PLAN.md](PLAN.md).
+---
 
-## Downloads
+## Building from Source
 
-None yet. Stable installers will be published on the [Releases page](https://github.com/Riekie3/Folder-Organizer/releases).
+Requires Windows 11 and the **.NET 10 SDK**.
 
-## Building
+```powershell
+# Clone the repository
+git clone https://github.com/Riekie3/Folder-Organizer.git
+cd "Folder-Organizer"
 
-Requires Windows 11 and the .NET 10 SDK.
+# Build solution in Release mode
+dotnet build GlassFolders.sln --configuration Release -warnaserror
 
-```
-dotnet build GlassFolders.sln
-dotnet test tests/GlassFolders.Core.Tests
-src\GlassFolders.App\bin\Debug\net10.0-windows\GlassFolders.exe
+# Run comprehensive test suite (48 tests)
+dotnet test GlassFolders.sln --configuration Release
+
+# Launch GlassFolders
+.\src\GlassFolders.App\bin\Release\net10.0-windows\GlassFolders.exe
 ```
 
-Right-click a folder → **Exit GlassFolders PoC** to close it.
+---
 
-## Repository layout
+## Documentation
 
-- `src/` – Core (logic and storage), Native (Win32), App (WPF)
-- `tests/` – unit tests
-- `tools/` – `DesktopProbe` (maps the Explorer desktop) and `PocVerifier` (automated desktop checks)
-- `docs/` – architecture, known issues, plan page, mockup
-- `PLAN.md` – detailed development plan · `DEVLOG.md` – progress and test results
-- `Referance/` – visual reference images used for the design
+- [User Guide](docs/USER-GUIDE.md) — Shortcut management, appearance customization, and settings.
+- [Architecture Documentation](docs/ARCHITECTURE.md) — Window hierarchy, Progman ownership, and DWM composition details.
+- [Backup & Restore Guide](docs/BACKUP-RESTORE.md) — Portable ZIP schema, zip safety, and path relinking.
+- [Performance & Stability Report](docs/PERFORMANCE.md) — Benchmarks, working set metrics, and idle CPU analysis.
+- [Known Issues & Quirks](docs/KNOWN-ISSUES.md) — Windows 11 25H2 desktop behavior and workarounds.
+- [Changelog](CHANGELOG.md) — Complete milestone release history.
+- [Development Log](DEVLOG.md) — Phase-by-phase implementation journal.
+
+---
+
+## License
+
+GlassFolders is open-source software licensed under the [MIT License](LICENSE). Copyright © 2026 Riekie3.

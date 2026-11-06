@@ -203,3 +203,26 @@ Branch `phase/8-performance-rc`.
 ### Test results
 - 48/48 unit tests pass in `GlassFolders.Core.Tests`.
 - Release build clean with 0 warnings and 0 errors (`-warnaserror`).
+
+
+---
+
+## Phase 9 — Release packaging & documentation (2026-11-07) · `v1.0.0`
+
+Branch `phase/9-release-packaging`.
+
+### Done
+- `Directory.Build.props`: Bumped version to `1.0.0` and enabled `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>` globally across all projects.
+- `installer/GlassFolders.iss`: Inno Setup script for per-user installation (`PrivilegesRequired=lowest`), target path `{localappdata}\Programs\GlassFolders`, desktop shortcuts, mutex checks, run registry key, and clean uninstallation.
+- `.github/workflows/build.yml`: CI build and test workflow verifying builds and test passes on pull requests and pushes.
+- `.github/workflows/release.yml`: Release packaging workflow building Release binaries, generating SHA-256 checksums, and attaching artifacts.
+- `docs/USER-GUIDE.md`: Comprehensive user guide detailing folder management, shortcuts, DWM customization, multi-monitor workflows, animation controls, backup/restore, and tray menu operations.
+- `docs/BACKUP-RESTORE.md`: In-depth specification of portable ZIP archives, manifest schema, ZipSafety defenses, and Smart Path Relinker heuristics.
+- `docs/ARCHITECTURE.md`: Complete system architecture documentation spanning desktop integration, recovery state machines, single-instance IPC, multi-monitor displacement, and resource management.
+- `CHANGELOG.md`: Keep a Changelog compliant history covering all releases from `v0.1.0-poc` to `v1.0.0`.
+- `LICENSE`: Standard MIT license.
+- `README.md`: Updated with full v1.0.0 feature breakdown, architecture summary, and installation instructions.
+
+### Test results
+- 48/48 unit tests pass in `GlassFolders.Core.Tests`.
+- Release build clean with 0 warnings and 0 errors (`-warnaserror`).

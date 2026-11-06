@@ -59,7 +59,7 @@
                     </StackPanel>
 
                     <!-- Version indicator at bottom -->
-                    <TextBlock Grid.Row="2" Text="v0.7.0" FontSize="10" Foreground="{StaticResource BrushTextMuted}"
+                    <TextBlock Grid.Row="2" Text="v1.0.0" FontSize="10" Foreground="{StaticResource BrushTextMuted}"
                                HorizontalAlignment="Center"/>
                 </Grid>
             </Border>
@@ -350,7 +350,7 @@
                             <Border Style="{StaticResource GlassCard}">
                                 <StackPanel>
                                     <TextBlock Text="GlassFolders" FontSize="18" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}"/>
-                                    <TextBlock Text="Version 0.7.0 · Phase 7 Animation System" FontSize="12" Foreground="{StaticResource BrushAccent}" Margin="0,2,0,12"/>
+                                    <TextBlock Text="Version 1.0.0 · Production Release" FontSize="12" Foreground="{StaticResource BrushAccent}" Margin="0,2,0,12"/>
                                     <TextBlock Text="Phone-style app folders on your real Windows 11 desktop, with a Liquid Glass popup."
                                                FontSize="13" Foreground="{StaticResource BrushTextSecondary}" TextWrapping="Wrap" Margin="0,0,0,16"/>
                                     <TextBlock Text="Architecture: .NET 10 (LTS) WPF · Win32 DWM Acrylic · Per-Monitor-V2 DPI · Granular Animation Control"
