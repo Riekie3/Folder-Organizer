@@ -4,36 +4,8 @@
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ShowInTaskbar="False" ResizeMode="NoResize" SizeToContent="WidthAndHeight"
         Title="GlassFolders Popup" Topmost="True">
-    <Window.Resources>
-        <Style x:Key="GlassButton" TargetType="Button">
-            <Setter Property="Background" Value="#33FFFFFF"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="BorderBrush" Value="#4DFFFFFF"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="8">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#59FFFFFF"/>
-                                <Setter TargetName="bd" Property="BorderBrush" Value="#80FFFFFF"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#26FFFFFF"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
 
+    <Window.Resources>
         <Style x:Key="ItemTileStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
@@ -41,13 +13,13 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" CornerRadius="12" Background="Transparent" BorderThickness="1" BorderBrush="Transparent" Padding="6">
+                        <Border x:Name="bd" CornerRadius="14" Background="Transparent" BorderThickness="1" BorderBrush="Transparent" Padding="6">
                             <ContentPresenter/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#33FFFFFF"/>
-                                <Setter TargetName="bd" Property="BorderBrush" Value="#4DFFFFFF"/>
+                                <Setter TargetName="bd" Property="Background" Value="{StaticResource BrushGlassHover}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource BrushGlassBorder}"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="bd" Property="Background" Value="#1AFFFFFF"/>
@@ -59,78 +31,92 @@
         </Style>
     </Window.Resources>
 
-    <Border Margin="16" Width="440" MinHeight="300" CornerRadius="24" BorderThickness="1"
-            BorderBrush="#99FFFFFF" AllowDrop="True" Drop="OnDrop" DragOver="OnDragOver">
-        <Border.Background>
-            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                <GradientStop Color="#E61A2B52" Offset="0"/>
-                <GradientStop Color="#E6121D38" Offset="1"/>
-            </LinearGradientBrush>
-        </Border.Background>
-        <Border.Effect>
-            <DropShadowEffect BlurRadius="32" ShadowDepth="8" Opacity="0.45" Color="#0A1028"/>
-        </Border.Effect>
+    <!-- Main Container Card with 1px light rim and DWM acrylic backdrop -->
+    <Border x:Name="PopupCard" Margin="16" Width="440" MinHeight="310" CornerRadius="28" BorderThickness="1"
+            BorderBrush="{StaticResource BrushGlassBorderBright}" Background="{StaticResource BrushPopupBackground}"
+            Effect="{StaticResource ShadowPopup}" AllowDrop="True" Drop="OnDrop" DragOver="OnDragOver">
+        <Grid ClipToBounds="True">
+            <!-- Subtle Top Gloss Highlight -->
+            <Border VerticalAlignment="Top" Height="40" Background="{StaticResource BrushTopGloss}"
+                    CornerRadius="28,28,0,0" IsHitTestVisible="False"/>
 
-        <Grid Margin="20">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
+            <Grid Margin="20,18,20,18">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
 
-            <!-- Header Row -->
-            <Grid Grid.Row="0" Margin="0,0,0,16">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+                <!-- Header Row -->
+                <Grid Grid.Row="0" Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
 
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock x:Name="TxtTitle" Text="Folder" FontSize="22" FontWeight="SemiBold"
-                               Foreground="White" FontFamily="Segoe UI Variable Display, Segoe UI"/>
-                    <Border Background="#33FFFFFF" CornerRadius="10" Margin="10,0,0,0" Padding="8,2" VerticalAlignment="Center">
-                        <TextBlock x:Name="TxtCount" Text="0 items" FontSize="11" Foreground="#CCFFFFFF"/>
-                    </Border>
-                </StackPanel>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- Category Glyph -->
+                        <Viewbox Width="24" Height="24" Margin="0,0,10,0">
+                            <Canvas Width="64" Height="64">
+                                <Path x:Name="HeaderGlyph" Fill="{StaticResource BrushTextPrimary}"
+                                      Data="{StaticResource GlyphFolder}"/>
+                            </Canvas>
+                        </Viewbox>
 
-                <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <Button x:Name="BtnAdd" Content="+" Width="30" Height="30" Margin="0,0,8,0"
-                            FontSize="18" Style="{StaticResource GlassButton}" ToolTip="Add shortcuts or files"
-                            Click="OnBtnAddClicked"/>
-                    <Button x:Name="BtnClose" Content="✕" Width="30" Height="30"
-                            FontSize="12" Style="{StaticResource GlassButton}" ToolTip="Close"
-                            Click="OnBtnCloseClicked"/>
-                </StackPanel>
-            </Grid>
+                        <!-- Folder Title -->
+                        <TextBlock x:Name="TxtTitle" Text="Folder" FontSize="22" FontWeight="SemiBold"
+                                   Foreground="{StaticResource BrushTextPrimary}" FontFamily="{StaticResource FontDisplay}"/>
 
-            <!-- Content Area: Items Grid or Empty Message -->
-            <Grid Grid.Row="1" MinHeight="180">
-                <!-- Items Grid (Paged) -->
-                <UniformGrid x:Name="ItemsGrid" Columns="4" Rows="3" VerticalAlignment="Top"/>
+                        <!-- Item Count Badge -->
+                        <Border Background="{StaticResource BrushGlassHover}" CornerRadius="10" Margin="10,0,0,0" Padding="8,2" VerticalAlignment="Center">
+                            <TextBlock x:Name="TxtCount" Text="0 items" FontSize="11" Foreground="{StaticResource BrushTextSecondary}"
+                                       FontFamily="{StaticResource FontBody}"/>
+                        </Border>
+                    </StackPanel>
 
-                <!-- Empty State Message -->
-                <StackPanel x:Name="EmptyNotice" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed">
-                    <TextBlock Text="Folder is empty" FontSize="15" FontWeight="SemiBold" Foreground="#CCFFFFFF" HorizontalAlignment="Center"/>
-                    <TextBlock Text="Drop shortcuts or files here, or click + to add" FontSize="12" Foreground="#80FFFFFF" Margin="0,4,0,0" HorizontalAlignment="Center"/>
-                </StackPanel>
-            </Grid>
+                    <!-- Header Action Buttons -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button x:Name="BtnAdd" Content="+" Width="30" Height="30" Margin="0,0,8,0"
+                                FontSize="18" Style="{StaticResource GlassIconButton}" ToolTip="Add shortcuts or files"
+                                Click="OnBtnAddClicked"/>
+                        <Button x:Name="BtnClose" Content="✕" Width="30" Height="30"
+                                FontSize="12" Style="{StaticResource GlassIconButton}" ToolTip="Close"
+                                Click="OnBtnCloseClicked"/>
+                    </StackPanel>
+                </Grid>
 
-            <!-- Footer: Pagination Controls -->
-            <Grid Grid.Row="2" Margin="0,12,0,0" x:Name="PaginationBar">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+                <!-- Divider Line -->
+                <Rectangle Grid.Row="0" VerticalAlignment="Bottom" Height="1" Fill="#26FFFFFF" Margin="0,0,0,0"/>
 
-                <Button x:Name="BtnPrevPage" Content="◀" Width="28" Height="24" FontSize="10"
-                        Style="{StaticResource GlassButton}" Click="OnBtnPrevPageClicked"/>
+                <!-- Content Area: Items Grid or Empty Message -->
+                <Grid Grid.Row="1" MinHeight="180" Margin="0,8,0,0">
+                    <!-- Items Grid (Paged) -->
+                    <UniformGrid x:Name="ItemsGrid" Columns="4" Rows="3" VerticalAlignment="Top"/>
 
-                <StackPanel x:Name="PageDots" Grid.Column="1" Orientation="Horizontal"
-                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <!-- Empty State Message -->
+                    <StackPanel x:Name="EmptyNotice" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed">
+                        <TextBlock Text="Folder is empty" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource BrushTextSecondary}" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Drop shortcuts or files here, or click + to add" FontSize="12" Foreground="{StaticResource BrushTextMuted}" Margin="0,4,0,0" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
 
-                <Button Grid.Column="2" x:Name="BtnNextPage" Content="▶" Width="28" Height="24" FontSize="10"
-                        Style="{StaticResource GlassButton}" Click="OnBtnNextPageClicked"/>
+                <!-- Footer: Pagination Controls -->
+                <Grid Grid.Row="2" Margin="0,10,0,0" x:Name="PaginationBar">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Button x:Name="BtnPrevPage" Content="◀" Width="28" Height="24" FontSize="10"
+                            Style="{StaticResource GlassIconButton}" Click="OnBtnPrevPageClicked"/>
+
+                    <StackPanel x:Name="PageDots" Grid.Column="1" Orientation="Horizontal"
+                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                    <Button Grid.Column="2" x:Name="BtnNextPage" Content="▶" Width="28" Height="24" FontSize="10"
+                            Style="{StaticResource GlassIconButton}" Click="OnBtnNextPageClicked"/>
+                </Grid>
             </Grid>
         </Grid>
     </Border>

@@ -68,3 +68,45 @@ Idle (A, Debug): 0 ms CPU in 30 s; working set 93.9 MB; private 52.3 MB.
 - Multi-monitor: pending hardware (D1).
 - Phase 2: place new folders in free desktop space (they currently can overlap icons).
 - Phase 8: trim working set (WPF baseline ~94 MB in Debug).
+
+---
+
+## Phase 2 — Core desktop organizer (2026-11-06) · `v0.2.0`
+
+Branch `phase/2-core-organizer`.
+
+### Done
+- Models in `GlassFolders.Core/Models/`: `FolderDef`, `FolderItem`, `AppSettings`, `FolderItemType`.
+- `ConfigurationManager`: Atomic file writes with `.tmp` and `.bak` backup/corrupt-recovery fallback, schema v1, debounced 500ms saving, default folders ("Work", "Games", "Media") seeding.
+- `FolderManager`: Full CRUD operations on folders and shortcut items.
+- `ShellShortcutResolver`: Win32 COM `IShellLinkW` / `IPersistFile` target resolution, `.lnk`, `.url`, executables, and Store AppX (`shell:AppsFolder\<AUMID>`) support.
+- `ShellLauncher`: Native `ShellExecuteEx` execution preserving original shortcut arguments, elevation verbs, and working directory.
+- `IconCacheService`: Real file and shell icon extraction via `SHGetFileInfoW`, frozen `BitmapSource` caching, disk cache under `%LOCALAPPDATA%\GlassFolders\IconCache`.
+- `FolderPopup.xaml`: 4×3 grid (12 items/page) with animated page dots navigation, drag & drop shortcut addition, item context menu ("Open", "Open file location", "Rename", "Remove from folder").
+- `FolderTile.xaml`: Vector two-layer glossy folder graphics, white category glyphs, item count badges, and desktop OLE drag-and-drop target.
+- Comprehensive unit tests: `ConfigurationManagerTests.cs` and `FolderManagerTests.cs` (25/25 passed).
+
+### Test results
+- 25/25 unit tests pass in `GlassFolders.Core.Tests`.
+- Release build clean with 0 warnings and 0 errors (`-warnaserror`).
+
+---
+
+## Phase 3 — Liquid Glass interface (2026-11-07) · `v0.3.0`
+
+Branch `phase/3-liquid-glass`.
+
+### Done
+- `GlassFolders.Native/DwmHelpers.cs`: Windows 11 DWM backdrop integration (`DwmSetWindowAttribute` for `DWMSBT_TRANSIENTWINDOW` Acrylic and `DWMSBT_MAINWINDOW` Mica, `DWMWA_USE_IMMERSIVE_DARK_MODE`, `DWMWA_WINDOW_CORNER_PREFERENCE` rounded corners, and client area extension).
+- `Themes/Tokens.xaml`: Centralized design tokens (colors, translucent glass gradients, corner radii 8/16/28, typography `Segoe UI Variable`, border brushes, shadow effects).
+- `Themes/FolderGlyphs.xaml`: Reusable vector category glyphs (Briefcase, Gamepad, Media, Settings, Code, Palette, Document, Person, Sparkle, Globe, Star, Folder).
+- `Themes/Controls.xaml`: Glass-styled toggle switches, pill text boxes, sliders, glass buttons, and scrollbars.
+- `FolderPopup.xaml`: Liquid glass styling with DWM Acrylic backdrop, translucent white rim, top gloss highlight, category header glyph, and high contrast fallback.
+- `UI/FolderEditorDialog.xaml`: Customization dialog for folder name, color pair swatches, and vector category glyphs with real-time vector preview.
+- `UI/SettingsWindow.xaml`: Tabbed glass sidebar navigation (General, Appearance, Desktop Layout, About) with live setting toggles, sliders, and folder management.
+- Context menu integration: Right-clicking any desktop tile provides "Edit Appearance..." and "Settings..." access.
+
+### Test results
+- Solution builds with 0 warnings and 0 errors (`dotnet build -c Release -warnaserror`).
+- 25/25 unit tests passing.
+

@@ -1,0 +1,20 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Geometry x:Key="GlyphFolder">M24,28 A2,2 0 0 1 26,26 L38,26 A2,2 0 0 1 40,28 L40,42 A2,2 0 0 1 38,44 L26,44 A2,2 0 0 1 24,42 Z</Geometry>
+    
+    <Geometry x:Key="GlyphBriefcase">M20,26 L44,26 L44,46 L20,46 Z M26,26 L26,20 A2,2 0 0 1 28,18 L36,18 A2,2 0 0 1 38,20 L38,26 M20,33 L44,33</Geometry>
+    
+    <Geometry x:Key="GlyphGamepad">M18,30 C18,24 23,20 32,20 C41,20 46,24 46,30 C46,38 42,46 39,46 C37,46 36,42 32,42 C28,42 27,46 25,46 C22,46 18,38 18,30 Z M23,29 L27,29 M25,27 L25,31 M37,28 A1.5,1.5 0 1 1 37,28.1 M41,31 A1.5,1.5 0 1 1 41,31.1</Geometry>
+    
+    <Geometry x:Key="GlyphPlay">M24,24 L44,34 L24,44 Z</Geometry>
+    
+    <Geometry x:Key="GlyphGear">M32,22 A8,8 0 1 1 31.9,22 Z M29,18 L35,18 L36,22 L40,24 L43,21 L47,25 L44,29 L46,33 L50,34 L50,40 L46,41 L44,45 L47,49 L43,53 L39,50 L35,52 L34,56 L28,56 L27,52 L23,50 L19,53 L15,49 L18,45 L16,41 L12,40 L12,34 L16,33 L18,29 L15,25 L19,21 L23,24 L27,22 Z</Geometry>
+    
+    <Geometry x:Key="GlyphCode">M25,26 L17,34 L25,42 M39,26 L47,34 L39,42 M34,22 L30,46</Geometry>
+    
+    <Geometry x:Key="GlyphPalette">M32,18 C24,18 18,24 18,32 C18,40 24,46 30,46 C32,46 33,45 33,43 C33,42 32,41 32,40 C32,38 34,36 36,36 L39,36 C43,36 46,33 46,29 C46,23 40,18 32,18 Z M24,28 A2,2 0 1 1 24,28.1 M29,23 A2,2 0 1 1 29,23.1 M36,24 A2,2 0 1 1 36,24.1 M41,29 A2,2 0 1 1 41,29.1</Geometry>
+    
+    <Geometry x:Key="GlyphDocument">M22,18 L36,18 L44,26 L44,46 L22,46 Z M34,18 L34,26 L42,26 M26,32 L40,32 M26,37 L40,37 M26,42 L34,42</Geometry>
+
+</ResourceDictionary>
