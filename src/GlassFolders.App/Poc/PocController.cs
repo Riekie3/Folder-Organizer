@@ -35,6 +35,8 @@ public sealed class PocController : IDisposable
     private readonly DispatcherTimer _retryTimer;
     private PocPopup? _popup;
     private string? _popupFor;
+    private string? _lastClosedPopupId;
+    private long _lastClosedPopupTimestamp;
     private int _reattachCount, _retryDelayMs = 250;
     private DateTime _retryDeadline;
     private bool _exiting;
@@ -124,15 +126,26 @@ public sealed class PocController : IDisposable
     {
         Log($"CLICK {tile.Id}");
         bool sameFolder = _popupFor == tile.Id && _popup is not null;
+        bool justDeactivated = _lastClosedPopupId == tile.Id && Stopwatch.GetElapsedTime(_lastClosedPopupTimestamp).TotalMilliseconds < 350;
         _popup?.Close();
-        if (sameFolder) return;
+        if (sameFolder || justDeactivated)
+        {
+            _lastClosedPopupId = null;
+            return;
+        }
 
         var rect = _tiles[tile.Id].Surface.ScreenRect;
         var popup = new PocPopup(tile.Id switch { "work" => "Work", "games" => "Games", _ => "Media" }, rect);
         popup.Closed += (_, _) =>
         {
             tile.SetOpen(false);
-            if (_popup == popup) { _popup = null; _popupFor = null; }
+            if (_popup == popup)
+            {
+                _popup = null;
+                _popupFor = null;
+                _lastClosedPopupId = tile.Id;
+                _lastClosedPopupTimestamp = Stopwatch.GetTimestamp();
+            }
             Log($"POPUP-CLOSED {tile.Id}");
         };
         _popup = popup;
@@ -162,21 +175,30 @@ public sealed class PocController : IDisposable
 
         if (!_host.RefreshDesktop() || _host.Desktop!.ListView == 0)
         {
-            if (DateTime.UtcNow > _retryDeadline)
+            if (_retryDeadline != default && DateTime.UtcNow > _retryDeadline)
             {
                 Log("REATTACH-TIMEOUT desktop still unavailable; will retry on next TaskbarCreated");
                 _retryDelayMs = 250;
+                _retryDeadline = default;
                 return;
             }
+            if (_retryDeadline == default)
+                _retryDeadline = DateTime.UtcNow.AddMinutes(2);
+
             _retryDelayMs = Math.Min(_retryDelayMs * 2, 8000);
             Log($"REATTACH-WAIT next in {_retryDelayMs} ms");
             ScheduleReattach();
             return;
         }
 
+        var work = Win32.PrimaryWorkArea();
+        double scale = GetDpiForSystem() / 96.0;
+        int tileW = (int)(104 * scale), tileH = (int)(112 * scale);
+
         int kept = 0, recreated = 0;
-        foreach (var f in Folders)
+        for (int i = 0; i < Folders.Length; i++)
         {
+            var f = Folders[i];
             if (_tiles.TryGetValue(f.Id, out var t) && _host.Reattach(t.Surface))
             {
                 kept++;
@@ -190,11 +212,14 @@ public sealed class PocController : IDisposable
                 _tiles.Remove(f.Id);
             }
             var saved = _layout.Find(f.Id);
-            CreateTile(f.Id, f.Label, f.A, f.B, saved?.X ?? last.Left, saved?.Y ?? last.Top);
+            int defX = work.Right - tileW - (int)(24 * scale);
+            int defY = work.Top + (int)(24 * scale) + i * (tileH + (int)(12 * scale));
+            int targetX = saved?.X ?? (last.Width > 0 ? last.Left : defX);
+            int targetY = saved?.Y ?? (last.Height > 0 ? last.Top : defY);
+            CreateTile(f.Id, f.Label, f.A, f.B, targetX, targetY);
             recreated++;
         }
 
-        if (_tiles.Count == 0) CreateAllTiles();
         _watcher.Watch(_host.Desktop.Progman);
         _reattachCount++;
         _retryDelayMs = 250;

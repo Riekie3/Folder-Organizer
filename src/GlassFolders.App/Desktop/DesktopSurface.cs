@@ -9,12 +9,14 @@ namespace GlassFolders.App.Desktop;
 public sealed class DesktopSurface : IDisposable
 {
     private bool _disposed;
+    private readonly Action? _onDispose;
 
-    internal DesktopSurface(string id, HwndSource source, UIElement content)
+    internal DesktopSurface(string id, HwndSource source, UIElement content, Action? onDispose = null)
     {
         Id = id;
         Source = source;
         Content = content;
+        _onDispose = onDispose;
         source.Disposed += (_, _) =>
         {
             if (_disposed) return;
@@ -39,6 +41,7 @@ public sealed class DesktopSurface : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        _onDispose?.Invoke();
         Source.RootVisual = null;
         Source.Dispose();
     }

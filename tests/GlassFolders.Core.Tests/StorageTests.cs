@@ -5,8 +5,14 @@ namespace GlassFolders.Core.Tests;
 
 public sealed class StorageTests : IDisposable
 {
-    private readonly string _dir = Path.Combine(Path.GetTempPath(), "gf-tests-" + Guid.NewGuid().ToString("N"));
+    private readonly string _dir;
     private string P(string name) => Path.Combine(_dir, name);
+
+    public StorageTests()
+    {
+        _dir = Path.Combine(Path.GetTempPath(), "gf-tests-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(_dir);
+    }
 
     public void Dispose()
     {
@@ -46,6 +52,14 @@ public sealed class StorageTests : IDisposable
     }
 
     [Fact]
+    public void Fallback_returns_null_when_both_main_and_bak_are_corrupt()
+    {
+        AtomicFile.WriteAllText(P("a.json"), "bad1");
+        AtomicFile.WriteAllText(P("a.json"), "bad2");
+        Assert.Null(AtomicFile.ReadWithFallback(P("a.json"), t => t.StartsWith("good")));
+    }
+
+    [Fact]
     public void Layout_round_trips()
     {
         var store = new TileLayoutStore(P("layout.json"));
@@ -73,6 +87,37 @@ public sealed class StorageTests : IDisposable
         File.WriteAllText(P("layout.json"), "{ not json");
 
         Assert.Equal(1, store.Load().Find("work")!.X);
+    }
+
+    [Fact]
+    public void Corrupt_layout_without_valid_backup_returns_empty_layout()
+    {
+        var store = new TileLayoutStore(P("layout.json"));
+        File.WriteAllText(P("layout.json"), "{ invalid json");
+        File.WriteAllText(P("layout.json.bak"), "{ also invalid");
+
+        var loaded = store.Load();
+        Assert.NotNull(loaded);
+        Assert.Empty(loaded.Tiles);
+        Assert.Equal(1, loaded.SchemaVersion);
+    }
+
+    [Fact]
+    public void Layout_with_zero_schema_version_is_rejected_and_falls_back()
+    {
+        var store = new TileLayoutStore(P("layout.json"));
+        var layout = new TileLayout();
+        layout.Set("work", 42, 84);
+        store.Save(layout);
+        layout.Set("work", 43, 85);
+        store.Save(layout); // now .bak has work at (42, 84)
+
+        // Overwrite main with invalid schemaVersion 0
+        File.WriteAllText(P("layout.json"), """{"schemaVersion": 0, "tiles": []}""");
+
+        var loaded = store.Load();
+        Assert.Single(loaded.Tiles);
+        Assert.Equal(42, loaded.Find("work")!.X);
     }
 
     [Fact]

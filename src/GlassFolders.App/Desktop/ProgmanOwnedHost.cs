@@ -40,7 +40,7 @@ public sealed class ProgmanOwnedHost : IDesktopHost
         var source = new HwndSource(p) { SizeToContent = SizeToContent.WidthAndHeight, RootVisual = content as System.Windows.Media.Visual };
         source.AddHook(WndProc);
 
-        var surface = new DesktopSurface(id, source, content);
+        var surface = new DesktopSurface(id, source, content, () => source.RemoveHook(WndProc));
         Attach(surface.Hwnd);
         SetWindowPos(surface.Hwnd, HWND_BOTTOM, x, y, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
         return surface;
