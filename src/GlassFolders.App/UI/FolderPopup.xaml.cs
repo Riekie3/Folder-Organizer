@@ -17,8 +17,9 @@ using static GlassFolders.Native.NativeMethods;
 namespace GlassFolders.App.UI;
 
 /// <summary>
-/// The folder popup window displaying a paged grid of apps, shortcuts, and files.
+/// The liquid glass folder popup window displaying a paged grid of apps, shortcuts, and files.
 /// Items can be launched, added via drag &amp; drop, or removed from the folder without deleting source files.
+/// Backed by Windows 11 DWM Acrylic blur and 1px edge rim.
 /// </summary>
 public partial class FolderPopup : Window
 {
@@ -43,12 +44,17 @@ public partial class FolderPopup : Window
 
         TxtTitle.Text = folder.Name;
         UpdateCount();
+        ApplyGlyph();
 
         PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape) Close(); };
         Deactivated += (_, _) => { if (!_closing) Close(); };
         Closing += (_, _) => _closing = true;
 
-        SourceInitialized += (_, _) => PositionNearAnchor();
+        SourceInitialized += (_, _) =>
+        {
+            PositionNearAnchor();
+            ApplyBackdrop();
+        };
         ContentRendered += (_, _) => { PositionNearAnchor(); Activate(); };
 
         RenderPage();
@@ -57,6 +63,30 @@ public partial class FolderPopup : Window
     public string FolderId => _folder.Id;
 
     private int TotalPages => Math.Max(1, (int)Math.Ceiling(_folder.Items.Count / (double)PageSize));
+
+    private void ApplyGlyph()
+    {
+        try
+        {
+            string glyphKey = "Glyph" + _folder.Glyph;
+            if (TryFindResource(glyphKey) is Geometry geom)
+                HeaderGlyph.Data = geom;
+        }
+        catch { }
+    }
+
+    private void ApplyBackdrop()
+    {
+        nint hwnd = new WindowInteropHelper(this).Handle;
+        if (SystemParameters.HighContrast)
+        {
+            PopupCard.Background = new SolidColorBrush(Color.FromRgb(0x18, 0x20, 0x30));
+        }
+        else
+        {
+            DwmHelpers.EnableAcrylic(hwnd, darkMode: true);
+        }
+    }
 
     private void UpdateCount()
     {
@@ -144,7 +174,6 @@ public partial class FolderPopup : Window
         }
         else
         {
-            // Fallback generic icon
             var generic = new TextBlock
             {
                 Text = item.Type == FolderItemType.Folder ? "📁" : (item.Type == FolderItemType.Url ? "🌐" : "📄"),

@@ -80,6 +80,7 @@ public sealed class PocController : IDisposable
         CreateAllTiles();
         _watcher.Watch(_host.Desktop!.Progman);
         WriteState("READY");
+        Log("READY");
     }
 
     private void CreateAllTiles()
@@ -174,17 +175,39 @@ public sealed class PocController : IDisposable
         };
         menu.Items.Add(add);
 
-        var rename = new MenuItem { Header = "Rename Folder..." };
-        rename.Click += (_, _) =>
+        var edit = new MenuItem { Header = "Edit Appearance..." };
+        edit.Click += (_, _) =>
         {
-            string? newName = PromptRename(folder.Name);
-            if (!string.IsNullOrWhiteSpace(newName) && newName != folder.Name)
+            var dialog = new FolderEditorDialog(folder);
+            if (dialog.ShowDialog() == true)
             {
-                _folderManager.RenameFolder(folder.Id, newName.Trim());
-                tile.SetLabel(newName.Trim());
+                var res = dialog.ResultFolder;
+                _folderManager.RenameFolder(folder.Id, res.Name);
+                _folderManager.SetFolderAppearance(folder.Id, res.ColorA, res.ColorB, res.Glyph);
+                tile.SetLabel(res.Name);
+                tile.SetGlyph(res.Glyph);
+                tile.SetColors(ParseColor(res.ColorA, Colors.Blue), ParseColor(res.ColorB, Colors.Navy));
             }
         };
-        menu.Items.Add(rename);
+        menu.Items.Add(edit);
+
+        var settings = new MenuItem { Header = "Settings..." };
+        settings.Click += (_, _) =>
+        {
+            var win = new SettingsWindow(_configManager, _folderManager);
+            win.FolderCreated += newFolder =>
+            {
+                var work = Win32.PrimaryWorkArea();
+                double scale = GetDpiForSystem() / 96.0;
+                int tileW = (int)(104 * scale), tileH = (int)(112 * scale);
+                int count = _tiles.Count;
+                int defX = work.Right - tileW - (int)(24 * scale);
+                int defY = work.Top + (int)(24 * scale) + count * (tileH + (int)(12 * scale));
+                CreateTile(newFolder, defX, defY);
+            };
+            win.ShowDialog();
+        };
+        menu.Items.Add(settings);
 
         menu.Items.Add(new Separator());
 
