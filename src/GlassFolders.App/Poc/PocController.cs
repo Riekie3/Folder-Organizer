@@ -20,13 +20,16 @@ using static GlassFolders.Native.NativeMethods;
 namespace GlassFolders.App.Poc;
 
 /// <summary>
-/// Drives the core desktop organizer: manages folders on the desktop layer,
-/// launches real applications/shortcuts, handles drag &amp; drop, and recovers after Explorer restarts.
+/// Drives the desktop organizer: manages folders on the desktop layer,
+/// launches applications/shortcuts, handles drag &amp; drop, system tray integration,
+/// and automated recovery via ExplorerRecoveryService.
 /// </summary>
 public sealed class PocController : IDisposable
 {
     private readonly IDesktopHost _host;
     private readonly ShellWatcher _watcher;
+    private readonly ExplorerRecoveryService _recoveryService;
+    private readonly TrayService _tray;
     private readonly TileLayoutStore _store;
     private readonly TileLayout _layout;
     private readonly ConfigurationManager _configManager;
@@ -35,13 +38,12 @@ public sealed class PocController : IDisposable
     private readonly ShellShortcutResolver _resolver;
     private readonly Dictionary<string, (FolderTile Tile, DesktopSurface Surface)> _tiles = [];
     private readonly string _dataDir;
-    private readonly DispatcherTimer _retryTimer;
     private FolderPopup? _popup;
     private string? _popupFor;
     private string? _lastClosedPopupId;
     private long _lastClosedPopupTimestamp;
-    private int _reattachCount, _retryDelayMs = 250;
-    private DateTime _retryDeadline;
+    private SettingsWindow? _activeSettingsWindow;
+    private bool _areFoldersHidden;
     private bool _exiting;
 
     public PocController(DesktopHostKind kind, bool resetLayout)
@@ -61,26 +63,131 @@ public sealed class PocController : IDisposable
 
         _host = DesktopHostFactory.Create(kind);
         _watcher = new ShellWatcher();
-        _watcher.ShellLost += () => { Log("SHELL-LOST"); ScheduleReattach(); };
-        _watcher.ShellReady += () => { Log("SHELL-READY (TaskbarCreated)"); Reattach(); };
-        _retryTimer = new DispatcherTimer(DispatcherPriority.Background);
-        _retryTimer.Tick += (_, _) => { _retryTimer.Stop(); Reattach(); };
+        _recoveryService = new ExplorerRecoveryService(Dispatcher.CurrentDispatcher);
+        _tray = new TrayService();
+
+        // Wire recovery state machine
+        _recoveryService.ReattachCallback = DoReattach;
+        _recoveryService.VerifyCallback = VerifyDesktopWindows;
+
+        _watcher.ShellLost += () => _recoveryService.NotifyShellLost();
+        _watcher.ShellReady += () =>
+        {
+            _tray.RecreateIcon();
+            _recoveryService.NotifyShellReady();
+        };
+        _watcher.SystemResumed += () => _recoveryService.NotifySystemResume();
+
+        // Wire system tray actions
+        _tray.NewFolderRequested += OpenNewFolderDialog;
+        _tray.ToggleHideAllRequested += ToggleHideAll;
+        _tray.TogglePauseRequested += () => SetPause(!_recoveryService.IsPaused);
+        _tray.SettingsRequested += () => OpenSettings();
+        _tray.RecoverNowRequested += () => _recoveryService.RecoverNow();
+        _tray.AboutRequested += () => OpenSettings("About");
+        _tray.ExitRequested += () => Application.Current.Shutdown();
     }
 
     public void Start()
     {
-        Log($"START host={_host.Name} pid={Environment.ProcessId}");
-        FolderTile.Trace = Log;
+        DiagnosticService.Instance.LogInfo($"Starting GlassFolders (host={_host.Name}, pid={Environment.ProcessId})");
+        FolderTile.Trace = msg => DiagnosticService.Instance.LogDebug($"[FolderTile] {msg}");
+
         if (!_host.RefreshDesktop())
         {
-            Log("Desktop not ready at startup; waiting");
-            ScheduleReattach();
+            DiagnosticService.Instance.LogWarn("Desktop not ready at startup; initiating recovery state machine");
+            _recoveryService.RecoverNow();
             return;
         }
+
         CreateAllTiles();
         _watcher.Watch(_host.Desktop!.Progman);
         WriteState("READY");
-        Log("READY");
+        _recoveryService.RecordEvent("Startup complete, desktop ready");
+    }
+
+    public void OpenSettings(string? initialPage = null)
+    {
+        if (_activeSettingsWindow != null && _activeSettingsWindow.IsLoaded)
+        {
+            if (initialPage != null) _activeSettingsWindow.ShowPage(initialPage);
+            _activeSettingsWindow.Activate();
+            _activeSettingsWindow.Focus();
+            return;
+        }
+
+        _activeSettingsWindow = new SettingsWindow(_configManager, _folderManager, _recoveryService);
+        _activeSettingsWindow.FolderCreated += newFolder =>
+        {
+            var work = Win32.PrimaryWorkArea();
+            double scale = GetDpiForSystem() / 96.0;
+            int tileW = (int)(104 * scale), tileH = (int)(112 * scale);
+            int count = _tiles.Count;
+            int defX = work.Right - tileW - (int)(24 * scale);
+            int defY = work.Top + (int)(24 * scale) + count * (tileH + (int)(12 * scale));
+            CreateTile(newFolder, defX, defY);
+        };
+
+        _activeSettingsWindow.Closed += (_, _) => _activeSettingsWindow = null;
+        if (initialPage != null) _activeSettingsWindow.ShowPage(initialPage);
+        _activeSettingsWindow.Show();
+        _activeSettingsWindow.Activate();
+    }
+
+    public void OpenNewFolderDialog()
+    {
+        var dialog = new FolderEditorDialog();
+        if (dialog.ShowDialog() == true)
+        {
+            var res = dialog.ResultFolder;
+            var work = Win32.PrimaryWorkArea();
+            double scale = GetDpiForSystem() / 96.0;
+            int tileW = (int)(104 * scale), tileH = (int)(112 * scale);
+            int count = _tiles.Count;
+            int defX = work.Right - tileW - (int)(24 * scale);
+            int defY = work.Top + (int)(24 * scale) + count * (tileH + (int)(12 * scale));
+
+            var created = _folderManager.CreateFolder(res.Name, res.ColorA, res.ColorB, res.Glyph, defX, defY);
+            CreateTile(created, defX, defY);
+        }
+    }
+
+    public void ToggleHideAll()
+    {
+        _areFoldersHidden = !_areFoldersHidden;
+        _tray.AreFoldersHidden = _areFoldersHidden;
+
+        int showCmd = _areFoldersHidden ? 0 : 5; // SW_HIDE : SW_SHOW
+        foreach (var pair in _tiles.Values)
+        {
+            ShowWindow(pair.Surface.Hwnd, showCmd);
+        }
+
+        if (_areFoldersHidden) _popup?.Close();
+        DiagnosticService.Instance.LogInfo($"Desktop folders visibility toggled: hidden={_areFoldersHidden}");
+    }
+
+    public void SetPause(bool pause)
+    {
+        _recoveryService.SetPaused(pause);
+        _tray.IsPaused = pause;
+
+        int showCmd = pause ? 0 : 5;
+        foreach (var pair in _tiles.Values)
+        {
+            ShowWindow(pair.Surface.Hwnd, showCmd);
+        }
+
+        if (pause)
+        {
+            _popup?.Close();
+            DiagnosticService.Instance.LogInfo("GlassFolders paused: desktop surfaces hidden, idle resources minimized");
+        }
+        else
+        {
+            DiagnosticService.Instance.LogInfo("GlassFolders resumed: verifying desktop surfaces");
+            _recoveryService.VerifyOrRecover();
+        }
     }
 
     private void CreateAllTiles()
@@ -120,7 +227,7 @@ public sealed class PocController : IDisposable
             _layout.Set(t.Id, nx, ny);
             _store.Save(_layout);
             _folderManager.SetFolderPosition(t.Id, nx, ny);
-            Log($"MOVED {t.Id} {nx} {ny}");
+            DiagnosticService.Instance.LogDebug($"Tile moved: {t.Id} -> ({nx}, {ny})");
             WriteState("MOVED");
         };
 
@@ -133,16 +240,17 @@ public sealed class PocController : IDisposable
             }
             var f = _folderManager.GetFolder(t.Id);
             if (f is not null) tile.SetItemCount(f.Items.Count);
-            Log($"DROPPED-FILES {t.Id} count={files.Length}");
+            DiagnosticService.Instance.LogInfo($"Dropped {files.Length} files into folder '{folder.Name}'");
         };
 
         tile.ContextMenu = BuildMenu(folder, tile);
         surface.Lost += s =>
         {
-            if (_exiting) return;
-            Log($"SURFACE-LOST {s.Id}");
-            ScheduleReattach();
+            if (_exiting || _recoveryService.IsPaused) return;
+            DiagnosticService.Instance.LogWarn($"Surface lost for folder: {s.Id}");
+            _recoveryService.RecoverNow();
         };
+
         _tiles[folder.Id] = (tile, surface);
     }
 
@@ -192,21 +300,7 @@ public sealed class PocController : IDisposable
         menu.Items.Add(edit);
 
         var settings = new MenuItem { Header = "Settings..." };
-        settings.Click += (_, _) =>
-        {
-            var win = new SettingsWindow(_configManager, _folderManager);
-            win.FolderCreated += newFolder =>
-            {
-                var work = Win32.PrimaryWorkArea();
-                double scale = GetDpiForSystem() / 96.0;
-                int tileW = (int)(104 * scale), tileH = (int)(112 * scale);
-                int count = _tiles.Count;
-                int defX = work.Right - tileW - (int)(24 * scale);
-                int defY = work.Top + (int)(24 * scale) + count * (tileH + (int)(12 * scale));
-                CreateTile(newFolder, defX, defY);
-            };
-            win.ShowDialog();
-        };
+        settings.Click += (_, _) => OpenSettings();
         menu.Items.Add(settings);
 
         menu.Items.Add(new Separator());
@@ -229,7 +323,7 @@ public sealed class PocController : IDisposable
         };
         menu.Items.Add(delete);
 
-        var exit = new MenuItem { Header = "Exit GlassFolders PoC" };
+        var exit = new MenuItem { Header = "Exit GlassFolders" };
         exit.Click += (_, _) => Application.Current.Shutdown();
         menu.Items.Add(exit);
 
@@ -238,7 +332,7 @@ public sealed class PocController : IDisposable
 
     private void OnTileClicked(FolderTile tile)
     {
-        Log($"CLICK {tile.Id}");
+        DiagnosticService.Instance.LogDebug($"Clicked folder tile: {tile.Id}");
         bool sameFolder = _popupFor == tile.Id && _popup is not null;
         bool justDeactivated = _lastClosedPopupId == tile.Id && Stopwatch.GetElapsedTime(_lastClosedPopupTimestamp).TotalMilliseconds < 350;
         _popup?.Close();
@@ -251,61 +345,32 @@ public sealed class PocController : IDisposable
         var folder = _folderManager.GetFolder(tile.Id);
         if (folder is null) return;
 
-        var rect = _tiles[tile.Id].Surface.ScreenRect;
-        var popup = new FolderPopup(folder, _folderManager, _iconCache, _resolver, rect);
-        popup.Closed += (_, _) =>
-        {
-            tile.SetOpen(false);
-            tile.SetItemCount(folder.Items.Count);
-            if (_popup == popup)
-            {
-                _popup = null;
-                _popupFor = null;
-                _lastClosedPopupId = tile.Id;
-                _lastClosedPopupTimestamp = Stopwatch.GetTimestamp();
-            }
-            Log($"POPUP-CLOSED {tile.Id}");
-        };
-        _popup = popup;
+        var anchor = tile.GetScreenRect?.Invoke() ?? default;
+        _popup = new FolderPopup(folder, _folderManager, _iconCache, _resolver, anchor);
         _popupFor = tile.Id;
-        tile.SetOpen(true);
-        popup.Show();
-        Log($"POPUP-OPEN {tile.Id}");
-        WriteState("POPUP");
+
+        _popup.Closed += (_, _) =>
+        {
+            _lastClosedPopupId = tile.Id;
+            _lastClosedPopupTimestamp = Stopwatch.GetTimestamp();
+            _popup = null;
+            _popupFor = null;
+            WriteState("POPUP-CLOSED");
+        };
+
+        _popup.Show();
+        WriteState("POPUP-OPEN");
     }
 
-    private void ScheduleReattach()
+    private bool DoReattach()
     {
-        if (_exiting) return;
-        if (!_retryTimer.IsEnabled)
+        if (_exiting || _recoveryService.IsPaused) return true;
+
+        DiagnosticService.Instance.LogInfo("Executing shell reattach sequence...");
+        if (!_host.RefreshDesktop())
         {
-            if (_retryDeadline < DateTime.UtcNow) _retryDeadline = DateTime.UtcNow.AddMinutes(2);
-            _retryTimer.Interval = TimeSpan.FromMilliseconds(_retryDelayMs);
-            _retryTimer.Start();
-        }
-    }
-
-    private void Reattach()
-    {
-        if (_exiting) return;
-        _retryTimer.Stop();
-
-        if (!_host.RefreshDesktop() || _host.Desktop!.ListView == 0)
-        {
-            if (_retryDeadline != default && DateTime.UtcNow > _retryDeadline)
-            {
-                Log("REATTACH-TIMEOUT desktop still unavailable; will retry on next TaskbarCreated");
-                _retryDelayMs = 250;
-                _retryDeadline = default;
-                return;
-            }
-            if (_retryDeadline == default)
-                _retryDeadline = DateTime.UtcNow.AddMinutes(2);
-
-            _retryDelayMs = Math.Min(_retryDelayMs * 2, 8000);
-            Log($"REATTACH-WAIT next in {_retryDelayMs} ms");
-            ScheduleReattach();
-            return;
+            DiagnosticService.Instance.LogWarn("Desktop refresh failed; Progman not available yet");
+            return false;
         }
 
         var work = Win32.PrimaryWorkArea();
@@ -314,6 +379,7 @@ public sealed class PocController : IDisposable
 
         var folders = _folderManager.Folders.Where(f => f.IsVisible).ToList();
         int kept = 0, recreated = 0;
+
         for (int i = 0; i < folders.Count; i++)
         {
             var f = folders[i];
@@ -322,6 +388,7 @@ public sealed class PocController : IDisposable
                 kept++;
                 continue;
             }
+
             RECT last = default;
             if (_tiles.TryGetValue(f.Id, out var dead))
             {
@@ -329,6 +396,7 @@ public sealed class PocController : IDisposable
                 dead.Surface.Dispose();
                 _tiles.Remove(f.Id);
             }
+
             var saved = _layout.Find(f.Id);
             int defX = work.Right - tileW - (int)(24 * scale);
             int defY = work.Top + (int)(24 * scale) + i * (tileH + (int)(12 * scale));
@@ -338,12 +406,46 @@ public sealed class PocController : IDisposable
             recreated++;
         }
 
-        _watcher.Watch(_host.Desktop.Progman);
-        _reattachCount++;
-        _retryDelayMs = 250;
-        _retryDeadline = default;
-        Log($"REATTACH #{_reattachCount} kept={kept} recreated={recreated} progman=0x{_host.Desktop.Progman:X}");
+        if (_host.Desktop != null)
+        {
+            _watcher.Watch(_host.Desktop.Progman);
+            DiagnosticService.Instance.LogInfo($"Reattach complete: kept={kept}, recreated={recreated}, progman=0x{_host.Desktop.Progman:X}");
+        }
+        else
+        {
+            DiagnosticService.Instance.LogInfo($"Reattach complete: kept={kept}, recreated={recreated}, progman=(none)");
+        }
         WriteState("REATTACHED");
+        return true;
+    }
+
+    private bool VerifyDesktopWindows()
+    {
+        if (_exiting || _recoveryService.IsPaused) return true;
+
+        if (_host.Desktop?.Progman == 0 || !IsWindow(_host.Desktop!.Progman))
+        {
+            DiagnosticService.Instance.LogWarn("Verification failed: Progman HWND is invalid or destroyed");
+            return false;
+        }
+
+        var visibleFolders = _folderManager.Folders.Where(f => f.IsVisible).ToList();
+        foreach (var folder in visibleFolders)
+        {
+            if (!_tiles.TryGetValue(folder.Id, out var pair))
+            {
+                DiagnosticService.Instance.LogWarn($"Verification failed: missing tile surface for folder '{folder.Name}'");
+                return false;
+            }
+
+            if (!pair.Surface.IsAlive || !_host.IsAttached(pair.Surface))
+            {
+                DiagnosticService.Instance.LogWarn($"Verification failed: surface for folder '{folder.Name}' is not attached to desktop");
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private void WriteState(string reason)
@@ -354,7 +456,8 @@ public sealed class PocController : IDisposable
             pid = Environment.ProcessId,
             host = _host.Name,
             progman = (long)(_host.Desktop?.Progman ?? 0),
-            reattachCount = _reattachCount,
+            reattachCount = _recoveryService.ReattachCount,
+            recoveryState = _recoveryService.State.ToString(),
             popupOpen = _popupFor,
             tiles = _tiles.Values.Select(v =>
             {
@@ -367,55 +470,39 @@ public sealed class PocController : IDisposable
         catch (IOException) { }
     }
 
-    private void Log(string message)
-    {
-        string line = $"{DateTime.Now:HH:mm:ss.fff} {message}";
-        Debug.WriteLine(line);
-        try { File.AppendAllText(Path.Combine(_dataDir, "poc.log"), line + Environment.NewLine); }
-        catch (IOException) { }
-    }
-
     private static Color ParseColor(string hex, Color fallback)
     {
         try { return (Color)ColorConverter.ConvertFromString(hex); }
         catch { return fallback; }
     }
 
-    private static string? PromptRename(string currentName)
-    {
-        var win = new Window
-        {
-            Title = "Rename Folder",
-            Width = 320,
-            Height = 140,
-            WindowStartupLocation = WindowStartupLocation.CenterScreen,
-            WindowStyle = WindowStyle.ToolWindow,
-            ResizeMode = ResizeMode.NoResize,
-            Background = new SolidColorBrush(Color.FromRgb(0x20, 0x24, 0x38))
-        };
-
-        var sp = new StackPanel { Margin = new Thickness(16) };
-        var txt = new TextBox { Text = currentName, Margin = new Thickness(0, 0, 0, 16), FontSize = 14 };
-        var btnOk = new Button { Content = "OK", Width = 80, Height = 28, IsDefault = true, HorizontalAlignment = HorizontalAlignment.Right };
-
-        btnOk.Click += (_, _) => win.DialogResult = true;
-        sp.Children.Add(txt);
-        sp.Children.Add(btnOk);
-        win.Content = sp;
-        txt.SelectAll();
-        txt.Focus();
-
-        return win.ShowDialog() == true ? txt.Text : null;
-    }
-
     public void Dispose()
     {
+        if (_exiting) return;
         _exiting = true;
-        _retryTimer.Stop();
+
+        DiagnosticService.Instance.LogInfo("Beginning clean ordered shutdown of GlassFolders...");
+        _recoveryService.IsShuttingDown = true;
+        _recoveryService.Dispose();
+
+        _tray.Dispose();
         _popup?.Close();
-        foreach (var t in _tiles.Values) t.Surface.Dispose();
+        _activeSettingsWindow?.Close();
+
+        foreach (var t in _tiles.Values)
+        {
+            t.Surface.Dispose();
+        }
         _tiles.Clear();
+
         _watcher.Dispose();
-        Log("EXIT");
+
+        try
+        {
+            _store.Save(_layout);
+        }
+        catch { }
+
+        DiagnosticService.Instance.LogInfo("GlassFolders cleanly exited.");
     }
 }
