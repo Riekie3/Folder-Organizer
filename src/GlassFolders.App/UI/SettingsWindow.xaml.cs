@@ -82,6 +82,25 @@ public partial class SettingsWindow : Window
         TxtColumnsVal.Text = _settings.PopupColumns.ToString();
         SliderRows.Value = _settings.PopupRows;
         TxtRowsVal.Text = _settings.PopupRows.ToString();
+
+        // Animations page
+        var anim = _settings.Animation;
+        ChkGlobalAnim.IsChecked = anim.GlobalEnabled;
+        ChkFollowWindowsAnim.IsChecked = anim.FollowWindows;
+        SliderAnimSpeed.Value = anim.SpeedMultiplier;
+        TxtAnimSpeedVal.Text = $"{anim.SpeedMultiplier:0.0}x";
+
+        ChkAnimOpenClose.IsChecked = anim.FolderOpenClose;
+        ChkAnimTileHover.IsChecked = anim.TileHover;
+        ChkAnimItemPress.IsChecked = anim.ItemPress;
+        ChkAnimPageTrans.IsChecked = anim.PageTransition;
+        ChkAnimWindowTrans.IsChecked = anim.WindowTransition;
+        ChkAnimDragGhost.IsChecked = anim.DragGhost;
+        ChkAnimShimmer.IsChecked = anim.Shimmer;
+        ChkAnimSettingsNav.IsChecked = anim.SettingsNav;
+
+        CardAnimCategories.IsEnabled = anim.GlobalEnabled;
+        AnimationService.Instance.Settings = anim;
     }
 
     private void RefreshFoldersList()
@@ -132,6 +151,7 @@ public partial class SettingsWindow : Window
     private void OnNavGeneralClicked(object sender, RoutedEventArgs e) => ShowPage("General");
     private void OnNavAppearanceClicked(object sender, RoutedEventArgs e) => ShowPage("Appearance");
     private void OnNavLayoutClicked(object sender, RoutedEventArgs e) => ShowPage("Layout");
+    private void OnNavAnimationClicked(object sender, RoutedEventArgs e) => ShowPage("Animation");
     private void OnNavRecoveryClicked(object sender, RoutedEventArgs e) => ShowPage("Recovery");
     private void OnNavBackupClicked(object sender, RoutedEventArgs e) => ShowPage("Backup");
     private void OnNavAboutClicked(object sender, RoutedEventArgs e) => ShowPage("About");
@@ -141,6 +161,7 @@ public partial class SettingsWindow : Window
         PageGeneral.Visibility = page == "General" ? Visibility.Visible : Visibility.Collapsed;
         PageAppearance.Visibility = page == "Appearance" ? Visibility.Visible : Visibility.Collapsed;
         PageLayout.Visibility = page == "Layout" ? Visibility.Visible : Visibility.Collapsed;
+        PageAnimation.Visibility = page == "Animation" ? Visibility.Visible : Visibility.Collapsed;
         PageRecovery.Visibility = page == "Recovery" ? Visibility.Visible : Visibility.Collapsed;
         PageBackup.Visibility = page == "Backup" ? Visibility.Visible : Visibility.Collapsed;
         PageAbout.Visibility = page == "About" ? Visibility.Visible : Visibility.Collapsed;
@@ -149,6 +170,7 @@ public partial class SettingsWindow : Window
         {
             "Appearance" => "Appearance & Glass Effects",
             "Layout" => "Desktop Layout & Displays",
+            "Animation" => "Animation Controls",
             "Recovery" => "Explorer Recovery & Shell",
             "Backup" => "Portable Backup & Restore",
             "About" => "About GlassFolders",
@@ -197,6 +219,47 @@ public partial class SettingsWindow : Window
             _settings.PopupRows = val;
             SaveSettings();
         }
+    }
+
+    private void OnAnimationSettingChanged(object sender, RoutedEventArgs e)
+    {
+        var anim = _settings.Animation;
+        anim.GlobalEnabled = ChkGlobalAnim.IsChecked == true;
+        anim.FollowWindows = ChkFollowWindowsAnim.IsChecked == true;
+
+        anim.FolderOpenClose = ChkAnimOpenClose.IsChecked == true;
+        anim.TileHover = ChkAnimTileHover.IsChecked == true;
+        anim.ItemPress = ChkAnimItemPress.IsChecked == true;
+        anim.PageTransition = ChkAnimPageTrans.IsChecked == true;
+        anim.WindowTransition = ChkAnimWindowTrans.IsChecked == true;
+        anim.DragGhost = ChkAnimDragGhost.IsChecked == true;
+        anim.Shimmer = ChkAnimShimmer.IsChecked == true;
+        anim.SettingsNav = ChkAnimSettingsNav.IsChecked == true;
+
+        if (CardAnimCategories != null)
+            CardAnimCategories.IsEnabled = anim.GlobalEnabled;
+
+        AnimationService.Instance.Settings = anim;
+        SaveSettings();
+    }
+
+    private void OnAnimSpeedSliderChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (TxtAnimSpeedVal != null)
+        {
+            double speed = Math.Round(e.NewValue, 2);
+            TxtAnimSpeedVal.Text = $"{speed:0.0}x";
+            _settings.Animation.SpeedMultiplier = speed;
+            AnimationService.Instance.Settings.SpeedMultiplier = speed;
+            SaveSettings();
+        }
+    }
+
+    private void OnBtnResetAnimDefaultsClicked(object sender, RoutedEventArgs e)
+    {
+        _settings.Animation = new AnimationSettings();
+        LoadSettingsToUi();
+        SaveSettings();
     }
 
     private void OnBtnNewFolderClicked(object sender, RoutedEventArgs e)

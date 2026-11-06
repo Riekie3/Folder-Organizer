@@ -9,5 +9,6 @@ namespace GlassFolders.Core.Config;
 [JsonSerializable(typeof(FolderDef))]
 [JsonSerializable(typeof(FolderItem))]
 [JsonSerializable(typeof(BackupManifest))]
+[JsonSerializable(typeof(AnimationSettings))]
 [JsonSourceGenerationOptions(WriteIndented = true, PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
 public partial class ConfigurationJsonContext : JsonSerializerContext;

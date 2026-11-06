@@ -2,6 +2,8 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using GlassFolders.App.Themes;
+using GlassFolders.Core.Models;
 using GlassFolders.Native;
 using static GlassFolders.Native.NativeMethods;
 
@@ -9,6 +11,7 @@ namespace GlassFolders.App.Poc;
 
 /// <summary>
 /// Desktop folder tile: click to open, drag to move, drop files to add.
+/// Smooth hover and press animations gated by AnimationService.
 /// Drag math uses physical cursor pixels so it is independent of the window's DPI.
 /// </summary>
 public partial class FolderTile : UserControl
@@ -86,7 +89,11 @@ public partial class FolderTile : UserControl
         try { GlyphPath.Data = Geometry.Parse(pathData); } catch { }
     }
 
-    private void SetPlate() => Plate.Opacity = IsOpen ? 1.0 : IsMouseOver ? 0.7 : 0.0;
+    private void SetPlate()
+    {
+        double targetOpacity = IsOpen ? 1.0 : IsMouseOver ? 0.7 : 0.0;
+        Animate.Fade(Plate, targetOpacity, TimeSpan.FromMilliseconds(150), AnimationCategory.TileHover);
+    }
 
     protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
     {
@@ -95,6 +102,7 @@ public partial class FolderTile : UserControl
         _pressed = true;
         _dragging = false;
         bool captured = CaptureMouse();
+        Animate.Scale(this, 0.96, TimeSpan.FromMilliseconds(100), AnimationCategory.ItemPress);
         Trace?.Invoke($"DOWN {Id} captured={captured} clicks={e.ClickCount}");
         e.Handled = true;
     }
@@ -102,62 +110,79 @@ public partial class FolderTile : UserControl
     protected override void OnMouseMove(MouseEventArgs e)
     {
         if (!_pressed) return;
-        GetCursorPos(out var now);
-        int dx = now.X - _pressCursor.X, dy = now.Y - _pressCursor.Y;
-        if (!_dragging && Math.Abs(dx) + Math.Abs(dy) < DragThreshold) return;
-        if (!_dragging) Trace?.Invoke($"DRAG-START {Id}");
-        _dragging = true;
-        DragMoved?.Invoke(this, _pressRect.Left + dx, _pressRect.Top + dy);
+        GetCursorPos(out var cur);
+        int dx = cur.X - _pressCursor.X;
+        int dy = cur.Y - _pressCursor.Y;
+        if (!_dragging && (Math.Abs(dx) >= DragThreshold || Math.Abs(dy) >= DragThreshold))
+        {
+            _dragging = true;
+            Trace?.Invoke($"DRAG-START {Id}");
+        }
+        if (_dragging)
+        {
+            DragMoved?.Invoke(this, _pressRect.Left + dx, _pressRect.Top + dy);
+            e.Handled = true;
+        }
     }
 
     protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
     {
-        Trace?.Invoke($"UP {Id} pressed={_pressed} dragging={_dragging}");
+        Animate.Scale(this, 1.0, TimeSpan.FromMilliseconds(100), AnimationCategory.ItemPress);
+
         if (!_pressed) return;
         bool wasDragging = _dragging;
         _pressed = false;
+        _dragging = false;
         ReleaseMouseCapture();
+
         if (wasDragging)
         {
-            var r = GetScreenRect?.Invoke() ?? default;
-            DragEnded?.Invoke(this, r.Left, r.Top);
+            GetCursorPos(out var cur);
+            int dx = cur.X - _pressCursor.X;
+            int dy = cur.Y - _pressCursor.Y;
+            Trace?.Invoke($"DRAG-END {Id} dx={dx} dy={dy}");
+            DragEnded?.Invoke(this, _pressRect.Left + dx, _pressRect.Top + dy);
         }
         else
         {
+            Trace?.Invoke($"CLICK {Id}");
             Clicked?.Invoke(this);
         }
-        _dragging = false;
         e.Handled = true;
     }
 
     protected override void OnLostMouseCapture(MouseEventArgs e)
     {
-        Trace?.Invoke($"LOST-CAPTURE {Id} pressed={_pressed} dragging={_dragging}");
+        Animate.Scale(this, 1.0, TimeSpan.FromMilliseconds(100), AnimationCategory.ItemPress);
         _pressed = false;
         _dragging = false;
+        base.OnLostMouseCapture(e);
     }
 
     private void OnTileDragOver(object sender, DragEventArgs e)
     {
         if (e.Data.GetDataPresent(DataFormats.FileDrop))
         {
-            e.Effects = DragDropEffects.Copy;
-            Plate.Opacity = 0.9;
-            e.Handled = true;
+            e.Effects = DragDropEffects.Link;
+            Plate.Opacity = 1.0;
         }
+        else
+        {
+            e.Effects = DragDropEffects.None;
+        }
+        e.Handled = true;
     }
 
     private void OnTileDrop(object sender, DragEventArgs e)
     {
-        Plate.Opacity = 0.0;
+        SetPlate();
         if (e.Data.GetDataPresent(DataFormats.FileDrop))
         {
-            var files = (string[])e.Data.GetData(DataFormats.FileDrop);
-            if (files is not null && files.Length > 0)
+            if (e.Data.GetData(DataFormats.FileDrop) is string[] files && files.Length > 0)
             {
                 FilesDropped?.Invoke(this, files);
             }
-            e.Handled = true;
         }
+        e.Handled = true;
     }
 }

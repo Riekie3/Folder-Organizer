@@ -2,8 +2,8 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
-        ShowInTaskbar="True" ResizeMode="CanResize" Width="820" Height="600"
-        MinHeight="520" MinWidth="680" WindowStartupLocation="CenterScreen"
+        ShowInTaskbar="True" ResizeMode="CanResize" Width="840" Height="620"
+        MinHeight="540" MinWidth="700" WindowStartupLocation="CenterScreen"
         Title="GlassFolders Settings">
 
     <Border Margin="16" CornerRadius="28" BorderThickness="1"
@@ -44,6 +44,9 @@
                         <Button x:Name="NavLayout" Content="Desktop Layout" Height="38" Margin="0,0,0,6"
                                 HorizontalContentAlignment="Left" Padding="14,0" Style="{StaticResource GlassButton}"
                                 Click="OnNavLayoutClicked"/>
+                        <Button x:Name="NavAnimation" Content="Animations" Height="38" Margin="0,0,0,6"
+                                HorizontalContentAlignment="Left" Padding="14,0" Style="{StaticResource GlassButton}"
+                                Click="OnNavAnimationClicked"/>
                         <Button x:Name="NavRecovery" Content="Explorer Recovery" Height="38" Margin="0,0,0,6"
                                 HorizontalContentAlignment="Left" Padding="14,0" Style="{StaticResource GlassButton}"
                                 Click="OnNavRecoveryClicked"/>
@@ -56,7 +59,7 @@
                     </StackPanel>
 
                     <!-- Version indicator at bottom -->
-                    <TextBlock Grid.Row="2" Text="v0.6.0" FontSize="10" Foreground="{StaticResource BrushTextMuted}"
+                    <TextBlock Grid.Row="2" Text="v0.7.0" FontSize="10" Foreground="{StaticResource BrushTextMuted}"
                                HorizontalAlignment="Center"/>
                 </Grid>
             </Border>
@@ -195,7 +198,65 @@
                             </Border>
                         </StackPanel>
 
-                        <!-- PAGE 4: EXPLORER RECOVERY -->
+                        <!-- PAGE 4: ANIMATIONS -->
+                        <StackPanel x:Name="PageAnimation" Visibility="Collapsed">
+                            <Border Style="{StaticResource GlassCard}" Margin="0,0,0,14">
+                                <StackPanel>
+                                    <TextBlock Text="Global Animation Controls" FontSize="14" FontWeight="SemiBold"
+                                               Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,10"/>
+                                    <CheckBox x:Name="ChkGlobalAnim" Content="Enable fluid animations across GlassFolders"
+                                               Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,10"
+                                               Checked="OnAnimationSettingChanged" Unchecked="OnAnimationSettingChanged"/>
+                                    <CheckBox x:Name="ChkFollowWindowsAnim" Content="Respect Windows 'Animation effects' setting (reduced motion)"
+                                               Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,12"
+                                               Checked="OnAnimationSettingChanged" Unchecked="OnAnimationSettingChanged"/>
+
+                                    <DockPanel LastChildFill="True">
+                                        <TextBlock Text="Animation Speed:" Foreground="{StaticResource BrushTextSecondary}" Width="140" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="TxtAnimSpeedVal" Text="1.0x" Foreground="{StaticResource BrushAccent}" Width="40" VerticalAlignment="Center"/>
+                                        <Slider x:Name="SliderAnimSpeed" Minimum="0.5" Maximum="2.0" Value="1.0" TickFrequency="0.25" IsSnapToTickEnabled="True"
+                                                ValueChanged="OnAnimSpeedSliderChanged"/>
+                                    </DockPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource GlassCard}" x:Name="CardAnimCategories">
+                                <StackPanel>
+                                    <TextBlock Text="Animation Categories" FontSize="14" FontWeight="SemiBold"
+                                               Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,12"/>
+
+                                    <CheckBox x:Name="ChkAnimOpenClose" Content="Folder popup open &amp; close scale/fade"
+                                              Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,8"
+                                              Checked="OnAnimationSettingChanged" Unchecked="OnAnimationSettingChanged"/>
+                                    <CheckBox x:Name="ChkAnimTileHover" Content="Desktop folder tile hover glow"
+                                              Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,8"
+                                              Checked="OnAnimationSettingChanged" Unchecked="OnAnimationSettingChanged"/>
+                                    <CheckBox x:Name="ChkAnimItemPress" Content="Item click and press feedback"
+                                              Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,8"
+                                              Checked="OnAnimationSettingChanged" Unchecked="OnAnimationSettingChanged"/>
+                                    <CheckBox x:Name="ChkAnimPageTrans" Content="Popup page dots transition slide"
+                                              Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,8"
+                                              Checked="OnAnimationSettingChanged" Unchecked="OnAnimationSettingChanged"/>
+                                    <CheckBox x:Name="ChkAnimWindowTrans" Content="Window transitions"
+                                              Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,8"
+                                              Checked="OnAnimationSettingChanged" Unchecked="OnAnimationSettingChanged"/>
+                                    <CheckBox x:Name="ChkAnimDragGhost" Content="Drag ghost &amp; slot rearrange"
+                                              Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,8"
+                                              Checked="OnAnimationSettingChanged" Unchecked="OnAnimationSettingChanged"/>
+                                    <CheckBox x:Name="ChkAnimShimmer" Content="Subtle glass gloss shimmer on open (never loops)"
+                                              Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,8"
+                                              Checked="OnAnimationSettingChanged" Unchecked="OnAnimationSettingChanged"/>
+                                    <CheckBox x:Name="ChkAnimSettingsNav" Content="Settings navigation transitions"
+                                              Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,12"
+                                              Checked="OnAnimationSettingChanged" Unchecked="OnAnimationSettingChanged"/>
+
+                                    <Button Content="Reset Animation Settings to Defaults" Style="{StaticResource GlassButton}"
+                                            HorizontalAlignment="Left" Padding="14,6" Click="OnBtnResetAnimDefaultsClicked"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- PAGE 5: EXPLORER RECOVERY -->
                         <StackPanel x:Name="PageRecovery" Visibility="Collapsed">
                             <Border Style="{StaticResource GlassCard}" Margin="0,0,0,14">
                                 <StackPanel>
@@ -248,7 +309,7 @@
                             </Border>
                         </StackPanel>
 
-                        <!-- PAGE 5: BACKUP & RESTORE -->
+                        <!-- PAGE 6: BACKUP & RESTORE -->
                         <StackPanel x:Name="PageBackup" Visibility="Collapsed">
                             <Border Style="{StaticResource GlassCard}" Margin="0,0,0,14">
                                 <StackPanel>
@@ -284,15 +345,15 @@
                             </Border>
                         </StackPanel>
 
-                        <!-- PAGE 6: ABOUT -->
+                        <!-- PAGE 7: ABOUT -->
                         <StackPanel x:Name="PageAbout" Visibility="Collapsed">
                             <Border Style="{StaticResource GlassCard}">
                                 <StackPanel>
                                     <TextBlock Text="GlassFolders" FontSize="18" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}"/>
-                                    <TextBlock Text="Version 0.6.0 · Phase 6 Portable Backup &amp; Restore" FontSize="12" Foreground="{StaticResource BrushAccent}" Margin="0,2,0,12"/>
+                                    <TextBlock Text="Version 0.7.0 · Phase 7 Animation System" FontSize="12" Foreground="{StaticResource BrushAccent}" Margin="0,2,0,12"/>
                                     <TextBlock Text="Phone-style app folders on your real Windows 11 desktop, with a Liquid Glass popup."
                                                FontSize="13" Foreground="{StaticResource BrushTextSecondary}" TextWrapping="Wrap" Margin="0,0,0,16"/>
-                                    <TextBlock Text="Architecture: .NET 10 (LTS) WPF · Win32 DWM Acrylic · Per-Monitor-V2 DPI · Portable ZIP Backup &amp; Restore"
+                                    <TextBlock Text="Architecture: .NET 10 (LTS) WPF · Win32 DWM Acrylic · Per-Monitor-V2 DPI · Granular Animation Control"
                                                FontSize="11" Foreground="{StaticResource BrushTextMuted}" Margin="0,0,0,4"/>
                                     <TextBlock Text="Developed with pair-programming on Windows 11 25H2."
                                                FontSize="11" Foreground="{StaticResource BrushTextMuted}" Margin="0,0,0,16"/>
