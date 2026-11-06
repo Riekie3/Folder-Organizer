@@ -168,3 +168,21 @@ Branch `phase/6-backup-restore`.
 ### Test results
 - 45/45 unit tests pass in `GlassFolders.Core.Tests`.
 - Release build clean with 0 warnings and 0 errors (`-warnaserror`).
+
+---
+
+## Phase 7 — Animation control system (2026-11-07) · `v0.7.0`
+
+Branch `phase/7-animation-control`.
+
+### Done
+- `Core/Models/AnimationSettings.cs`: Granular animation configuration model featuring global enabled switch, Windows `SPI_GETCLIENTAREAANIMATION` reduced-motion compliance toggle, speed multiplier (0.5×–2.0×), and 8 independent category controls (FolderOpenClose, TileHover, ItemPress, PageTransition, WindowTransition, DragGhost, Shimmer, SettingsNav).
+- `Services/AnimationService.cs`: Centralized animation query service checking system reduced motion preferences and applying speed scaling.
+- `Themes/AnimationHelper.cs` (`Animate`): Unified animation gatekeeper. When animations are disabled or system reduced motion is active, properties snap immediately to the target value and callbacks execute without delay, ensuring zero UX code paths depend on storyboard execution.
+- Gated animations: Folder popup open scale (0.92→1.0) and fade, one-shot decorative glass shimmer, desktop tile hover opacity transition, and item press click scaling.
+- `UI/SettingsWindow.xaml`: Added dedicated "Animations" tab with master toggle, system reduced-motion switch, speed slider, 8 category switches (disabled when master is off), and "Reset to Defaults".
+- Unit tests: `AnimationSettingsTests.cs` verifying category resolution, global override behavior, and JSON serialization round trips (48/48 tests passed).
+
+### Test results
+- 48/48 unit tests pass in `GlassFolders.Core.Tests`.
+- Release build clean with 0 warnings and 0 errors (`-warnaserror`).

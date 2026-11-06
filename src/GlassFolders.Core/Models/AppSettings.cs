@@ -14,4 +14,5 @@ public sealed class AppSettings
     public int StartupDelaySeconds { get; set; } = 0;
     public string LogLevel { get; set; } = "Info";
     public bool CheckMissingTargets { get; set; } = true;
+    public AnimationSettings Animation { get; set; } = new();
 }
