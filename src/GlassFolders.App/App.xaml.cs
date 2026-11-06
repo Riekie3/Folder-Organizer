@@ -1,13 +1,14 @@
-﻿using System.Windows;
+using System.IO;
+using System.Windows;
 using GlassFolders.App.Desktop;
 using GlassFolders.App.Poc;
 
 namespace GlassFolders.App;
 
 /// <summary>
-/// Phase 1 entry point. Command line:
+/// Application entry point. Command line:
 ///   --host=owned | child-defview | child-progman   desktop integration strategy (default owned)
-///   --reset                                        forget saved PoC positions
+///   --reset                                        forget saved positions
 /// </summary>
 public partial class App : Application
 {
@@ -15,6 +16,20 @@ public partial class App : Application
     private EventWaitHandle? _exitSignal;
     private RegisteredWaitHandle? _exitWait;
     private PocController? _poc;
+
+    public App()
+    {
+        DispatcherUnhandledException += (s, e) =>
+        {
+            LogCrash("DispatcherUnhandledException", e.Exception);
+            e.Handled = false;
+        };
+
+        AppDomain.CurrentDomain.UnhandledException += (s, e) =>
+        {
+            LogCrash("AppDomain.UnhandledException", e.ExceptionObject as Exception);
+        };
+    }
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -34,8 +49,18 @@ public partial class App : Application
         _exitSignal = new EventWaitHandle(false, EventResetMode.AutoReset, @"Local\GlassFolders.Poc.Exit");
         _exitWait = ThreadPool.RegisterWaitForSingleObject(_exitSignal, (_, _) => Dispatcher.BeginInvoke(() => Shutdown()), null, Timeout.Infinite, true);
 
-        _poc = new PocController(DesktopHostFactory.Parse(hostArg), reset);
-        _poc.Start();
+        try
+        {
+            _poc = new PocController(DesktopHostFactory.Parse(hostArg), reset);
+            _poc.Start();
+        }
+        catch (Exception ex)
+        {
+            LogCrash("StartupException", ex);
+            MessageBox.Show($"GlassFolders failed to start:\n\n{ex.Message}\n\nSee %LOCALAPPDATA%\\GlassFolders\\poc\\crash.log for details.",
+                "GlassFolders Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            Shutdown();
+        }
     }
 
     protected override void OnExit(ExitEventArgs e)
@@ -45,5 +70,19 @@ public partial class App : Application
         _exitSignal?.Dispose();
         _instance?.Dispose();
         base.OnExit(e);
+    }
+
+    private static void LogCrash(string context, Exception? ex)
+    {
+        if (ex is null) return;
+        string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GlassFolders", "poc");
+        try
+        {
+            Directory.CreateDirectory(dir);
+            string log = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] {context}: {ex}\n";
+            File.AppendAllText(Path.Combine(dir, "crash.log"), log);
+            File.AppendAllText(Path.Combine(dir, "poc.log"), log);
+        }
+        catch { }
     }
 }
