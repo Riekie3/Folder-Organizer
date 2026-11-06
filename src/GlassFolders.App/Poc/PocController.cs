@@ -157,14 +157,18 @@ public sealed class PocController : IDisposable
 
     private void PerformMemoryTrim()
     {
-        IconCacheService.TrimMemoryCache();
-        GC.Collect(2, GCCollectionMode.Aggressive, false, true);
         try
         {
+            IconCacheService.TrimMemoryCache();
+            GC.Collect(2, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+            GC.WaitForPendingFinalizers();
             EmptyWorkingSet(Process.GetCurrentProcess().Handle);
+            DiagnosticService.Instance.LogDebug($"Memory trimmed. WorkingSet: {Process.GetCurrentProcess().WorkingSet64 / (1024 * 1024)} MB");
         }
-        catch { }
-        DiagnosticService.Instance.LogDebug($"Memory trimmed. WorkingSet: {Process.GetCurrentProcess().WorkingSet64 / (1024 * 1024)} MB");
+        catch (Exception ex)
+        {
+            DiagnosticService.Instance.LogError("Memory trim failed", ex);
+        }
     }
 
     private void OnMonitorsChanged(IReadOnlyList<MonitorDescriptor> monitors)

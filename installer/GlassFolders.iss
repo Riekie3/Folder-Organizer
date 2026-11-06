@@ -2,7 +2,7 @@
 ; Targets Windows 10/11 64-bit (Per-User Installation, No Administrator Privileges Required)
 
 #define MyAppName "GlassFolders"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.0.1"
 #define MyAppPublisher "Riekie3"
 #define MyAppURL "https://github.com/Riekie3/Folder-Organizer"
 #define MyAppExeName "GlassFolders.exe"

@@ -207,6 +207,7 @@ Branch `phase/9-release-packaging`.
 Branch `main`.
 
 ### Done
+- **Hotfix 0 (Startup Auto-Close ArgumentException)**: Fixed .NET 10 `GC.Collect` call in `GlassFolders.App/Poc/PocController.cs:PerformMemoryTrim()`. Passing `blocking: false` with `GCCollectionMode.Aggressive` threw `System.ArgumentException: AggressiveGC requires setting the blocking parameter to true`, which terminated the process when `_memoryTrimTimer` fired 5 seconds after startup. Changed `blocking` to `true`, added `GC.WaitForPendingFinalizers()`, and wrapped in defensive exception logging.
 - **Hotfix 1 (Drag & Drop COM Exception)**: Fixed COM `IShellLinkW::GetPath` P/Invoke signature in `GlassFolders.Native/Shell/ShellShortcutResolver.cs`. Replaced `out byte pfd` with `nint pfd` (0/null pointer), resolving a 592-byte stack overwrite `AccessViolationException` when resolving `.lnk` files on drag and drop.
 - **Hotfix 2 (Open File Location Resolution)**: Implemented `ResolveLocationCandidate` in `GlassFolders.Native/Shell/ShellLauncher.cs`. Checks target path first, and searches Windows, System32, and `%PATH%` for unrooted executables (e.g., `explorer.exe`, `notepad.exe`), opening File Explorer with `/select,"<path>"`.
 - **Hotfix 3 (Modal File Dialog Deactivation)**: Added `_isShowingDialog` protection flag in `GlassFolders.App/UI/FolderPopup.xaml.cs` to prevent the popup window from closing on `Deactivated` while modal file dialogs are active.
@@ -214,12 +215,12 @@ Branch `main`.
 - **Desktop Badge & Popup Synchronization**: Subscribed `PocController` to `_folderManager.Changed` to ensure desktop badge counts and open popups instantly update on item addition or deletion.
 - **Zero-Footprint Portable Mode**: Created `GlassFolders.Core/Config/AppPaths.cs` to dynamically detect `portable.flag` adjacent to `GlassFolders.exe`. Automatically routes data, settings, backups, logs, and icon caches to local `<exeDir>\data` and `<exeDir>\data\local` folders without touching user `%APPDATA%`.
 - **Packaging & Artifacts**:
-  - Compiled production installer `artifacts/GlassFolders-Setup-v1.0.0.exe` using Inno Setup compiler (`ISCC.exe`). Verified silent per-user installation (`/VERYSILENT /SUPPRESSMSGBOXES /NORESTART`) into `%LOCALAPPDATA%\Programs\GlassFolders` and silent uninstallation.
-  - Packaged standalone portable archive `artifacts/GlassFolders-v1.0.0-portable.zip` containing binaries, `portable.flag`, `README.md`, and `LICENSE`.
+  - Compiled production installer `artifacts/GlassFolders-Setup-v1.0.1.exe` using Inno Setup compiler (`ISCC.exe`). Verified silent per-user installation (`/VERYSILENT /SUPPRESSMSGBOXES /NORESTART`) into `%LOCALAPPDATA%\Programs\GlassFolders` and silent uninstallation.
+  - Packaged standalone portable archive `artifacts/GlassFolders-v1.0.1-portable.zip` containing binaries, `portable.flag`, `README.md`, and `LICENSE`.
   - Generated `artifacts/SHA256SUMS.txt` with SHA-256 hashes for both distribution packages.
-- **Automated Tests**: Added `tests/GlassFolders.Core.Tests/AppPathsTests.cs`. All 65/65 tests passing.
+- **Automated Tests**: Added `tests/GlassFolders.Core.Tests/AppPathsTests.cs` and `MemoryTrimmingTests.cs`. All 66/66 tests passing.
 
 ### Test results
-- 65/65 unit tests pass in `GlassFolders.Core.Tests`.
+- 66/66 unit tests pass in `GlassFolders.Core.Tests`.
 - Release build clean with 0 warnings and 0 errors (`-warnaserror`).
 - Silent installer and uninstaller verified cleanly on Windows 11.
