@@ -54,6 +54,10 @@ internal static class Program
             Console.WriteLine("Capturing Settings Window (Animations)...");
             CaptureSettingsWindow(configManager, folderManager, Path.Combine(outputDir, "settings-animations.png"), "Animations");
 
+            // 2b. Settings Window (About tab)
+            Console.WriteLine("Capturing Settings Window (About)...");
+            CaptureSettingsWindow(configManager, folderManager, Path.Combine(outputDir, "settings-about.png"), "About");
+
             // 3. Folder Customization Dialog
             Console.WriteLine("Capturing Folder Customization Dialog...");
             CaptureFolderEditor(workFolder, Path.Combine(outputDir, "folder-customization.png"));

@@ -153,7 +153,7 @@ Right-clicking the **GlassFolders System Tray Icon** provides instant access:
 | **Pause GlassFolders** | Suspends desktop rendering and minimizes working set |
 | **Settings** | Opens the comprehensive GlassFolders management window |
 | **Explorer Recovery ▸ Recover Now** | Manually re-attaches desktop surfaces to Windows Explorer |
-| **About** | Displays version, system environment, and copyright info |
+| **About** | Displays version, publisher credits (Rie-Sources), and system environment |
 | **Exit** | Gracefully cleans up desktop surfaces and shuts down the application |
 
 ---
@@ -172,3 +172,11 @@ Right-clicking the **GlassFolders System Tray Icon** provides instant access:
 ### Resetting to Defaults
 - If configuration files become corrupted, open **Settings → Backup & Restore** and click **Reset to Defaults**.
 - Alternatively, launch GlassFolders with the `--reset` command line flag.
+
+---
+
+## 10. Credits & Publisher
+
+- **Publisher**: [Rie-Sources](https://rie-sources.com/)
+- **Website**: [https://rie-sources.com/](https://rie-sources.com/)
+- **License**: MIT License

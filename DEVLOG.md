@@ -207,6 +207,7 @@ Branch `phase/9-release-packaging`.
 Branch `main`.
 
 ### Done
+- **Publisher Branding & Website Integration**: Updated all official metadata, About screen, sidebar links, installer attributes, and documentation to credit **[Rie-Sources](https://rie-sources.com/)**. Added interactive links and stylized publisher card into `SettingsWindow` About tab and sidebar, updated `<Company>`, `<Authors>`, `<Copyright>`, and `<PackageProjectUrl>` in `Directory.Build.props`, updated `installer/GlassFolders.iss` (`#define MyAppPublisher "Rie-Sources"`, `#define MyAppURL "https://rie-sources.com/"`), updated `LICENSE`, and added dedicated sections to `README.md` and `docs/USER-GUIDE.md`.
 - **Real Software Screenshot Gallery**: Rendered and embedded authentic high-resolution screenshots into `README.md` and `docs/screenshots/` (hero desktop showcase, liquid glass popup, settings dashboard, animation controls, and folder appearance editor).
 - **ScreenshotCapture Tool**: Added `tools/ScreenshotCapture` utility for automated pixel-perfect rendering of WPF views and desktop composites.
 - **DWM Native Fix (0xC0000005)**: Corrected native `DwmIsCompositionEnabled` P/Invoke signature in `DwmHelpers.cs` to take `out int pfEnabled` and return `HRESULT`, preventing access violations when enabling Mica or Acrylic.

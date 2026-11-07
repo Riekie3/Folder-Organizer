@@ -3,8 +3,8 @@
 
 #define MyAppName "GlassFolders"
 #define MyAppVersion "1.0.1"
-#define MyAppPublisher "Riekie3"
-#define MyAppURL "https://github.com/Riekie3/Folder-Organizer"
+#define MyAppPublisher "Rie-Sources"
+#define MyAppURL "https://rie-sources.com/"
 #define MyAppExeName "GlassFolders.exe"
 #define MyAppIcon "..\assets\app.ico"
 

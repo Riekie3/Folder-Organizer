@@ -1,6 +1,7 @@
 # <img src="assets/app-icon.png" width="36" height="36" align="center" alt="GlassFolders Icon"/> GlassFolders
 
-Phone-style app folders on your real Windows 11 desktop, with a Liquid Glass popup.
+Phone-style app folders on your real Windows 11 desktop, with a Liquid Glass popup.  
+Created & maintained by **[Rie-Sources](https://rie-sources.com/)**.
 
 > **Status: Production Release (`v1.0.1`) complete.** Built for Windows 11 (including 24H2 & 25H2). Fully tested (66/66 automated tests passed), zero-leak memory profile, event-driven Explorer recovery, and zero runtime dependencies beyond .NET 10.
 
@@ -81,6 +82,17 @@ dotnet test GlassFolders.sln --configuration Release
 
 ---
 
+## Credits & Publisher
+
+- **Publisher / Creator**: [Rie-Sources](https://rie-sources.com/)
+- **Website**: [https://rie-sources.com/](https://rie-sources.com/)
+
+<p align="center">
+  <img src="docs/screenshots/settings-about.png" width="700" alt="About GlassFolders - Developed by Rie-Sources"/>
+</p>
+
+---
+
 ## License
 
-GlassFolders is open-source software licensed under the [MIT License](LICENSE). Copyright © 2026 Riekie3.
+GlassFolders is open-source software licensed under the [MIT License](LICENSE). Copyright © 2026 [Rie-Sources](https://rie-sources.com/).

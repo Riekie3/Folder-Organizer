@@ -2,8 +2,11 @@
   <PropertyGroup>
     <Version>1.0.1</Version>
     <Product>GlassFolders</Product>
-    <Company>Riekie3</Company>
-    <Copyright>Copyright © 2026 Riekie3</Copyright>
+    <Company>Rie-Sources</Company>
+    <Authors>Rie-Sources</Authors>
+    <Copyright>Copyright © 2026 Rie-Sources (https://rie-sources.com/)</Copyright>
+    <PackageProjectUrl>https://rie-sources.com/</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Riekie3/Folder-Organizer</RepositoryUrl>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>

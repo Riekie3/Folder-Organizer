@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.1] - 2026-11-07
 
 ### Added
+- **Publisher Branding & Website Integration**: Updated all official metadata, About screen, sidebar links, installer attributes, and documentation to credit **[Rie-Sources](https://rie-sources.com/)**. Clicking publisher links anywhere in the application or settings opens `https://rie-sources.com/` in the user's default browser.
 - **Real Software Screenshot Gallery**: Captured authentic high-resolution screenshots of the software (`docs/screenshots/`) including hero desktop experience, folder popup, settings dashboard, animations manager, and folder appearance editor, embedded into `README.md`.
 - **ScreenshotCapture Automation Tool**: Created `tools/ScreenshotCapture` utility rendering pixel-perfect screenshots of real WPF windows and desktop composite scenes.
 - **Fluent 2 Liquid Glass App Icon**: Designed and packed high-resolution multi-frame Windows icon (`assets/app.ico` and `assets/app-icon.png`) containing 256x256, 128x128, 64x64, 48x48, 32x32, 24x24, and 16x16 frames with transparent feathered alpha. Integrated into `GlassFolders.exe` via `<ApplicationIcon>`, Inno Setup installer via `SetupIconFile`, and `SettingsWindow` sidebar & About dialogs.
