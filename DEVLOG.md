@@ -207,6 +207,10 @@ Branch `phase/9-release-packaging`.
 Branch `main`.
 
 ### Done
+- **Real Software Screenshot Gallery**: Rendered and embedded authentic high-resolution screenshots into `README.md` and `docs/screenshots/` (hero desktop showcase, liquid glass popup, settings dashboard, animation controls, and folder appearance editor).
+- **ScreenshotCapture Tool**: Added `tools/ScreenshotCapture` utility for automated pixel-perfect rendering of WPF views and desktop composites.
+- **DWM Native Fix (0xC0000005)**: Corrected native `DwmIsCompositionEnabled` P/Invoke signature in `DwmHelpers.cs` to take `out int pfEnabled` and return `HRESULT`, preventing access violations when enabling Mica or Acrylic.
+- **SettingsWindow Initialization Race**: Initialized `_settings` before calling `InitializeComponent()` and added null guards to slider change handlers.
 - **App Icon Creation & Packaging**: Designed and generated high-resolution Fluent 2 Liquid Glass app icon (`assets/app.ico` and `assets/app-icon.png`). Multi-resolution frames (256, 128, 64, 48, 32, 24, 16) with transparent alpha. Configured in `GlassFolders.App.csproj` via `<ApplicationIcon>`, embedded in `SettingsWindow.xaml`, and applied to Inno Setup installer executable via `SetupIconFile`.
 - **IconPacker Tool**: Added `tools/IconPacker` utility automating foreground extraction, anti-aliased edge feathering, and `.ico` binary packing.
 - **Hotfix 0 (Startup Auto-Close ArgumentException)**: Fixed .NET 10 `GC.Collect` call in `GlassFolders.App/Poc/PocController.cs:PerformMemoryTrim()`. Passing `blocking: false` with `GCCollectionMode.Aggressive` threw `System.ArgumentException: AggressiveGC requires setting the blocking parameter to true`, which terminated the process when `_memoryTrimTimer` fired 5 seconds after startup. Changed `blocking` to `true`, added `GC.WaitForPendingFinalizers()`, and wrapped in defensive exception logging.

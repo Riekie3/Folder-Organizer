@@ -34,13 +34,14 @@ public partial class SettingsWindow : Window
         ExplorerRecoveryService? recoveryService = null,
         MonitorService? monitorService = null)
     {
-        InitializeComponent();
+
         _configManager = configManager;
         _folderManager = folderManager;
         _recoveryService = recoveryService;
         _monitorService = monitorService;
         _backupService = new BackupService();
         _settings = _configManager.LoadSettings();
+        InitializeComponent();
 
         LoadSettingsToUi();
         RefreshFoldersList();
@@ -190,7 +191,7 @@ public partial class SettingsWindow : Window
 
     private void OnGridSliderChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
-        if (TxtGridVal is not null)
+        if (TxtGridVal is not null && _settings is not null)
         {
             int val = (int)e.NewValue;
             TxtGridVal.Text = val.ToString();
@@ -201,7 +202,7 @@ public partial class SettingsWindow : Window
 
     private void OnColumnsSliderChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
-        if (TxtColumnsVal is not null)
+        if (TxtColumnsVal is not null && _settings is not null)
         {
             int val = (int)e.NewValue;
             TxtColumnsVal.Text = val.ToString();
@@ -212,7 +213,7 @@ public partial class SettingsWindow : Window
 
     private void OnRowsSliderChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
-        if (TxtRowsVal is not null)
+        if (TxtRowsVal is not null && _settings is not null)
         {
             int val = (int)e.NewValue;
             TxtRowsVal.Text = val.ToString();

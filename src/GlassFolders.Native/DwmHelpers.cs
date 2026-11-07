@@ -45,8 +45,13 @@ public static partial class DwmHelpers
     public static partial int DwmExtendFrameIntoClientArea(nint hwnd, in MARGINS pMarInset);
 
     [LibraryImport("dwmapi.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    public static partial bool DwmIsCompositionEnabled();
+
+    public static partial int DwmIsCompositionEnabled(out int pfEnabled);
+
+    public static bool IsCompositionEnabled()
+    {
+        try { return DwmIsCompositionEnabled(out int e) == 0 && e != 0; } catch { return false; }
+    }
 
     /// <summary>
     /// Enables Windows 11 Acrylic backdrop blur on a popup or dialog window.
@@ -54,7 +59,7 @@ public static partial class DwmHelpers
     /// </summary>
     public static bool EnableAcrylic(nint hwnd, bool darkMode = true)
     {
-        if (hwnd == 0 || !DwmIsCompositionEnabled()) return false;
+        if (hwnd == 0 || !IsCompositionEnabled()) return false;
 
         try
         {
@@ -87,7 +92,7 @@ public static partial class DwmHelpers
     /// </summary>
     public static bool EnableMica(nint hwnd, bool darkMode = true)
     {
-        if (hwnd == 0 || !DwmIsCompositionEnabled()) return false;
+        if (hwnd == 0 || !IsCompositionEnabled()) return false;
 
         try
         {

@@ -1,10 +1,24 @@
-# GlassFolders
+# <img src="assets/app-icon.png" width="36" height="36" align="center" alt="GlassFolders Icon"/> GlassFolders
 
 Phone-style app folders on your real Windows 11 desktop, with a Liquid Glass popup.
 
-> **Status: Production Release (`v1.0.0`) complete.** Built for Windows 11 (including 24H2 & 25H2). Fully tested, zero-leak memory profile, event-driven Explorer recovery, and zero runtime dependencies beyond .NET 10.
+> **Status: Production Release (`v1.0.1`) complete.** Built for Windows 11 (including 24H2 & 25H2). Fully tested (66/66 automated tests passed), zero-leak memory profile, event-driven Explorer recovery, and zero runtime dependencies beyond .NET 10.
 
-![GlassFolders concept mockup](docs/screenshot-concept.png)
+![GlassFolders Desktop Experience](docs/screenshots/hero-desktop.png)
+
+---
+
+## Screenshots
+
+| Liquid Glass Folder Popup | Settings Dashboard |
+|:---:|:---:|
+| ![Liquid Glass Folder Popup](docs/screenshots/folder-popup.png) | ![Settings Dashboard](docs/screenshots/settings.png) |
+| *Frosted DWM Acrylic popup with real app icons, pagination, and category glyph* | *Glass sidebar navigation with full personalization, layout, and recovery controls* |
+
+| Folder Appearance Customization | Granular Animation Controls |
+|:---:|:---:|
+| ![Folder Customization Dialog](docs/screenshots/folder-customization.png) | ![Animation Controls](docs/screenshots/settings-animations.png) |
+| *Real-time vector preview, dual-stop color gradients, and category glyph picker* | *8 independent category toggles, speed slider, and Windows reduced-motion sync* |
 
 ---
 
@@ -30,7 +44,7 @@ Phone-style app folders on your real Windows 11 desktop, with a Liquid Glass pop
 - **Runtime:** .NET 10 (LTS) WPF with Per-Monitor-V2 DPI awareness.
 - **Platform:** Windows 11 (22H2, 23H2, 24H2, 25H2+) and Windows 10 64-bit.
 - **Compositor:** Direct Desktop Window Manager (DWM) Acrylic blur and Mica backdrops.
-- **Packaging:** Inno Setup per-user installer (`{localappdata}\Programs\GlassFolders`, no administrator privileges required).
+- **Packaging:** Inno Setup per-user installer (`{localappdata}\Programs\GlassFolders`, no administrator privileges required) and standalone portable ZIP distribution.
 
 ---
 
@@ -46,7 +60,7 @@ cd "Folder-Organizer"
 # Build solution in Release mode
 dotnet build GlassFolders.sln --configuration Release -warnaserror
 
-# Run comprehensive test suite (48 tests)
+# Run comprehensive test suite (66 tests)
 dotnet test GlassFolders.sln --configuration Release
 
 # Launch GlassFolders

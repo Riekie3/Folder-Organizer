@@ -4,7 +4,7 @@
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ShowInTaskbar="True" ResizeMode="CanResize" Width="840" Height="620"
         MinHeight="540" MinWidth="700" WindowStartupLocation="CenterScreen"
-        Title="GlassFolders Settings" Icon="pack://application:,,,/assets/app.ico">
+        Title="GlassFolders Settings" Icon="pack://application:,,,/GlassFolders;component/assets/app.ico">
 
     <Border Margin="16" CornerRadius="28" BorderThickness="1"
             BorderBrush="{StaticResource BrushGlassBorderBright}"
@@ -27,7 +27,7 @@
                     </Grid.RowDefinitions>
 
                     <!-- App Brand Header -->
-                    <StackPanel Grid.Row="0" Margin="4,0,0,24" Orientation="Horizontal"><Image Source="pack://application:,,,/assets/app-icon.png" Width="32" Height="32" Margin="0,0,10,0" VerticalAlignment="Center"/><StackPanel VerticalAlignment="Center">
+                    <StackPanel Grid.Row="0" Margin="4,0,0,24" Orientation="Horizontal"><Image Source="pack://application:,,,/GlassFolders;component/assets/app-icon.png" Width="32" Height="32" Margin="0,0,10,0" VerticalAlignment="Center"/><StackPanel VerticalAlignment="Center">
                         <TextBlock Text="GlassFolders" FontSize="18" FontWeight="Bold"
                                    Foreground="{StaticResource BrushTextPrimary}" FontFamily="{StaticResource FontDisplay}"/>
                         <TextBlock Text="Desktop Organizer" FontSize="11" Foreground="{StaticResource BrushTextMuted}" Margin="0,2,0,0"/></StackPanel>
@@ -349,7 +349,7 @@
                         <StackPanel x:Name="PageAbout" Visibility="Collapsed">
                             <Border Style="{StaticResource GlassCard}">
                                 <StackPanel>
-                                    <Image Source="pack://application:,,,/assets/app-icon.png" Width="64" Height="64" HorizontalAlignment="Left" Margin="0,0,0,12"/><TextBlock Text="GlassFolders" FontSize="20" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}"/>
+                                    <Image Source="pack://application:,,,/GlassFolders;component/assets/app-icon.png" Width="64" Height="64" HorizontalAlignment="Left" Margin="0,0,0,12"/><TextBlock Text="GlassFolders" FontSize="20" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}"/>
                                     <TextBlock Text="Version 1.0.1 · Production Release" FontSize="12" Foreground="{StaticResource BrushAccent}" Margin="0,2,0,12"/>
                                     <TextBlock Text="Phone-style app folders on your real Windows 11 desktop, with a Liquid Glass popup."
                                                FontSize="13" Foreground="{StaticResource BrushTextSecondary}" TextWrapping="Wrap" Margin="0,0,0,16"/>

@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.1] - 2026-11-07
 
 ### Added
+- **Real Software Screenshot Gallery**: Captured authentic high-resolution screenshots of the software (`docs/screenshots/`) including hero desktop experience, folder popup, settings dashboard, animations manager, and folder appearance editor, embedded into `README.md`.
+- **ScreenshotCapture Automation Tool**: Created `tools/ScreenshotCapture` utility rendering pixel-perfect screenshots of real WPF windows and desktop composite scenes.
 - **Fluent 2 Liquid Glass App Icon**: Designed and packed high-resolution multi-frame Windows icon (`assets/app.ico` and `assets/app-icon.png`) containing 256x256, 128x128, 64x64, 48x48, 32x32, 24x24, and 16x16 frames with transparent feathered alpha. Integrated into `GlassFolders.exe` via `<ApplicationIcon>`, Inno Setup installer via `SetupIconFile`, and `SettingsWindow` sidebar & About dialogs.
 - **IconPacker Utility**: Created `tools/IconPacker` to automate background removal, edge anti-aliasing, and multi-resolution `.ico` generation directly in C#.
 - **Zero-Footprint Portable Mode**: Centralized path resolution in `AppPaths.cs`. If `portable.flag` exists next to `GlassFolders.exe`, configuration, logs, and icon caches are automatically directed to local `<exeDir>\data` and `<exeDir>\data\local` folders without touching user `%APPDATA%`.
@@ -19,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Automated Unit Tests**: Added `AppPathsTests` and `MemoryTrimmingTests`, expanding the test suite to 66 passing automated tests.
 
 ### Fixed
+- **DWM Composition Check Access Violation (0xC0000005)**: Corrected native P/Invoke signature for `DwmIsCompositionEnabled` in `DwmHelpers.cs` to take `out int pfEnabled` and return `HRESULT`, preventing an access violation crash when opening `SettingsWindow` or `FolderPopup`.
+- **SettingsWindow Slider Initialization Race**: Initialized `_settings` before calling `InitializeComponent()` and added null guards to slider change handlers to prevent NullReferenceException during XAML BAML parsing.
 - **Startup Auto-Close Crash (ArgumentException in GC.Collect)**: Fixed .NET 10 memory trimming call in `PocController.PerformMemoryTrim()`. Passing `blocking: false` with `GCCollectionMode.Aggressive` threw `System.ArgumentException: AggressiveGC requires setting the blocking parameter to true`, which terminated the process when `_memoryTrimTimer` ticked 5 seconds after launch. Now passes `blocking: true` and wraps memory trimming in defensive exception handling.
 - **Drag & Drop Crash (AccessViolationException)**: Corrected COM P/Invoke signature for `IShellLinkW::GetPath` in `ShellShortcutResolver.cs` by replacing `out byte pfd` with `nint pfd` (null pointer), preventing a 592-byte stack overwrite crash when dropping `.lnk` files.
 - **Open File Location**: Resolved issue where "Open file location" did nothing for system binaries or unrooted paths; `ResolveLocationCandidate` in `ShellLauncher.cs` now resolves executables via `%PATH%`, System32, and Windows root.
