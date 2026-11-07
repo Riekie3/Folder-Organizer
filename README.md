@@ -3,7 +3,7 @@
 Phone-style app folders on your real Windows 11 desktop, with a Liquid Glass popup.  
 Created & maintained by **[Rie-Sources](https://rie-sources.com/)**.
 
-> **Status: `v1.0.2`, working but still being polished.** Built for Windows 11 (tested on 25H2). 66/66 automated tests pass, Explorer recovery is event-driven, and there are no runtime dependencies beyond .NET 10. The popup does not yet look like the Liquid Glass design target; see [docs/VISUAL-PARITY-PLAN.md](docs/VISUAL-PARITY-PLAN.md).
+> **Status: `v1.0.2`, working but still being polished.** Built for Windows 11 (tested on 25H2). 152/152 automated tests pass, Explorer recovery is event-driven, and there are no runtime dependencies beyond .NET 10. The popup does not yet look like the Liquid Glass design target; see [docs/VISUAL-PARITY-PLAN.md](docs/VISUAL-PARITY-PLAN.md).
 
 ![GlassFolders Desktop Experience](docs/screenshots/hero-desktop.png)
 
@@ -34,7 +34,8 @@ Created & maintained by **[Rie-Sources](https://rie-sources.com/)**.
 - **Automated Explorer Recovery:** Event-driven state machine (`Healthy → ShellLost → WaitingForShell → Reattaching → Verifying`) automatically recovers desktop surfaces with exponential backoff on Explorer crashes, taskbar recreation, session locks, and power resumes.
 - **Multi-Monitor Layouts:** Position math uses work-area relative fractions and persistent monitor identities. When a secondary screen is unplugged, folders gracefully displace to the primary monitor and return to their home screen when reconnected.
 - **Portable Backup & Restore:** Self-contained `.zip` backup format with SHA-256 manifests, automated rolling pre-restore backups (max 10), collision-free merge mode, and intelligent path relinking for cross-PC migration.
-- **Animation Controls:** Master toggle, Windows reduced-motion (`SPI_GETCLIENTAREAANIMATION`) compliance, speed slider (0.5×–2.0×), and 8 category switches. Folder tiles animate today; the popup open/close animation is planned.
+- **Large Popup:** A 4 × 2 grid of 256 px icons with page dots, an expand button, and configurable columns and rows. It grows out of the clicked folder.
+- **Animation Controls:** Master toggle, Windows reduced-motion (`SPI_GETCLIENTAREAANIMATION`) compliance, speed slider (0.5×–2.0×), and 8 category switches. Folder tiles and the popup both animate.
 - **Ultra-Lightweight & Zero-Polling:** 0.00% idle CPU overhead, no periodic timer wakeups, and automated working set memory trimming (~50–65 MB typical).
 - **System Tray Integration:** Runs quietly in the notification area; no taskbar button.
 

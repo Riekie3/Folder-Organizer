@@ -10,11 +10,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **Popup layout:** rebuilt to match the reference: 864 × 536 card, large full-colour folder icon and title, 96 px app icons, two-line labels, a soft plate on hover, and page dots instead of arrows.
+- **Popup position:** it opens about 350 DIP beside the folder, moving closer or to the other side when there's no room, and always stays inside the work area. Smaller screens scale it to fit.
+- **Popup grid:** the default is now 4 × 2. The columns and rows settings now work. A saved value of 3 rows, the old default, moves to 2 once. The card only draws the rows its items use.
+- **Icons:** up to 256 px from the shell, with correct transparency, loaded in the background so a first open isn't held up. Apps with no large icon sit on a rounded tile so they don't look blurry.
+- **Add items:** the + button moved to a right-click menu and a ⋯ button that appears when the pointer is on the header. Dropping files still works.
 - **Popup glass:** replaced Windows' blur with snapshot glass. The popup now has smooth rounded corners and no square block behind it, and you can see the wallpaper's colours through it.
 - **Adaptive tint:** the tint lightens on dark wallpapers and darkens on bright ones, keeping white text readable.
 - **Settings and folder editor:** the Mica and Acrylic backdrops are gone, which also removes their square block. They use a tinted panel until their glass stage.
 
 ### Added
+- **Expand button:** shows one more row per page, and stays on the same items.
+- **Open and close animation:** the popup grows out of the clicked folder and shrinks back into it. It follows the animation settings and Windows' animation effects setting.
+- **Page changes:** mouse wheel, left and right arrows, Page Up, Page Down, Home, End, or click a page dot.
 - Solid panel for high contrast, Windows transparency off, and failed or all-black captures.
 - Clicking the popup's shadow now closes it, like any other click outside.
 

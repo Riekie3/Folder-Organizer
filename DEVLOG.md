@@ -239,6 +239,40 @@ Branch `main`.
 - Version 1.0.2 (props, installer); version text read from assembly; release zip name uses the tag.
 - README corrected. Not released: waiting for confirmation.
 
+## Stage 2 - Popup matches the reference (branch `stage/2-popup-parity`)
+
+- `PopupLayout` in `GlassFolders.Core/Popup`: grid, sizes, paging and placement as pure code. `IconAnalysis` in `Core/Icons`: alpha type, solid area, edge softness. 48 new unit tests (152 total).
+- `ShellImage`: 256 px icons through `IShellItemImageFactory`, read as BGRA with `GetDIBits`, because the usual HBITMAP helper drops alpha. 76 real icons checked on a contact sheet.
+- The shell returns both straight and premultiplied alpha, so each icon is checked. It also upscales or pads apps with small icons. Padded art is cropped, and soft edges (5 px or wider, against 3 or less for real 256 px art) mark an icon as low resolution, which gets the tile.
+- `IconCacheService`: reading from the shell took 7–60 ms per icon, with spikes to 1.3 s on a cold disk, so it now runs on a background STA thread. Disk hits stay synchronous. PNGs hold the originals; memory holds display-size copies.
+- `FolderPopup` rewritten. The window now covers the folder as well as the card, so the card can grow out of it. Its empty parts let clicks through.
+- The snapshot covers the expanded card when the folder has more than one page, since a popup can't capture itself. Overscan dropped from 64 to 24 DIP, and shrinking reads every second pixel from a downsample of 6 up.
+- Item menus are built on first open instead of for every item on every page.
+- Found while testing: `Window.DpiChanged` also receives the event every `Image` raises, so each icon re-ran the popup's layout and cancelled the expand animation. It now checks the source.
+- Found while testing: saved animation settings were only applied after opening Settings. They now load at startup.
+- Height and top animate per frame through `CompositionTarget.Rendering`, which unsubscribes when done.
+
+Tested with a throwaway harness on sandbox config, over a full-screen test window (1920×1080 at 125 %, Release), using real mouse and keyboard input through Windows:
+
+| Check | Result |
+|---|---|
+| Overlay on the reference | Largest difference 8 px, 0.4 % of screen width |
+| Capture + frost, median of 30 | One page: 30 ms, min 10, max 40. Expandable: 36 ms, min 11, max 41 |
+| Construct + show, 6 opens with icons in memory | Median 123 ms, min 44, max 163 |
+| Open animation frames | Median gap 16 ms, 1–2 gaps over 33 ms in each of 3 opens, worst 82 ms |
+| Expand animation frames | Reaches 712 in about 190 ms. Gaps up to 43 ms in the first frames |
+| CPU with the popup open | 0–16 ms over 5 s; nothing runs after the animation |
+| Wheel, arrows, End, dots, expand, collapse | Change as expected; expand keeps the first visible item on screen |
+| ⋯ menu, item menu, Escape on a menu | Popup stays open |
+| Click in the gap, on the shadow, on close, Escape | Popup closes |
+| Hit test: card / folder / gap | Popup / passes through / passes through |
+| Corner anchors, 5×3, 6×5 | Card stays in the work area; 6×5 scales to fit |
+| 0, 2 and 3 items | Card draws one row, expand disabled, grows when items arrive |
+| Animation off | Opens at full opacity, closes at once |
+| Close during the open animation | Closes cleanly |
+
+Not tested: a click on a real desktop folder, other display scales, a second monitor, real high contrast and transparency settings, a drag and drop from Explorer, and memory in the real app. Stage 5 covers these. Drop handlers are unchanged apart from the layout refresh.
+
 ## Stage 1 - Glass engine (branch `stage/1-glass-engine`)
 
 - `FrostFilter`, `GlassTint`, `BackdropAnalyzer` in `GlassFolders.Core/Glass`: pure image maths, 38 new unit tests (104 total).

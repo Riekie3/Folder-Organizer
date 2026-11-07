@@ -40,8 +40,11 @@ Folders appear as sleek frosted glass tiles anchored directly to your desktop la
 - **Desktop Marquee & Icons:** You can still click desktop shortcuts, drag marquee selection boxes, and right-click the desktop wallpaper.
 
 ### Opening a Folder
-- Click any folder tile on your desktop to open its smooth frosted acrylic popup menu.
-- Click outside the folder popup or press `Escape` to close it.
+- Click any folder tile on your desktop. Its popup grows out of the folder and opens beside it.
+- Click outside the popup, click ✕, or press `Escape` to close it.
+- With more items than fit, change page with the mouse wheel, the left and right arrow keys, or the dots at the bottom.
+- Click the expand button in the header to show one more row per page. Click it again to go back.
+- Set how many columns and rows a popup shows in **Settings → Appearance → Popup Layout**.
 
 ### Moving Folders
 - Simply **click and hold** on any folder tile and drag it to your desired position on your desktop.
@@ -59,7 +62,7 @@ Folders appear as sleek frosted glass tiles anchored directly to your desktop la
 
 ### Adding Items to a Folder
 1. Click the folder to open its popup window.
-2. Click the **+ Add Shortcut** button at the bottom of the popup, or open **Settings → Folders → Edit**.
+2. Right-click an empty part of the popup and choose **Add items…**. You can also move the pointer over the header and click **⋯**, drop files onto the popup, or open **Settings → Folders → Edit**.
 3. Choose the target file:
    - **Desktop / Start Menu Shortcuts (`.lnk`)**: Automatically resolves target paths, icons, and arguments.
    - **Executables (`.exe`, `.cmd`, `.bat`)**: Direct path execution.

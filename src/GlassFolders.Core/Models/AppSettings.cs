@@ -5,9 +5,11 @@ namespace GlassFolders.Core.Models;
 /// </summary>
 public sealed class AppSettings
 {
-    public int SchemaVersion { get; set; } = 1;
+    public const int CurrentSchemaVersion = 2;
+
+    public int SchemaVersion { get; set; } = CurrentSchemaVersion;
     public int PopupColumns { get; set; } = 4;
-    public int PopupRows { get; set; } = 3;
+    public int PopupRows { get; set; } = 2;
     public bool SnapToGrid { get; set; } = true;
     public int GridSize { get; set; } = 20;
     public bool StartWithWindows { get; set; } = true;

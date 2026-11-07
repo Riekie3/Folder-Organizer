@@ -128,8 +128,11 @@ public sealed class GlassCard : UserControl
         if (_snapshot is null || _snapshotBrush is null || ActualWidth <= 0 || ActualHeight <= 0) return;
         if (PresentationSource.FromVisual(this) is null) return;
 
+        // Measured from the parent, so an open or close animation on this card doesn't move the glass.
+        if (VisualTreeHelper.GetParent(this) is not Visual parent) return;
+        Vector offset = VisualTreeHelper.GetOffset(this);
         DpiScale dpi = VisualTreeHelper.GetDpi(this);
-        Point topLeft = PointToScreen(new Point(0, 0));
+        Point topLeft = parent.PointToScreen(new Point(offset.X, offset.Y));
         var card = new Rect(topLeft.X, topLeft.Y, ActualWidth * dpi.DpiScaleX, ActualHeight * dpi.DpiScaleY);
 
         // If the card ever leaves the captured area, slide the image rather than show a gap.

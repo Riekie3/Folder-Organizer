@@ -139,8 +139,8 @@
                                     </DockPanel>
                                     <DockPanel LastChildFill="True">
                                         <TextBlock Text="Grid Rows:" Foreground="{StaticResource BrushTextSecondary}" Width="140" VerticalAlignment="Center"/>
-                                        <TextBlock x:Name="TxtRowsVal" Text="3" Foreground="{StaticResource BrushAccent}" Width="30" VerticalAlignment="Center"/>
-                                        <Slider x:Name="SliderRows" Minimum="2" Maximum="5" Value="3" IsSnapToTickEnabled="True"
+                                        <TextBlock x:Name="TxtRowsVal" Text="2" Foreground="{StaticResource BrushAccent}" Width="30" VerticalAlignment="Center"/>
+                                        <Slider x:Name="SliderRows" Minimum="2" Maximum="5" Value="2" IsSnapToTickEnabled="True"
                                                 ValueChanged="OnRowsSliderChanged"/>
                                     </DockPanel>
                                 </StackPanel>

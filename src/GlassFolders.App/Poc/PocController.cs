@@ -12,6 +12,7 @@ using GlassFolders.Core.Config;
 using GlassFolders.Core.Folders;
 using GlassFolders.Core.Layout;
 using GlassFolders.Core.Models;
+using GlassFolders.Core.Popup;
 using GlassFolders.Core.Poc;
 using GlassFolders.Native;
 using GlassFolders.Native.Shell;
@@ -64,6 +65,7 @@ public sealed class PocController : IDisposable
         _folderManager = new FolderManager(_configManager);
         _iconCache = new IconCacheService();
         _resolver = new ShellShortcutResolver();
+        AnimationService.Instance.Settings = _configManager.LoadSettings().Animation;
 
         _host = DesktopHostFactory.Create(kind);
         _watcher = new ShellWatcher();
@@ -504,7 +506,7 @@ public sealed class PocController : IDisposable
         if (folder is null) return;
 
         var anchor = tile.GetScreenRect?.Invoke() ?? default;
-        _popup = new FolderPopup(folder, _folderManager, _iconCache, _resolver, anchor);
+        _popup = new FolderPopup(folder, _folderManager, _iconCache, _resolver, anchor, PopupGrid.From(_configManager.LoadSettings()));
         _popupFor = tile.Id;
 
         _popup.Closed += (_, _) =>

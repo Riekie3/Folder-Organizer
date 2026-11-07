@@ -68,8 +68,32 @@ public sealed class ConfigurationManagerTests : IDisposable
         var settings = _configManager.LoadSettings();
         Assert.NotNull(settings);
         Assert.Equal(4, settings.PopupColumns);
-        Assert.Equal(3, settings.PopupRows);
+        Assert.Equal(2, settings.PopupRows);
         Assert.True(File.Exists(_configManager.SettingsPath));
+    }
+
+    [Fact]
+    public void LoadSettings_moves_the_old_default_of_3_rows_to_the_new_default()
+    {
+        File.WriteAllText(_configManager.SettingsPath, """{"schemaVersion":1,"popupColumns":5,"popupRows":3}""");
+
+        var settings = _configManager.LoadSettings();
+
+        Assert.Equal(2, settings.PopupRows);
+        Assert.Equal(5, settings.PopupColumns);
+        Assert.Equal(AppSettings.CurrentSchemaVersion, settings.SchemaVersion);
+        Assert.Equal(2, _configManager.LoadSettings().PopupRows);
+    }
+
+    [Fact]
+    public void LoadSettings_keeps_rows_the_user_chose()
+    {
+        File.WriteAllText(_configManager.SettingsPath, """{"schemaVersion":1,"popupRows":4}""");
+        Assert.Equal(4, _configManager.LoadSettings().PopupRows);
+
+        // From version 2 on, 3 rows is a real choice and stays.
+        _configManager.SaveSettings(new AppSettings { PopupRows = 3 });
+        Assert.Equal(3, _configManager.LoadSettings().PopupRows);
     }
 
     [Fact]

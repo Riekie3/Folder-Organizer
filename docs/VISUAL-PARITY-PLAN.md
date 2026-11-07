@@ -2,7 +2,7 @@
 
 _Updated 2026-11-07. Goal: make the running app look as close as practical to `Referance/a226f8e2-….png`, then release as v1.1.0._
 
-**Status:** Stage 0 merged to `main`. Stage 1 built on branch `stage/1-glass-engine`. Stages 2–6 not started. **Nothing is tagged or released until every stage is finished and the look is approved.**
+**Status:** Stages 0 and 1 merged to `main`. Stage 2 built on branch `stage/2-popup-parity`. Stages 3–6 not started. **Nothing is tagged or released until every stage is finished and the look is approved.**
 
 ![Reference, current app and prototype side by side](parity/comparison.png)
 
@@ -174,6 +174,30 @@ Each stage ends with build + tests, a DEVLOG entry and a push. Model suggestions
 
 **Done when:** overlaid on the reference at matching scale, panel edges, header line and icon centres are within about 4 % of the reference position.
 
+**Result:**
+
+![Stage 2 popup on the bloom wallpaper, in a test window](parity/stage2-popup.png)
+
+![The reference and the popup blended 50/50. Test shortcuts were relabelled to match the reference's names.](parity/stage2-overlay.png)
+
+Measured at 1920×1080. Reference positions are scaled from its 1672 px image.
+
+| Element | Reference | Popup | Off by |
+|---|---|---|---|
+| Card left, top | 648, 176 | 645, 174 | 3, 2 px |
+| Card right, bottom | 1729, 845 | 1725, 844 | 4, 1 px |
+| Header line | 299 | 297 | 2 px |
+| Icon centres, across | 814, 1075, 1330, 1580 | 811, 1067, 1323, 1579 | 8 px at most |
+| Icon centres, down | 408, 631 | 409, 629 | 2 px at most |
+| Page dots, down | 805 | 803 | 2 px |
+
+- Target met: the largest difference is 8 px, or 0.4 % of the screen width.
+- Tested with real mouse and keyboard input over a test window: hover, wheel, page dots, arrow keys, expand, both menus, close button, Escape, clicks in the empty gap and on the shadow.
+- Capture and frost, median of 30: 30 ms for up to one page of items, 36 ms for a folder that can expand. Spikes reach 41 ms. A bigger folder has to capture the expanded card, so the 30 ms target isn't met there.
+- Popup open, from constructing it to `Show` returning: about 130 ms, range 44–175 ms. This is over the 100 ms warm target in `PLAN.md`, on a much larger window than that target assumed. Stage 5 re-measures it in the real app.
+- Windows' animation effects setting is off on this PC, and the app follows it by default, so the open animation doesn't play here unless that changes. The test turned that setting off so the animation would run.
+- Not run on the live desktop yet: Stage 5.
+
 ### Stage 3 – Desktop folders match · Medium · Opus, high
 - Redraw the folder per reference 1: solid coloured folder with a crisp white glyph. Use Segoe Fluent Icons for consistent glyphs, with a fallback. Add the reference 4 style as a "Glass" option.
 - Reference palette: blue, purple, coral, green.
@@ -209,17 +233,17 @@ Measured by eye from the reference (1672 px wide) and scaled to this PC's 1536 D
 
 | Element | Current | Target |
 |---|---|---|
-| Popup size | 440 wide, min 310 tall | **864 × 536** |
+| Popup size | 440 wide, min 310 tall | **864 × 536**, tall view 864 × 712 |
 | Corner radius | 28 | **40** |
 | Glass tint opacity | ~90 % navy | **~20–30 % blue/white gradient over blur** |
 | Gap from folder to popup | 12 | **~350, reduced when there's no room** |
 | Header height | ~50 | **~98** |
-| Title | 22 | **30 semibold** |
+| Title | 22 | **33.5 semibold** |
 | Header icon | 24 white glyph | **~64 full-colour folder** |
-| App icon | 44 | **92** |
+| App icon | 44 | **96** |
 | Item label | 11 | **20** |
 | Grid | 4×3 | **4×2, expanded 4×3** |
-| Cell pitch | 100 × 92 | **~207 × 175** |
+| Cell pitch | 100 × 92 | **205 × 176** |
 | Desktop folder icon | 60 | **64** |
 | Folder label | 13 | **15–17** |
 | Folder column spacing | ~144 | **~117** |

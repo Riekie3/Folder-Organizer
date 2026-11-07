@@ -3,119 +3,146 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="clr-namespace:GlassFolders.App.UI"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
-        ShowInTaskbar="False" ResizeMode="NoResize" SizeToContent="WidthAndHeight"
+        ShowInTaskbar="False" ResizeMode="NoResize" SizeToContent="Manual"
         Title="GlassFolders Popup" Topmost="True"
-        AllowDrop="True" DragEnter="OnDragOver" DragOver="OnDragOver" Drop="OnDrop">
+        UseLayoutRounding="True" SnapsToDevicePixels="True">
 
     <Window.Resources>
+        <!-- One app or file in the grid. The plate shows on hover and keyboard focus. -->
         <Style x:Key="ItemTileStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" CornerRadius="14" Background="Transparent" BorderThickness="1" BorderBrush="Transparent" Padding="6">
-                            <ContentPresenter/>
-                        </Border>
+                        <Grid Background="Transparent">
+                            <Border x:Name="Plate" Margin="10,0,10,4" CornerRadius="24" BorderThickness="1"
+                                    Background="#2EFFFFFF" BorderBrush="#52FFFFFF" Opacity="0"/>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,10,0,0"/>
+                        </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="{StaticResource BrushGlassHover}"/>
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource BrushGlassBorder}"/>
+                                <Setter TargetName="Plate" Property="Opacity" Value="1"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Plate" Property="Opacity" Value="1"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#1AFFFFFF"/>
+                                <Setter TargetName="Plate" Property="Background" Value="#1AFFFFFF"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- Expand, close and more: icon alone at rest, soft plate on hover. -->
+        <Style x:Key="HeaderButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="44"/>
+            <Setter Property="Height" Value="44"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Plate" CornerRadius="12" Background="Transparent">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Plate" Property="Background" Value="#2EFFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Plate" Property="Background" Value="#1AFFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.35"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="HeaderLineIcon" TargetType="Path">
+            <Setter Property="Stroke" Value="White"/>
+            <Setter Property="StrokeThickness" Value="2"/>
+            <Setter Property="StrokeStartLineCap" Value="Round"/>
+            <Setter Property="StrokeEndLineCap" Value="Round"/>
+            <Setter Property="StrokeLineJoin" Value="Round"/>
+        </Style>
+
+        <Geometry x:Key="IconExpand">M3,27 L27,3 M15,3 L27,3 L27,15 M3,15 L3,27 L15,27</Geometry>
+        <Geometry x:Key="IconCollapse">M27,3 L17,13 M17,4 L17,13 L26,13 M3,27 L13,17 M4,17 L13,17 L13,26</Geometry>
     </Window.Resources>
 
-    <!-- Margin leaves room for the card's shadow: keep equal to GlassCard.ShadowMargin -->
-    <ui:GlassCard x:Name="PopupCard" Margin="40" Width="440" MinHeight="310" CornerRadius="28"
-                  AllowDrop="True" Drop="OnDrop" DragOver="OnDragOver" DragEnter="OnDragOver">
-        <Grid>
-            <Grid Margin="20,18,20,18">
+    <!-- The window also covers the folder, so the card can grow out of it. Empty parts let clicks through. -->
+    <Canvas x:Name="Stage">
+        <ui:GlassCard x:Name="PopupCard" CornerRadius="40" Opacity="0"
+                      AllowDrop="True" Drop="OnDrop" DragOver="OnDragOver" DragEnter="OnDragOver">
+            <Grid x:Name="CardRoot" Background="Transparent">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
+                    <RowDefinition x:Name="HeaderRow"/>
                     <RowDefinition Height="*"/>
-                    <RowDefinition Height="Auto"/>
+                    <RowDefinition x:Name="FooterRow"/>
                 </Grid.RowDefinitions>
 
-                <!-- Header Row -->
-                <Grid Grid.Row="0" Margin="0,0,0,16">
+                <!-- Header -->
+                <Grid x:Name="Header" Grid.Row="0" Background="Transparent">
                     <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <!-- Category Glyph -->
-                        <Viewbox Width="24" Height="24" Margin="0,0,10,0">
-                            <Canvas Width="64" Height="64">
-                                <Path x:Name="HeaderGlyph" Fill="{StaticResource BrushTextPrimary}"
-                                      Data="{StaticResource GlyphFolder}"/>
-                            </Canvas>
-                        </Viewbox>
+                    <ui:FolderIconView x:Name="HeaderIcon" Width="68" Height="58" Margin="37,5,0,0" VerticalAlignment="Center"/>
 
-                        <!-- Folder Title -->
-                        <TextBlock x:Name="TxtTitle" Text="Folder" FontSize="22" FontWeight="SemiBold"
-                                   Foreground="{StaticResource BrushTextPrimary}" FontFamily="{StaticResource FontDisplay}"
-                                   Effect="{StaticResource ShadowText}"/>
+                    <TextBlock x:Name="TxtTitle" Grid.Column="1" Text="Folder" FontSize="33.5" FontWeight="SemiBold"
+                               Margin="27,5,16,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                               Foreground="{StaticResource BrushTextPrimary}" FontFamily="{StaticResource FontDisplay}"
+                               Effect="{StaticResource ShadowText}"/>
 
-                        <!-- Item Count Badge -->
-                        <Border Background="{StaticResource BrushGlassHover}" CornerRadius="10" Margin="10,0,0,0" Padding="8,2" VerticalAlignment="Center">
-                            <TextBlock x:Name="TxtCount" Text="0 items" FontSize="11" Foreground="{StaticResource BrushTextSecondary}"
-                                       FontFamily="{StaticResource FontBody}"/>
-                        </Border>
-                    </StackPanel>
-
-                    <!-- Header Action Buttons -->
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Button x:Name="BtnAdd" Content="+" Width="30" Height="30" Margin="0,0,8,0"
-                                FontSize="18" Style="{StaticResource GlassIconButton}" ToolTip="Add shortcuts or files"
-                                Click="OnBtnAddClicked"/>
-                        <Button x:Name="BtnClose" Content="✕" Width="30" Height="30"
-                                FontSize="12" Style="{StaticResource GlassIconButton}" ToolTip="Close"
-                                Click="OnBtnCloseClicked"/>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,5,31,0">
+                        <!-- Not in the reference, so it only appears while the pointer is on the header. -->
+                        <Button x:Name="BtnMore" Style="{StaticResource HeaderButtonStyle}" ToolTip="More" Margin="0,0,12,0"
+                                Opacity="0" Click="OnBtnMoreClicked">
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse Width="4.5" Height="4.5" Fill="White" Margin="2.5,0"/>
+                                <Ellipse Width="4.5" Height="4.5" Fill="White" Margin="2.5,0"/>
+                                <Ellipse Width="4.5" Height="4.5" Fill="White" Margin="2.5,0"/>
+                            </StackPanel>
+                        </Button>
+                        <Rectangle Width="1" Height="30" Fill="#66FFFFFF" Margin="0,0,29,0"/>
+                        <Button x:Name="BtnExpand" Style="{StaticResource HeaderButtonStyle}" Margin="0,0,20,0" Click="OnBtnExpandClicked">
+                            <Path x:Name="ExpandGlyph" Style="{StaticResource HeaderLineIcon}" Data="{StaticResource IconExpand}" Width="30" Height="30"/>
+                        </Button>
+                        <Button x:Name="BtnClose" Style="{StaticResource HeaderButtonStyle}" ToolTip="Close" Click="OnBtnCloseClicked">
+                            <Path Style="{StaticResource HeaderLineIcon}" Data="M2,2 L24,24 M24,2 L2,24" Width="26" Height="26"/>
+                        </Button>
                     </StackPanel>
                 </Grid>
 
-                <!-- Divider Line -->
-                <Rectangle Grid.Row="0" VerticalAlignment="Bottom" Height="1" Fill="#26FFFFFF" Margin="0,0,0,0"/>
+                <Rectangle Grid.Row="0" VerticalAlignment="Bottom" Height="1" Fill="#33FFFFFF"/>
 
-                <!-- Content Area: Items Grid or Empty Message -->
-                <Grid Grid.Row="1" MinHeight="180" Margin="0,8,0,0">
-                    <!-- Items Grid (Paged) -->
-                    <UniformGrid x:Name="ItemsGrid" Columns="4" Rows="3" VerticalAlignment="Top"/>
+                <!-- Grid of items. Its size comes from the code, so rows line up across pages. -->
+                <Grid x:Name="GridHost" Grid.Row="1" ClipToBounds="True">
+                    <UniformGrid x:Name="ItemsGrid" HorizontalAlignment="Left" VerticalAlignment="Top"/>
 
-                    <!-- Empty State Message -->
                     <StackPanel x:Name="EmptyNotice" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed">
-                        <TextBlock Text="Folder is empty" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource BrushTextSecondary}" HorizontalAlignment="Center"/>
-                        <TextBlock Text="Drop shortcuts or files here, or click + to add" FontSize="12" Foreground="{StaticResource BrushTextMuted}" Margin="0,4,0,0" HorizontalAlignment="Center"/>
+                        <TextBlock Text="This folder is empty" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center"
+                                   Foreground="{StaticResource BrushTextPrimary}" Effect="{StaticResource ShadowText}"/>
+                        <TextBlock Text="Drop shortcuts or files here, or add them from a menu." FontSize="16" Margin="0,8,0,16"
+                                   HorizontalAlignment="Center" Foreground="{StaticResource BrushTextPrimary}" Effect="{StaticResource ShadowText}"/>
+                        <Button Content="Add items…" Style="{StaticResource GlassButton}" HorizontalAlignment="Center" FontSize="15"
+                                Padding="18,8" Click="OnBtnAddClicked"/>
                     </StackPanel>
                 </Grid>
 
-                <!-- Footer: Pagination Controls -->
-                <Grid Grid.Row="2" Margin="0,10,0,0" x:Name="PaginationBar">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-
-                    <Button x:Name="BtnPrevPage" Content="◀" Width="28" Height="24" FontSize="10"
-                            Style="{StaticResource GlassIconButton}" Click="OnBtnPrevPageClicked"/>
-
-                    <StackPanel x:Name="PageDots" Grid.Column="1" Orientation="Horizontal"
-                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
-
-                    <Button Grid.Column="2" x:Name="BtnNextPage" Content="▶" Width="28" Height="24" FontSize="10"
-                            Style="{StaticResource GlassIconButton}" Click="OnBtnNextPageClicked"/>
-                </Grid>
+                <!-- Page dots -->
+                <StackPanel x:Name="PageDots" Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,10,0,0"/>
             </Grid>
-        </Grid>
-    </ui:GlassCard>
+        </ui:GlassCard>
+    </Canvas>
 </Window>

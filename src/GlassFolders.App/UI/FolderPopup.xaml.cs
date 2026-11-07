@@ -1,14 +1,17 @@
 using System.Diagnostics;
-using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Effects;
 using System.Windows.Shapes;
 using GlassFolders.App.Services;
+using GlassFolders.App.Themes;
 using GlassFolders.Core.Folders;
+using GlassFolders.Core.Layout;
 using GlassFolders.Core.Models;
+using GlassFolders.Core.Popup;
 using GlassFolders.Native;
 using GlassFolders.Native.Shell;
 using Microsoft.Win32;
@@ -17,8 +20,8 @@ using static GlassFolders.Native.NativeMethods;
 namespace GlassFolders.App.UI;
 
 /// <summary>
-/// The liquid glass folder popup window displaying a paged grid of apps, shortcuts, and files.
-/// Items can be launched, added via drag &amp; drop, or removed from the folder without deleting source files.
+/// The folder popup: a glass card holding a paged grid of apps, shortcuts and files.
+/// Items can be launched, added by drag and drop, or removed from the folder without deleting the source.
 /// Drawn on a <see cref="GlassCard"/>, using a snapshot of the screen taken just before it appears.
 /// </summary>
 public partial class FolderPopup : Window
@@ -26,22 +29,48 @@ public partial class FolderPopup : Window
     // A window that just closed can still be on screen for one composition frame.
     private const double RecentCloseMs = 250;
 
-    // Captured beyond the card, so the blur pulls in real pixels at its edges and the card has room to grow.
-    private const double CaptureOverscan = 64;
+    // Captured beyond the card so the blur pulls in real pixels at its edges. Capture time follows the area.
+    private const double CaptureOverscan = 24;
+
+    private const double IconSize = 96;
+    private const double LowResolutionIconSize = 60;
+    private const double LabelWidth = 128;
+    private const double LabelLineHeight = 23.5;
+
+    private const int WheelNotch = 120;
+
+    private static readonly TimeSpan ResizeDuration = TimeSpan.FromMilliseconds(200);
+
+    private static readonly Effect LabelShadow = CreateLabelShadow();
+    private static readonly Brush TileBackground = CreateTileBackground();
+    private static readonly Brush TileBorder = Frozen(new SolidColorBrush(Color.FromArgb(0x40, 255, 255, 255)));
+    private static readonly Brush DotActive = Brushes.White;
+    private static readonly Brush DotInactive = Frozen(new SolidColorBrush(Color.FromArgb(0x4D, 255, 255, 255)));
 
     private static long s_lastClosedTimestamp;
 
-    private const int PageSize = 12; // 4 columns x 3 rows
     private readonly FolderDef _folder;
     private readonly FolderManager _folderManager;
     private readonly IconCacheService _iconCache;
     private readonly IShortcutResolver _resolver;
     private readonly RECT _anchor;
-    private int _currentPage = 0;
+    private readonly PopupGrid _grid;
+    private readonly Dictionary<string, Grid> _iconHosts = [];
+
+    private delegate void ResizeFrame(bool completed);
+
+    private ResizeFrame? _resizeFrame;
+    private RectInt _windowRect;
+    private RectInt _cardRect;
+    private double _scale = 1;
+    private bool _expanded;
+    private bool _opened;
+    private int _currentPage;
+    private int _wheelDelta;
     private bool _closing;
     private bool _isShowingDialog;
 
-    public FolderPopup(FolderDef folder, FolderManager folderManager, IconCacheService iconCache, IShortcutResolver resolver, RECT anchor)
+    public FolderPopup(FolderDef folder, FolderManager folderManager, IconCacheService iconCache, IShortcutResolver resolver, RECT anchor, PopupGrid? grid = null)
     {
         InitializeComponent();
         _folder = folder;
@@ -50,58 +79,84 @@ public partial class FolderPopup : Window
         _iconCache = iconCache;
         _resolver = resolver;
         _anchor = anchor;
+        _grid = grid ?? PopupGrid.Default;
+        _scale = ScreenCapture.MonitorScale(Monitor());
+
+        HeaderRow.Height = new GridLength(PopupMetrics.HeaderHeight);
+        FooterRow.Height = new GridLength(PopupMetrics.FooterHeight);
+        GridHost.Margin = new Thickness(PopupMetrics.GridLeft, PopupMetrics.GridTopGap, PopupMetrics.GridRight, 0);
 
         TxtTitle.Text = folder.Name;
-        UpdateCount();
-        ApplyGlyph();
+        HeaderIcon.Show(folder);
+        UpdateExpandButton();
 
-        PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape) Close(); };
+        PreviewKeyDown += OnPreviewKeyDown;
+        PreviewMouseWheel += OnPreviewMouseWheel;
         Deactivated += (_, _) =>
         {
-            if (!_closing && !_isShowingDialog) Close();
+            if (!_isShowingDialog) Dismiss();
         };
         Closing += (_, _) => _closing = true;
         Closed += (_, _) =>
         {
+            _resizeFrame?.Invoke(completed: true);
             s_lastClosedTimestamp = Stopwatch.GetTimestamp();
             PopupCard.SetBackdrop(null);
         };
 
         // Runs while the window is still hidden, so the snapshot can't include the popup itself.
-        SourceInitialized += (_, _) => PrepareGlass();
-        ContentRendered += (_, _) => { PlaceWindow(); Activate(); };
-        SizeChanged += (_, _) => { if (IsLoaded) PlaceWindow(); };
+        SourceInitialized += (_, _) => PrepareWindow();
+        ContentRendered += (_, _) => RevealCard();
+        DpiChanged += (_, e) =>
+        {
+            // Every Image raises this too, and it bubbles up to here.
+            if (ReferenceEquals(e.Source, this)) ApplyLayout(animate: false);
+        };
         MouseDown += OnWindowMouseDown;
+
+        Header.MouseEnter += (_, _) => Animate.Fade(BtnMore, 1, TimeSpan.FromMilliseconds(120), AnimationCategory.TileHover);
+        Header.MouseLeave += (_, _) => Animate.Fade(BtnMore, 0, TimeSpan.FromMilliseconds(120), AnimationCategory.TileHover);
+
+        PopupCard.ContextMenu = BuildCardMenu();
 
         RenderPage();
     }
 
     public string FolderId => _folder.Id;
 
-    public void RefreshItems() => RenderPage();
+    public void RefreshItems() => RenderItemsAndLayout();
 
-    private int TotalPages => Math.Max(1, (int)Math.Ceiling(_folder.Items.Count / (double)PageSize));
+    private PopupGrid ActiveGrid => _expanded ? _grid.Expanded : _grid;
 
-    private void ApplyGlyph()
+    private bool CanExpand => _folder.Items.Count > _grid.PageSize;
+
+    private int TotalPages => PopupPaging.TotalPages(_folder.Items.Count, ActiveGrid.PageSize);
+
+    /// <summary>Closes with the animation. Used for everything the user does in the popup. <see cref="Window.Close"/> stays immediate.</summary>
+    private void Dismiss()
     {
-        try
-        {
-            string glyphKey = "Glyph" + _folder.Glyph;
-            if (TryFindResource(glyphKey) is Geometry geom)
-                HeaderGlyph.Data = geom;
-        }
-        catch { }
+        if (_closing) return;
+        _closing = true;
+        PopupCard.IsHitTestVisible = false;
+        Animate.PopupClose(PopupCard, AnimationOrigin(), Close);
     }
 
-    private void PrepareGlass()
+    private void RevealCard()
     {
-        nint monitor = MonitorFromPoint(_anchor.Center, MONITOR_DEFAULTTONEAREST);
-        double scale = ScreenCapture.MonitorScale(monitor);
+        if (_opened || _closing) return;
+        _opened = true;
+        Activate();
+        Animate.PopupOpen(PopupCard, AnimationOrigin());
+    }
 
-        // Content is measured here because the window has no size of its own yet.
-        var content = (FrameworkElement)Content;
-        content.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-        RECT card = PlaceWindow(monitor, scale, (int)Math.Ceiling(content.DesiredSize.Width * scale), (int)Math.Ceiling(content.DesiredSize.Height * scale));
+    /// <summary>The folder's centre, relative to the card. Outside 0–1 when the folder is outside the card.</summary>
+    private Point AnimationOrigin() => new(
+        (_anchor.Left + _anchor.Width / 2.0 - _cardRect.Left) / Math.Max(1, _cardRect.Width),
+        (_anchor.Top + _anchor.Height / 2.0 - _cardRect.Top) / Math.Max(1, _cardRect.Height));
+
+    private void PrepareWindow()
+    {
+        ApplyLayout(animate: false);
 
         BackdropSnapshot? snapshot = null;
         if (BackdropSnapshot.IsGlassAllowed())
@@ -109,188 +164,384 @@ public partial class FolderPopup : Window
             if (Stopwatch.GetElapsedTime(s_lastClosedTimestamp).TotalMilliseconds < RecentCloseMs)
                 DwmHelpers.WaitForNextFrame();
 
-            RECT screen = Win32.MonitorInfo(monitor).rcMonitor;
-            int overscan = (int)Math.Round(CaptureOverscan * scale);
-            var area = new RECT(
-                Math.Max(screen.Left, card.Left - overscan),
-                Math.Max(screen.Top, card.Top - overscan),
-                Math.Min(screen.Right, card.Right + overscan),
-                Math.Min(screen.Bottom, card.Bottom + overscan));
-
-            snapshot = BackdropSnapshot.Capture(area, scale);
+            snapshot = BackdropSnapshot.Capture(CaptureArea(), _scale);
             if (snapshot is not null)
                 DiagnosticService.Instance.LogDebug($"Backdrop snapshot took {snapshot.ElapsedMilliseconds:F1} ms");
         }
         PopupCard.SetBackdrop(snapshot);
     }
 
-    private void UpdateCount()
+    // The popup can't capture itself once open, so this already covers the expanded card.
+    private RECT CaptureArea()
     {
-        int count = _folder.Items.Count;
-        TxtCount.Text = count == 1 ? "1 item" : $"{count} items";
+        RectInt card = PlaceCard(LargestRowsThisFolderCanShow(), out _);
+        RectInt area = Union(card, _cardRect);
+        int overscan = (int)Math.Round(CaptureOverscan * _scale);
+        RECT screen = Win32.MonitorInfo(Monitor()).rcMonitor;
+        return new RECT(
+            Math.Max(screen.Left, area.Left - overscan),
+            Math.Max(screen.Top, area.Top - overscan),
+            Math.Min(screen.Right, area.Right + overscan),
+            Math.Min(screen.Bottom, area.Bottom + overscan));
     }
 
-    private void RenderPage()
+    private int LargestRowsThisFolderCanShow() =>
+        PopupPaging.VisibleRows(_folder.Items.Count, CanExpand ? _grid.Expanded : _grid);
+
+    private nint Monitor() => MonitorFromPoint(_anchor.Center, MONITOR_DEFAULTTONEAREST);
+
+    private RectInt PlaceCard(int rows, out double fit)
+    {
+        var work = ToRectInt(Win32.MonitorInfo(Monitor()).rcWork);
+        double width = PopupMetrics.CardWidth(ActiveGrid.Columns), height = PopupMetrics.CardHeight(rows);
+        fit = PopupMetrics.FitScale(width, height, work, _scale);
+
+        return PopupPlacement.Place(
+            ToRectInt(_anchor),
+            work,
+            (int)Math.Round(width * fit * _scale),
+            (int)Math.Round(height * fit * _scale),
+            _scale);
+    }
+
+    /// <summary>Sizes and positions the card for the current page size, growing the window around it if needed.</summary>
+    private void ApplyLayout(bool animate)
+    {
+        _scale = ScreenCapture.MonitorScale(Monitor());
+        var grid = ActiveGrid;
+        int rows = PopupPaging.VisibleRows(_folder.Items.Count, grid);
+
+        RectInt card = PlaceCard(rows, out double fit);
+        RectInt largest = PlaceCard(LargestRowsThisFolderCanShow(), out _);
+        _cardRect = card;
+
+        ItemsGrid.Columns = grid.Columns;
+        ItemsGrid.Rows = rows;
+        ItemsGrid.Width = grid.Columns * PopupMetrics.CellWidth;
+        ItemsGrid.Height = rows * PopupMetrics.CellHeight;
+
+        CardRoot.LayoutTransform = fit < 1 ? new ScaleTransform(fit, fit) : Transform.Identity;
+
+        PlaceWindow(Union(Union(card, largest), ToRectInt(_anchor)));
+
+        double left = (card.Left - _windowRect.Left) / _scale, top = (card.Top - _windowRect.Top) / _scale;
+        PopupCard.Width = card.Width / _scale;
+        Canvas.SetLeft(PopupCard, left);
+        MoveCardTo(card.Height / _scale, top, animate);
+    }
+
+    /// <summary>Changes the card's height and top. Driven per frame because it changes layout, and stops when done.</summary>
+    private void MoveCardTo(double height, double top, bool animate)
+    {
+        _resizeFrame?.Invoke(completed: true);
+
+        double fromHeight = PopupCard.Height, fromTop = Canvas.GetTop(PopupCard);
+        if (!animate || double.IsNaN(fromHeight) || double.IsNaN(fromTop) || !AnimationService.Instance.ShouldAnimate(AnimationCategory.WindowTransition))
+        {
+            PopupCard.Height = height;
+            Canvas.SetTop(PopupCard, top);
+            return;
+        }
+
+        double duration = AnimationService.Instance.GetDuration(ResizeDuration, AnimationCategory.WindowTransition).TotalMilliseconds;
+        long start = 0;
+
+        EventHandler? onFrame = null;
+        ResizeFrame frame = completed =>
+        {
+            // Timed from the first frame, in case building the new page held up the UI thread.
+            if (start == 0) start = Stopwatch.GetTimestamp();
+            double progress = completed ? 1 : Math.Min(1, Stopwatch.GetElapsedTime(start).TotalMilliseconds / duration);
+            double eased = 1 - Math.Pow(1 - progress, 3);
+            PopupCard.Height = fromHeight + (height - fromHeight) * eased;
+            Canvas.SetTop(PopupCard, fromTop + (top - fromTop) * eased);
+            if (progress >= 1)
+            {
+                CompositionTarget.Rendering -= onFrame;
+                _resizeFrame = null;
+            }
+        };
+        onFrame = (_, _) => frame(completed: false);
+        _resizeFrame = frame;
+        CompositionTarget.Rendering += onFrame;
+    }
+
+    /// <summary>The window reaches the folder so the card can grow from it, and leaves room for the shadow.</summary>
+    private void PlaceWindow(RectInt content)
+    {
+        int margin = (int)Math.Round(GlassCard.ShadowMargin * _scale);
+        var screen = ToRectInt(Win32.MonitorInfo(Monitor()).rcMonitor);
+
+        int left = Math.Max(screen.Left, content.Left - margin);
+        int top = Math.Max(screen.Top, content.Top - margin);
+        int right = Math.Min(screen.Right, content.Right + margin);
+        int bottom = Math.Min(screen.Bottom, content.Bottom + margin);
+
+        // Windows treats a topmost window that fills a monitor as a full-screen app, and hides the taskbar.
+        if (left == screen.Left && top == screen.Top && right == screen.Right && bottom == screen.Bottom) top++;
+
+        var rect = new RectInt(left, top, right - left, bottom - top);
+        if (rect == _windowRect) return;
+        _windowRect = rect;
+
+        SetWindowPos(new WindowInteropHelper(this).EnsureHandle(), 0, rect.Left, rect.Top, rect.Width, rect.Height, SWP_NOZORDER | SWP_NOACTIVATE);
+    }
+
+    private void RenderItemsAndLayout()
+    {
+        RenderPage();
+        if (IsLoaded) ApplyLayout(animate: true);
+    }
+
+    private void RenderPage(int direction = 0)
     {
         ItemsGrid.Children.Clear();
-        UpdateCount();
+        PageDots.Children.Clear();
+        _iconHosts.Clear();
+        BtnExpand.IsEnabled = CanExpand;
+        UpdateExpandButton();
 
-        if (_folder.Items.Count == 0)
+        int count = _folder.Items.Count;
+        if (count == 0)
         {
             ItemsGrid.Visibility = Visibility.Collapsed;
             EmptyNotice.Visibility = Visibility.Visible;
-            PaginationBar.Visibility = Visibility.Collapsed;
             return;
         }
 
         ItemsGrid.Visibility = Visibility.Visible;
         EmptyNotice.Visibility = Visibility.Collapsed;
 
-        int totalPages = TotalPages;
-        _currentPage = Math.Clamp(_currentPage, 0, totalPages - 1);
+        int pageSize = ActiveGrid.PageSize;
+        _currentPage = PopupPaging.ClampPage(_currentPage, count, pageSize);
 
-        PaginationBar.Visibility = totalPages > 1 ? Visibility.Visible : Visibility.Collapsed;
-        BtnPrevPage.IsEnabled = _currentPage > 0;
-        BtnNextPage.IsEnabled = _currentPage < totalPages - 1;
-
-        // Render page dots
-        PageDots.Children.Clear();
-        if (totalPages > 1)
-        {
-            for (int p = 0; p < totalPages; p++)
-            {
-                var dot = new Ellipse
-                {
-                    Width = 6,
-                    Height = 6,
-                    Margin = new Thickness(3, 0, 3, 0),
-                    Fill = p == _currentPage ? Brushes.White : new SolidColorBrush(Color.FromArgb(0x66, 0xFF, 0xFF, 0xFF))
-                };
-                PageDots.Children.Add(dot);
-            }
-        }
-
-        var pageItems = _folder.Items.Skip(_currentPage * PageSize).Take(PageSize).ToList();
+        var pageItems = _folder.Items.Skip(_currentPage * pageSize).Take(pageSize).ToList();
+        var missing = new List<FolderItem>();
         foreach (var item in pageItems)
+            ItemsGrid.Children.Add(CreateItemView(item, missing));
+
+        LoadMissingIcons(missing);
+        RenderPageDots();
+        Animate.PageIn(ItemsGrid, direction);
+    }
+
+    private void RenderPageDots()
+    {
+        int totalPages = TotalPages;
+        if (totalPages <= 1) return;
+
+        for (int p = 0; p < totalPages; p++)
         {
-            ItemsGrid.Children.Add(CreateItemView(item));
+            int page = p;
+            var dot = new Border
+            {
+                // Transparent padding makes the small dots easier to click.
+                Background = Brushes.Transparent,
+                Padding = new Thickness(5.5, 6, 5.5, 6),
+                Cursor = Cursors.Hand,
+                Child = new Ellipse { Width = 10, Height = 10, Fill = p == _currentPage ? DotActive : DotInactive },
+            };
+            dot.MouseLeftButtonUp += (_, e) =>
+            {
+                GoToPage(page);
+                e.Handled = true;
+            };
+            PageDots.Children.Add(dot);
         }
     }
 
-    private UIElement CreateItemView(FolderItem item)
+    private void GoToPage(int page)
     {
-        var btn = new Button
-        {
-            Style = (Style)Resources["ItemTileStyle"],
-            Width = 92,
-            Height = 84,
-            Margin = new Thickness(4),
-            ToolTip = item.TargetPath
-        };
+        int target = PopupPaging.ClampPage(page, _folder.Items.Count, ActiveGrid.PageSize);
+        if (target == _currentPage) return;
+        int direction = Math.Sign(target - _currentPage);
+        _currentPage = target;
+        RenderPage(direction);
+    }
 
-        var content = new StackPanel
-        {
-            VerticalAlignment = VerticalAlignment.Center,
-            HorizontalAlignment = HorizontalAlignment.Center
-        };
+    private void ToggleExpanded()
+    {
+        if (!CanExpand && !_expanded) return;
 
-        var iconContainer = new Grid { Width = 48, Height = 48, HorizontalAlignment = HorizontalAlignment.Center };
-        var iconSource = _iconCache.GetIcon(item);
+        int firstVisible = _currentPage * ActiveGrid.PageSize;
+        _expanded = !_expanded;
+        _currentPage = PopupPaging.PageOfItem(firstVisible, ActiveGrid.PageSize);
+        RenderItemsAndLayout();
+    }
 
-        if (iconSource is not null)
-        {
-            var img = new Image
-            {
-                Source = iconSource,
-                Width = 44,
-                Height = 44,
-                Stretch = Stretch.Uniform
-            };
-            iconContainer.Children.Add(img);
-        }
-        else
-        {
-            var generic = new TextBlock
-            {
-                Text = item.Type == FolderItemType.Folder ? "📁" : (item.Type == FolderItemType.Url ? "🌐" : "📄"),
-                FontSize = 32,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            iconContainer.Children.Add(generic);
-        }
+    private void UpdateExpandButton()
+    {
+        ExpandGlyph.Data = (Geometry)FindResource(_expanded ? "IconCollapse" : "IconExpand");
+        BtnExpand.ToolTip = _expanded ? "Show fewer" : CanExpand ? "Show more" : "Everything already fits";
+    }
 
-        // Warning badge if target does not exist
-        if (!_resolver.TargetExists(item))
-        {
-            var badge = new Border
-            {
-                Width = 14,
-                Height = 14,
-                CornerRadius = new CornerRadius(7),
-                Background = new SolidColorBrush(Color.FromRgb(0xF5, 0x9E, 0x0B)),
-                HorizontalAlignment = HorizontalAlignment.Right,
-                VerticalAlignment = VerticalAlignment.Bottom,
-                ToolTip = "Target file or application was not found"
-            };
-            var exclamation = new TextBlock
-            {
-                Text = "!",
-                FontSize = 10,
-                FontWeight = FontWeights.Bold,
-                Foreground = Brushes.Black,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            badge.Child = exclamation;
-            iconContainer.Children.Add(badge);
-        }
+    private int IconPixelSize => (int)Math.Round(IconSize * _scale);
 
-        content.Children.Add(iconContainer);
+    private UIElement CreateItemView(FolderItem item, List<FolderItem> missing)
+    {
+        var button = new Button { Style = (Style)Resources["ItemTileStyle"], ToolTip = item.TargetPath };
 
-        var lbl = new TextBlock
+        var iconHost = new Grid { Width = IconSize, Height = IconSize, HorizontalAlignment = HorizontalAlignment.Center };
+        _iconHosts[item.Id] = iconHost;
+
+        var icon = _iconCache.TryGetCached(item, IconPixelSize);
+        if (icon is not null) ShowIcon(iconHost, icon, fadeIn: false);
+        else missing.Add(item);
+
+        if (!_resolver.TargetExists(item)) iconHost.Children.Add(CreateMissingBadge());
+
+        var label = new TextBlock
         {
             Text = item.DisplayName,
-            FontSize = 11,
+            FontSize = 20,
+            FontFamily = (FontFamily)FindResource("FontBody"),
             Foreground = Brushes.White,
-            Margin = new Thickness(0, 4, 0, 0),
+            Width = LabelWidth,
+            MaxHeight = LabelLineHeight * 2,
+            Margin = new Thickness(0, 9, 0, 0),
+            LineHeight = LabelLineHeight,
+            LineStackingStrategy = LineStackingStrategy.BlockLineHeight,
+            TextWrapping = TextWrapping.Wrap,
             TextTrimming = TextTrimming.CharacterEllipsis,
-            MaxWidth = 84,
-            TextAlignment = TextAlignment.Center
+            TextAlignment = TextAlignment.Center,
+            Effect = LabelShadow,
         };
-        lbl.Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 4, ShadowDepth = 1, Opacity = 0.6, Color = Colors.Black };
-        content.Children.Add(lbl);
 
-        btn.Content = content;
+        var content = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
+        content.Children.Add(iconHost);
+        content.Children.Add(label);
+        button.Content = content;
 
-        // Left Click -> Launch
-        btn.Click += (_, _) =>
+        button.Click += (_, _) => LaunchAndDismiss(item);
+        button.PreviewMouseLeftButtonDown += (_, _) => Animate.Scale(iconHost, 0.94, TimeSpan.FromMilliseconds(90), AnimationCategory.ItemPress);
+        button.PreviewMouseLeftButtonUp += (_, _) => Animate.Scale(iconHost, 1, TimeSpan.FromMilliseconds(90), AnimationCategory.ItemPress);
+        button.MouseLeave += (_, _) => Animate.Scale(iconHost, 1, TimeSpan.FromMilliseconds(90), AnimationCategory.ItemPress);
+
+        // Filled when first opened. Building menus for a whole page would slow every page change.
+        var menu = new ContextMenu();
+        button.ContextMenu = menu;
+        button.ContextMenuOpening += (_, _) =>
         {
-            ShellLauncher.Launch(item);
-            Close();
+            if (menu.Items.Count == 0) FillItemMenu(menu, item);
         };
 
-        // Right Click -> Context Menu
-        btn.ContextMenu = BuildItemContextMenu(item);
-
-        return btn;
+        return button;
     }
 
-    private ContextMenu BuildItemContextMenu(FolderItem item)
+    private void LaunchAndDismiss(FolderItem item)
+    {
+        ShellLauncher.Launch(item);
+        Dismiss();
+    }
+
+    private void LoadMissingIcons(List<FolderItem> items)
+    {
+        if (items.Count == 0) return;
+        _iconCache.LoadMissing(items, IconPixelSize, (item, icon) =>
+            Dispatcher.BeginInvoke(() =>
+            {
+                // The user may have changed page or closed the popup by now. The icon stays cached either way.
+                if (_iconHosts.TryGetValue(item.Id, out var host))
+                {
+                    if (icon is not null) ShowIcon(host, icon, fadeIn: true);
+                    else ShowGenericIcon(host, item);
+                }
+            }));
+    }
+
+    private static void ShowIcon(Grid host, AppIcon icon, bool fadeIn)
+    {
+        var image = new Image
+        {
+            Source = icon.Image,
+            Width = icon.IsLowResolution ? LowResolutionIconSize : IconSize,
+            Height = icon.IsLowResolution ? LowResolutionIconSize : IconSize,
+            Stretch = Stretch.Uniform,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        RenderOptions.SetBitmapScalingMode(image, BitmapScalingMode.HighQuality);
+
+        if (icon.IsLowResolution) host.Children.Insert(0, CreateTile());
+        host.Children.Insert(icon.IsLowResolution ? 1 : 0, image);
+
+        if (fadeIn)
+        {
+            image.Opacity = 0;
+            Animate.Fade(image, 1, TimeSpan.FromMilliseconds(140), AnimationCategory.PageTransition);
+        }
+    }
+
+    private static void ShowGenericIcon(Grid host, FolderItem item)
+    {
+        host.Children.Insert(0, CreateTile());
+        host.Children.Insert(1, new TextBlock
+        {
+            Text = item.Type == FolderItemType.Folder ? "📁" : item.Type == FolderItemType.Url ? "🌐" : "📄",
+            FontSize = 40,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        });
+    }
+
+    // From the reference's icon grid. It makes small app icons look intended instead of blurry.
+    private static Border CreateTile() => new()
+    {
+        CornerRadius = new CornerRadius(22),
+        Background = TileBackground,
+        BorderBrush = TileBorder,
+        BorderThickness = new Thickness(1),
+    };
+
+    private static Border CreateMissingBadge() => new()
+    {
+        Width = 26,
+        Height = 26,
+        CornerRadius = new CornerRadius(13),
+        Background = new SolidColorBrush(Color.FromRgb(0xF5, 0x9E, 0x0B)),
+        HorizontalAlignment = HorizontalAlignment.Right,
+        VerticalAlignment = VerticalAlignment.Bottom,
+        ToolTip = "Target file or application was not found",
+        Child = new TextBlock
+        {
+            Text = "!",
+            FontSize = 17,
+            FontWeight = FontWeights.Bold,
+            Foreground = Brushes.Black,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        },
+    };
+
+    private ContextMenu BuildCardMenu()
     {
         var menu = new ContextMenu();
 
+        var add = new MenuItem { Header = "Add items…" };
+        add.Click += OnBtnAddClicked;
+        menu.Items.Add(add);
+
+        var expand = new MenuItem();
+        expand.Click += (_, _) => ToggleExpanded();
+        menu.Items.Add(expand);
+
+        menu.Opened += (_, _) =>
+        {
+            expand.Header = _expanded ? "Show fewer" : "Show more";
+            expand.IsEnabled = CanExpand || _expanded;
+        };
+        return menu;
+    }
+
+    private void FillItemMenu(ContextMenu menu, FolderItem item)
+    {
         var open = new MenuItem { Header = "Open" };
-        open.Click += (_, _) => { ShellLauncher.Launch(item); Close(); };
+        open.Click += (_, _) => LaunchAndDismiss(item);
         menu.Items.Add(open);
 
-        var loc = new MenuItem { Header = "Open file location" };
-        loc.Click += (_, _) => { ShellLauncher.OpenLocation(item); Close(); };
-        if (item.Type == FolderItemType.Url)
-        {
-            loc.IsEnabled = false;
-        }
-        menu.Items.Add(loc);
+        var location = new MenuItem { Header = "Open file location", IsEnabled = item.Type != FolderItemType.Url };
+        location.Click += (_, _) => { ShellLauncher.OpenLocation(item); Dismiss(); };
+        menu.Items.Add(location);
 
         menu.Items.Add(new Separator());
 
@@ -320,60 +571,73 @@ public partial class FolderPopup : Window
         remove.Click += (_, _) =>
         {
             _folderManager.RemoveItem(_folder.Id, item.Id);
-            RenderPage();
+            if (!CanExpand) _expanded = false;
+            RenderItemsAndLayout();
         };
         menu.Items.Add(remove);
-
-        return menu;
     }
 
-    private void PlaceWindow()
+    private void OnPreviewKeyDown(object sender, KeyEventArgs e)
     {
-        nint monitor = MonitorFromPoint(_anchor.Center, MONITOR_DEFAULTTONEAREST);
-        var size = Win32.Rect(new WindowInteropHelper(this).Handle);
-        PlaceWindow(monitor, ScreenCapture.MonitorScale(monitor), size.Width, size.Height);
+        switch (e.Key)
+        {
+            case Key.Escape:
+                Dismiss();
+                break;
+            case Key.Left or Key.PageUp:
+                GoToPage(_currentPage - 1);
+                break;
+            case Key.Right or Key.PageDown:
+                GoToPage(_currentPage + 1);
+                break;
+            case Key.Home:
+                GoToPage(0);
+                break;
+            case Key.End:
+                GoToPage(TotalPages - 1);
+                break;
+            default:
+                return;
+        }
+        e.Handled = true;
     }
 
-    /// <summary>Keeps the card, not its shadow, inside the work area. The shadow may extend past the edge.</summary>
-    private RECT PlaceWindow(nint monitor, double scale, int windowWidth, int windowHeight)
+    // Touchpads send many small steps, so they add up to one notch before the page changes.
+    private void OnPreviewMouseWheel(object sender, MouseWheelEventArgs e)
     {
-        const int gap = 12;
-        var work = Win32.MonitorInfo(monitor).rcWork;
-        int margin = (int)Math.Round(GlassCard.ShadowMargin * scale);
-        int cardWidth = windowWidth - margin * 2, cardHeight = windowHeight - margin * 2;
-
-        int x = _anchor.Right + gap + cardWidth <= work.Right ? _anchor.Right + gap : _anchor.Left - gap - cardWidth;
-        x = Math.Clamp(x, work.Left, Math.Max(work.Left, work.Right - cardWidth));
-        int y = Math.Clamp(_anchor.Top, work.Top, Math.Max(work.Top, work.Bottom - cardHeight));
-
-        SetWindowPos(new WindowInteropHelper(this).Handle, 0, x - margin, y - margin, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
-        return new RECT(x, y, x + cardWidth, y + cardHeight);
+        _wheelDelta += e.Delta;
+        if (Math.Abs(_wheelDelta) < WheelNotch) return;
+        GoToPage(_currentPage - Math.Sign(_wheelDelta));
+        _wheelDelta = 0;
+        e.Handled = true;
     }
 
     // The shadow belongs to this window, so a click on it counts as a click outside the popup.
     private void OnWindowMouseDown(object sender, MouseButtonEventArgs e)
     {
-        if (ReferenceEquals(e.Source, this)) Close();
+        if (ReferenceEquals(e.Source, this)) Dismiss();
     }
 
-    private void OnBtnCloseClicked(object sender, RoutedEventArgs e) => Close();
+    private void OnBtnCloseClicked(object sender, RoutedEventArgs e) => Dismiss();
 
-    private void OnBtnPrevPageClicked(object sender, RoutedEventArgs e)
+    private void OnBtnExpandClicked(object sender, RoutedEventArgs e) => ToggleExpanded();
+
+    private void OnBtnMoreClicked(object sender, RoutedEventArgs e)
     {
-        if (_currentPage > 0)
-        {
-            _currentPage--;
-            RenderPage();
-        }
+        var menu = PopupCard.ContextMenu;
+        menu.PlacementTarget = BtnMore;
+        menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+        menu.IsOpen = true;
+        // Right-clicking the card later should open the menu at the pointer again.
+        menu.Closed += ResetMenuPlacement;
     }
 
-    private void OnBtnNextPageClicked(object sender, RoutedEventArgs e)
+    private void ResetMenuPlacement(object sender, RoutedEventArgs e)
     {
-        if (_currentPage < TotalPages - 1)
-        {
-            _currentPage++;
-            RenderPage();
-        }
+        var menu = (ContextMenu)sender;
+        menu.Closed -= ResetMenuPlacement;
+        menu.ClearValue(ContextMenu.PlacementProperty);
+        menu.ClearValue(ContextMenu.PlacementTargetProperty);
     }
 
     private void OnBtnAddClicked(object sender, RoutedEventArgs e)
@@ -391,11 +655,8 @@ public partial class FolderPopup : Window
             if (ofd.ShowDialog(this) == true)
             {
                 foreach (string file in ofd.FileNames)
-                {
-                    var item = _resolver.Resolve(file);
-                    _folderManager.AddItem(_folder.Id, item);
-                }
-                RenderPage();
+                    _folderManager.AddItem(_folder.Id, _resolver.Resolve(file));
+                RenderItemsAndLayout();
             }
         }
         catch (Exception ex)
@@ -420,26 +681,21 @@ public partial class FolderPopup : Window
 
     private void OnDrop(object sender, DragEventArgs e)
     {
-        if (e.Data.GetDataPresent(DataFormats.FileDrop))
+        if (!e.Data.GetDataPresent(DataFormats.FileDrop)) return;
+        try
         {
-            try
+            if (e.Data.GetData(DataFormats.FileDrop) is string[] files && files.Length > 0)
             {
-                if (e.Data.GetData(DataFormats.FileDrop) is string[] files && files.Length > 0)
-                {
-                    foreach (string file in files)
-                    {
-                        var item = _resolver.Resolve(file);
-                        _folderManager.AddItem(_folder.Id, item);
-                    }
-                    RenderPage();
-                }
+                foreach (string file in files)
+                    _folderManager.AddItem(_folder.Id, _resolver.Resolve(file));
+                RenderItemsAndLayout();
             }
-            catch (Exception ex)
-            {
-                DiagnosticService.Instance.LogError("Error in FolderPopup OnDrop", ex);
-            }
-            e.Handled = true;
         }
+        catch (Exception ex)
+        {
+            DiagnosticService.Instance.LogError("Error in FolderPopup OnDrop", ex);
+        }
+        e.Handled = true;
     }
 
     public static string? PromptRename(string currentName, string title = "Rename", Window? owner = null)
@@ -481,5 +737,29 @@ public partial class FolderPopup : Window
         txt.Focus();
 
         return win.ShowDialog() == true ? txt.Text : null;
+    }
+
+    private static RectInt ToRectInt(RECT r) => new(r.Left, r.Top, r.Width, r.Height);
+
+    private static RectInt Union(RectInt a, RectInt b)
+    {
+        int left = Math.Min(a.Left, b.Left), top = Math.Min(a.Top, b.Top);
+        return new RectInt(left, top, Math.Max(a.Right, b.Right) - left, Math.Max(a.Bottom, b.Bottom) - top);
+    }
+
+    private static Effect CreateLabelShadow()
+    {
+        var shadow = new DropShadowEffect { BlurRadius = 5, ShadowDepth = 1, Direction = 270, Opacity = 0.5, Color = Color.FromRgb(0x06, 0x12, 0x3A) };
+        shadow.Freeze();
+        return shadow;
+    }
+
+    private static Brush CreateTileBackground() => Frozen(new LinearGradientBrush(
+        Color.FromArgb(0x47, 255, 255, 255), Color.FromArgb(0x1F, 255, 255, 255), 90));
+
+    private static T Frozen<T>(T freezable) where T : Freezable
+    {
+        freezable.Freeze();
+        return freezable;
     }
 }

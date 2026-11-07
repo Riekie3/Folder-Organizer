@@ -11,6 +11,7 @@
 ## Glass
 
 - **The glass is a snapshot.** It's taken when the popup opens and doesn't update while it stays open, so a video behind the popup looks frozen in the blur.
+- **No open or close animation?** GlassFolders follows Windows' animation effects setting by default. Turn that on in Windows, or turn off **Respect Windows 'Animation effects' setting** under **Settings → Animations**.
 - **Protected video may capture as black.** If the whole capture is black, the popup uses the solid panel. If only part of it is, that part of the glass is dark.
 - **No blur in Settings or the folder editor yet.** They use a tinted panel until Stage 4 of the parity plan.
 

@@ -152,6 +152,23 @@ public class FrostFilterTests
     }
 
     [Fact]
+    public void LargeDownsampleMatchesAFullAverageOnceBlurred()
+    {
+        // Above a downsample of 6 only every second source pixel is read. Text-like detail must not show through.
+        int w = 320, h = 200;
+        var px = Solid(w, h, 0, 0, 0);
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+                px[(y * w + x) * 4] = (byte)((x * 255 / (w - 1) + (x % 7 == 0 && y % 5 == 0 ? 60 : 0)) % 256);
+
+        var sparse = FrostFilter.Apply(px, w, h, w * 4, new FrostSettings(8, 3, 3, 1));
+        var full = FrostFilter.Apply(px, w, h, w * 4, new FrostSettings(5, 3, 3, 1));
+
+        double mean(FrostedImage img) => Enumerable.Range(0, img.Width * img.Height).Average(i => (double)img.Pixels[i * 4]);
+        Assert.InRange(mean(sparse), mean(full) - 3, mean(full) + 3);
+    }
+
+    [Fact]
     public void BufferTooSmallIsRejected()
     {
         Assert.Throws<ArgumentException>(() => FrostFilter.Apply(new byte[10], 8, 8, 32, NoBlur));

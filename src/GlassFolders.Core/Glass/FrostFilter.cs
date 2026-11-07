@@ -50,6 +50,8 @@ public sealed class FrostedImage
 /// <summary>Pure image maths for snapshot glass: shrink, blur, saturate. Touches no Windows API.</summary>
 public static class FrostFilter
 {
+    private const int SparseSamplingFrom = 6;
+
     public static FrostedImage Apply(ReadOnlySpan<byte> bgra, int width, int height, int stride, FrostSettings settings)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
@@ -83,6 +85,9 @@ public static class FrostFilter
 
     private static void Downsample(ReadOnlySpan<byte> src, int width, int height, int stride, byte[] dst, int outW, int outH)
     {
+        // Above this size, every second pixel each way gives the same result once blurred, in a quarter of the reads.
+        int step = width / outW >= SparseSamplingFrom ? 2 : 1;
+
         // Each output pixel averages its share of the source, so no edge pixels are dropped
         // when the size doesn't divide evenly and the image still lines up with the screen.
         Span<int> xEdges = outW <= 1024 ? stackalloc int[outW + 1] : new int[outW + 1];
@@ -97,17 +102,18 @@ public static class FrostFilter
             {
                 int x0 = xEdges[ox], x1 = xEdges[ox + 1];
                 int b = 0, g = 0, r = 0;
-                for (int y = y0; y < y1; y++)
+                int count = 0;
+                for (int y = y0; y < y1; y += step)
                 {
                     ReadOnlySpan<byte> row = src.Slice(y * stride + x0 * 4, (x1 - x0) * 4);
-                    for (int i = 0; i < row.Length; i += 4)
+                    for (int i = 0; i < row.Length; i += 4 * step)
                     {
                         b += row[i];
                         g += row[i + 1];
                         r += row[i + 2];
+                        count++;
                     }
                 }
-                int count = (x1 - x0) * (y1 - y0);
                 int half = count / 2;
                 dst[d++] = (byte)((b + half) / count);
                 dst[d++] = (byte)((g + half) / count);

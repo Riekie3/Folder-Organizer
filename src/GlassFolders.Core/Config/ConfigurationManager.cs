@@ -74,13 +74,24 @@ public sealed class ConfigurationManager
             try
             {
                 var settings = JsonSerializer.Deserialize(text, ConfigurationJsonContext.Default.AppSettings);
-                return settings is { SchemaVersion: >= 1 } ? settings : new AppSettings();
+                if (settings is not { SchemaVersion: >= 1 }) return new AppSettings();
+                if (settings.SchemaVersion < 2) MigrateSettingsToV2(settings);
+                return settings;
             }
             catch (JsonException)
             {
                 return new AppSettings();
             }
         }
+    }
+
+    // Version 1 saved 3 rows as the default, so a 3 here doesn't mean the user chose it.
+    // Anyone who wants the old size can set it again, or press expand.
+    private void MigrateSettingsToV2(AppSettings settings)
+    {
+        if (settings.PopupRows == 3) settings.PopupRows = 2;
+        settings.SchemaVersion = AppSettings.CurrentSchemaVersion;
+        SaveSettings(settings);
     }
 
     public void SaveSettings(AppSettings settings)

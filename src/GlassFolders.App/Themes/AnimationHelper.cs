@@ -13,6 +13,9 @@ namespace GlassFolders.App.Themes;
 /// </summary>
 public static class Animate
 {
+    // Roughly a desktop folder's width against the card's.
+    private const double PopupStartScale = 0.14;
+
     private static readonly IEasingFunction DefaultEase = new CubicEase { EasingMode = EasingMode.EaseOut };
 
     public static void Fade(UIElement element, double to, TimeSpan baseDuration, AnimationCategory category, Action? onCompleted = null)
@@ -68,6 +71,88 @@ public static class Animate
 
         st.BeginAnimation(ScaleTransform.ScaleXProperty, anim);
         st.BeginAnimation(ScaleTransform.ScaleYProperty, anim);
+    }
+
+    /// <summary>Grows a popup card out of a point, given relative to the card. Text is left crisp afterwards.</summary>
+    public static void PopupOpen(FrameworkElement card, Point origin, Action? onCompleted = null)
+    {
+        if (!AnimationService.Instance.ShouldAnimate(AnimationCategory.FolderOpenClose))
+        {
+            card.Opacity = 1;
+            onCompleted?.Invoke();
+            return;
+        }
+
+        var duration = AnimationService.Instance.GetDuration(TimeSpan.FromMilliseconds(280), AnimationCategory.FolderOpenClose);
+        var scale = new ScaleTransform(PopupStartScale, PopupStartScale);
+        card.RenderTransformOrigin = origin;
+        card.RenderTransform = scale;
+
+        var grow = new DoubleAnimation(PopupStartScale, 1, duration)
+        {
+            EasingFunction = new BackEase { Amplitude = 0.18, EasingMode = EasingMode.EaseOut }
+        };
+        grow.Completed += (_, _) =>
+        {
+            if (!ReferenceEquals(card.RenderTransform, scale)) return; // already closing
+            card.RenderTransform = null;
+            card.Opacity = 1;
+            card.BeginAnimation(UIElement.OpacityProperty, null);
+            onCompleted?.Invoke();
+        };
+
+        card.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromTicks(duration.Ticks * 2 / 5)));
+        scale.BeginAnimation(ScaleTransform.ScaleXProperty, grow);
+        scale.BeginAnimation(ScaleTransform.ScaleYProperty, grow);
+    }
+
+    /// <summary>The reverse of <see cref="PopupOpen"/>, and quicker, so closing never feels slow.</summary>
+    public static void PopupClose(FrameworkElement card, Point origin, Action onCompleted)
+    {
+        if (!AnimationService.Instance.ShouldAnimate(AnimationCategory.FolderOpenClose))
+        {
+            onCompleted();
+            return;
+        }
+
+        var duration = AnimationService.Instance.GetDuration(TimeSpan.FromMilliseconds(170), AnimationCategory.FolderOpenClose);
+        var scale = new ScaleTransform(1, 1);
+        card.RenderTransformOrigin = origin;
+        card.RenderTransform = scale;
+
+        var shrink = new DoubleAnimation(1, PopupStartScale, duration)
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
+        };
+        shrink.Completed += (_, _) => onCompleted();
+
+        card.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, TimeSpan.FromTicks(duration.Ticks * 2 / 3))
+        {
+            BeginTime = TimeSpan.FromTicks(duration.Ticks / 3),
+        });
+        scale.BeginAnimation(ScaleTransform.ScaleXProperty, shrink);
+        scale.BeginAnimation(ScaleTransform.ScaleYProperty, shrink);
+    }
+
+    /// <summary>Slides and fades new page content in from the side it is coming from.</summary>
+    public static void PageIn(UIElement element, int direction)
+    {
+        element.BeginAnimation(UIElement.OpacityProperty, null);
+        element.RenderTransform = null;
+        if (direction == 0 || !AnimationService.Instance.ShouldAnimate(AnimationCategory.PageTransition)) return;
+
+        var duration = AnimationService.Instance.GetDuration(TimeSpan.FromMilliseconds(200), AnimationCategory.PageTransition);
+        var slide = new TranslateTransform();
+        element.RenderTransform = slide;
+        var fade = new DoubleAnimation(0, 1, duration) { EasingFunction = DefaultEase };
+        fade.Completed += (_, _) =>
+        {
+            if (!ReferenceEquals(element.RenderTransform, slide)) return; // another page has started
+            element.BeginAnimation(UIElement.OpacityProperty, null);
+            element.RenderTransform = null;
+        };
+        slide.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(direction * 36, 0, duration) { EasingFunction = DefaultEase });
+        element.BeginAnimation(UIElement.OpacityProperty, fade);
     }
 
     public static void Shimmer(UIElement element)
