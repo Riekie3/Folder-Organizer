@@ -3,7 +3,7 @@
 Phone-style app folders on your real Windows 11 desktop, with a Liquid Glass popup.  
 Created & maintained by **[Rie-Sources](https://rie-sources.com/)**.
 
-> **Status: Production Release (`v1.0.1`) complete.** Built for Windows 11 (including 24H2 & 25H2). Fully tested (66/66 automated tests passed), zero-leak memory profile, event-driven Explorer recovery, and zero runtime dependencies beyond .NET 10.
+> **Status: `v1.0.2`, working but still being polished.** Built for Windows 11 (tested on 25H2). 66/66 automated tests pass, Explorer recovery is event-driven, and there are no runtime dependencies beyond .NET 10. The popup does not yet look like the Liquid Glass design target; see [docs/VISUAL-PARITY-PLAN.md](docs/VISUAL-PARITY-PLAN.md).
 
 ![GlassFolders Desktop Experience](docs/screenshots/hero-desktop.png)
 
@@ -11,10 +11,12 @@ Created & maintained by **[Rie-Sources](https://rie-sources.com/)**.
 
 ## Screenshots
 
+> These images are rendered by `tools/ScreenshotCapture` from the real app windows, but off-screen, over a drawn background. They show layout and colours, **not** the real Windows glass blur, and the desktop and taskbar in the first image are drawn. Real on-desktop captures will replace them in a later release.
+
 | Liquid Glass Folder Popup | Settings Dashboard |
 |:---:|:---:|
 | ![Liquid Glass Folder Popup](docs/screenshots/folder-popup.png) | ![Settings Dashboard](docs/screenshots/settings.png) |
-| *Frosted DWM Acrylic popup with real app icons, pagination, and category glyph* | *Glass sidebar navigation with full personalization, layout, and recovery controls* |
+| *Folder popup with app icons, pagination, and category glyph (off-screen render)* | *Glass sidebar navigation with full personalization, layout, and recovery controls* |
 
 | Folder Appearance Customization | Granular Animation Controls |
 |:---:|:---:|
@@ -28,13 +30,13 @@ Created & maintained by **[Rie-Sources](https://rie-sources.com/)**.
 **GlassFolders** brings the mobile home-screen folder experience to Windows 11 without hacky overlays or third-party bloat. Folders like *Work*, *Games*, *Media*, and *Utilities* sit directly on your desktop layer alongside standard icons. Clicking a folder opens a frosted DWM Acrylic glass panel displaying real application icons, shortcuts, and files.
 
 - **Native Desktop Integration:** Each folder is a small, borderless Progman-owned window pinned below normal applications. Desktop rubber-band selection, desktop icons, and Win+D ("Show Desktop") continue to work seamlessly.
-- **Liquid Glass Interface:** Real Windows 11 DWM Acrylic (`DWMSBT_TRANSIENTWINDOW`) and Mica composition, subtle 1px specular highlight rims, customizable vector category glyphs, and dynamic dark mode.
+- **Liquid Glass Interface:** Dark glass-style popup and settings with blur backdrops (`DWMSBT_TRANSIENTWINDOW` Acrylic, Mica), light rims and customizable vector category glyphs. A closer match to the design target is in progress.
 - **Automated Explorer Recovery:** Event-driven state machine (`Healthy → ShellLost → WaitingForShell → Reattaching → Verifying`) automatically recovers desktop surfaces with exponential backoff on Explorer crashes, taskbar recreation, session locks, and power resumes.
 - **Multi-Monitor Layouts:** Position math uses work-area relative fractions and persistent monitor identities. When a secondary screen is unplugged, folders gracefully displace to the primary monitor and return to their home screen when reconnected.
 - **Portable Backup & Restore:** Self-contained `.zip` backup format with SHA-256 manifests, automated rolling pre-restore backups (max 10), collision-free merge mode, and intelligent path relinking for cross-PC migration.
-- **Granular Animation Controls:** Master toggle, Windows reduced-motion (`SPI_GETCLIENTAREAANIMATION`) compliance, speed slider (0.5×–2.0×), and 8 independent animation category switches.
+- **Animation Controls:** Master toggle, Windows reduced-motion (`SPI_GETCLIENTAREAANIMATION`) compliance, speed slider (0.5×–2.0×), and 8 category switches. Folder tiles animate today; the popup open/close animation is planned.
 - **Ultra-Lightweight & Zero-Polling:** 0.00% idle CPU overhead, no periodic timer wakeups, and automated working set memory trimming (~50–65 MB typical).
-- **System Tray Integration:** Runs quietly in the notification area with a custom glass context menu; no taskbar button.
+- **System Tray Integration:** Runs quietly in the notification area; no taskbar button.
 
 > **Safety Guarantee:** Removing an item or deleting a folder from GlassFolders **never** deletes the original application or file from your computer.
 

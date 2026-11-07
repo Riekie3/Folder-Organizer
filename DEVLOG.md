@@ -231,3 +231,10 @@ Branch `main`.
 - 66/66 unit tests pass in `GlassFolders.Core.Tests`.
 - Release build clean with 0 warnings and 0 errors (`-warnaserror`).
 - Silent installer and uninstaller verified cleanly on Windows 11.
+
+## Stage 0 - Safe base (branch `stage/0-safe-base`)
+
+- Startup: `_loadingUi` guard in Settings, `IsRealApp` check and `RepairStartupPath()` in `StartupService`.
+- `ScreenshotCapture`: sandboxed config, `--tray` ignored, repo-relative output, About page navigation fixed.
+- Version 1.0.2 (props, installer); version text read from assembly; release zip name uses the tag.
+- README corrected. Not released: waiting for confirmation.

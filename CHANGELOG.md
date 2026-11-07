@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.2] - 2026-11-07
+
+### Fixed
+- **Startup entry:** opening Settings no longer rewrites the Windows startup entry. It is written only when you change the toggle, only from `GlassFolders.exe`, and a wrong path is repaired on app start.
+- **ScreenshotCapture:** now uses a throw-away config, ignores `--tray`, and writes relative to the repo, so it can no longer modify your folders or settings.
+- Version text in Settings comes from the assembly; the About screenshot shows the About page.
+- README claims corrected (screenshots are off-screen renders; popup animation is planned).
+
 ## [1.0.1] - 2026-11-07
 
 ### Added

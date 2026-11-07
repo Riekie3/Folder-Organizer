@@ -63,6 +63,8 @@ public partial class App : Application
             Dispatcher.BeginInvoke(() => Shutdown());
         };
 
+        StartupService.RepairStartupPath();
+
         bool isTrayMode = e.Args.Contains("--tray");
         string? hostArg = e.Args.FirstOrDefault(a => a.StartsWith("--host="))?["--host=".Length..];
         bool reset = e.Args.Contains("--reset");

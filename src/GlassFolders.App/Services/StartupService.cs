@@ -26,6 +26,34 @@ public sealed class StartupService
         }
     }
 
+    /// <summary>True only when the running process is the real GlassFolders.exe (not a test or tool host).</summary>
+    private static bool IsRealApp(string? exe) =>
+        !string.IsNullOrEmpty(exe) &&
+        string.Equals(Path.GetFileName(exe), "GlassFolders.exe", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// If startup is enabled but the entry points at some other program (or a moved copy),
+    /// rewrite it to the running GlassFolders.exe. Does nothing when startup is off.
+    /// </summary>
+    public static void RepairStartupPath()
+    {
+        try
+        {
+            string? exe = Environment.ProcessPath;
+            if (!IsRealApp(exe)) return;
+            using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath, true);
+            if (key?.GetValue(ValueName) is not string current) return;
+            string expected = $"\"{exe}\" --tray";
+            if (string.Equals(current, expected, StringComparison.OrdinalIgnoreCase)) return;
+            key.SetValue(ValueName, expected);
+            DiagnosticService.Instance.LogInfo($"Repaired startup entry (was: {current})");
+        }
+        catch (Exception ex)
+        {
+            DiagnosticService.Instance.LogWarn("Failed to repair startup registry key", ex);
+        }
+    }
+
     public static void SetStartup(bool enable)
     {
         try
@@ -36,7 +64,7 @@ public sealed class StartupService
             if (enable)
             {
                 string? exe = Environment.ProcessPath;
-                if (!string.IsNullOrEmpty(exe))
+                if (IsRealApp(exe))
                 {
                     key.SetValue(ValueName, $"\"{exe}\" --tray");
                     DiagnosticService.Instance.LogInfo("Registered GlassFolders in HKCU Run key");

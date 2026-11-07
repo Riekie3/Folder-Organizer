@@ -12,3 +12,6 @@ TestResults/
 
 # PoC screenshots show the developer's real desktop; keep them local
 docs/poc/
+
+# Scratch output from ScreenshotCapture tests
+tools/.shots-test/

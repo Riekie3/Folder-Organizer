@@ -22,8 +22,11 @@ namespace ScreenshotCapture;
 internal static class Program
 {
     [STAThread]
-    private static void Main()
+    private static void Main(string[] args)
     {
+        // Never run as a startup program: this tool only produces README images.
+        if (args.Contains("--tray")) return;
+
         try
         {
             Console.WriteLine("Initializing WPF application context...");
@@ -33,10 +36,13 @@ internal static class Program
             app.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("pack://application:,,,/GlassFolders;component/Themes/FolderGlyphs.xaml") });
             app.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("pack://application:,,,/GlassFolders;component/Themes/Controls.xaml") });
 
-            string outputDir = @"D:\Rie\Antigravity\Folder Organizer\docs\screenshots";
+            string outputDir = args.FirstOrDefault(a => !a.StartsWith("--")) ?? FindDefaultOutputDir();
             Directory.CreateDirectory(outputDir);
 
-            var configManager = new ConfigurationManager();
+            // Isolated, throw-away config: this tool must never touch the user's real folders or settings.
+            string sandbox = Path.Combine(Path.GetTempPath(), "GlassFolders-ScreenshotCapture-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(sandbox);
+            var configManager = new ConfigurationManager(sandbox);
             var folderManager = new FolderManager(configManager);
             var iconCache = new IconCacheService();
             var resolver = new ShellShortcutResolver();
@@ -77,6 +83,14 @@ internal static class Program
         {
             Console.WriteLine("FATAL ERROR: " + ex);
         }
+    }
+
+    private static string FindDefaultOutputDir()
+    {
+        for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir != null; dir = dir.Parent)
+            if (File.Exists(Path.Combine(dir.FullName, "GlassFolders.sln")))
+                return Path.Combine(dir.FullName, "docs", "screenshots");
+        return Path.Combine(Environment.CurrentDirectory, "screenshots");
     }
 
     private static FolderDef SetupWorkFolder(FolderManager fm)
@@ -167,9 +181,15 @@ internal static class Program
         };
 
         win.Show();
-        if (page == "Animations")
+        string? handler = page switch
         {
-            win.GetType().GetMethod("OnNavAnimationClicked", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?
+            "Animations" => "OnNavAnimationClicked",
+            "About" => "OnNavAboutClicked",
+            _ => null
+        };
+        if (handler != null)
+        {
+            win.GetType().GetMethod(handler, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?
                 .Invoke(win, [win, new RoutedEventArgs()]);
         }
         win.UpdateLayout();
