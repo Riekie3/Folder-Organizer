@@ -1,10 +1,8 @@
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using GlassFolders.Core.Models;
-using GlassFolders.Native;
 
 namespace GlassFolders.App.UI;
 
@@ -57,12 +55,6 @@ public partial class FolderEditorDialog : Window
         PopulateGlyphs();
         PopulateColorPresets();
         UpdatePreview();
-
-        SourceInitialized += (_, _) =>
-        {
-            nint hwnd = new WindowInteropHelper(this).Handle;
-            DwmHelpers.EnableAcrylic(hwnd, darkMode: true);
-        };
     }
 
     public FolderDef ResultFolder => _folder;

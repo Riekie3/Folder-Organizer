@@ -1,6 +1,7 @@
 <Window x:Class="GlassFolders.App.UI.FolderPopup"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="clr-namespace:GlassFolders.App.UI"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ShowInTaskbar="False" ResizeMode="NoResize" SizeToContent="WidthAndHeight"
         Title="GlassFolders Popup" Topmost="True"
@@ -32,15 +33,10 @@
         </Style>
     </Window.Resources>
 
-    <!-- Main Container Card with 1px light rim and DWM acrylic backdrop -->
-    <Border x:Name="PopupCard" Margin="16" Width="440" MinHeight="310" CornerRadius="28" BorderThickness="1"
-            BorderBrush="{StaticResource BrushGlassBorderBright}" Background="{StaticResource BrushPopupBackground}"
-            Effect="{StaticResource ShadowPopup}" AllowDrop="True" Drop="OnDrop" DragOver="OnDragOver" DragEnter="OnDragOver">
-        <Grid ClipToBounds="True">
-            <!-- Subtle Top Gloss Highlight -->
-            <Border VerticalAlignment="Top" Height="40" Background="{StaticResource BrushTopGloss}"
-                    CornerRadius="28,28,0,0" IsHitTestVisible="False"/>
-
+    <!-- Margin leaves room for the card's shadow: keep equal to GlassCard.ShadowMargin -->
+    <ui:GlassCard x:Name="PopupCard" Margin="40" Width="440" MinHeight="310" CornerRadius="28"
+                  AllowDrop="True" Drop="OnDrop" DragOver="OnDragOver" DragEnter="OnDragOver">
+        <Grid>
             <Grid Margin="20,18,20,18">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -66,7 +62,8 @@
 
                         <!-- Folder Title -->
                         <TextBlock x:Name="TxtTitle" Text="Folder" FontSize="22" FontWeight="SemiBold"
-                                   Foreground="{StaticResource BrushTextPrimary}" FontFamily="{StaticResource FontDisplay}"/>
+                                   Foreground="{StaticResource BrushTextPrimary}" FontFamily="{StaticResource FontDisplay}"
+                                   Effect="{StaticResource ShadowText}"/>
 
                         <!-- Item Count Badge -->
                         <Border Background="{StaticResource BrushGlassHover}" CornerRadius="10" Margin="10,0,0,0" Padding="8,2" VerticalAlignment="Center">
@@ -120,5 +117,5 @@
                 </Grid>
             </Grid>
         </Grid>
-    </Border>
+    </ui:GlassCard>
 </Window>

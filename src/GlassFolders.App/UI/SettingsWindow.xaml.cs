@@ -62,12 +62,6 @@ public partial class SettingsWindow : Window
             _monitorService.MonitorsChanged += _ => Dispatcher.Invoke(RefreshMonitorsList);
         }
 
-        SourceInitialized += (_, _) =>
-        {
-            nint hwnd = new WindowInteropHelper(this).Handle;
-            DwmHelpers.EnableMica(hwnd, darkMode: true);
-        };
-
         MouseDown += (s, e) =>
         {
             if (e.ChangedButton == System.Windows.Input.MouseButton.Left)

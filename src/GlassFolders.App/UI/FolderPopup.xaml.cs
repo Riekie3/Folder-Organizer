@@ -19,10 +19,18 @@ namespace GlassFolders.App.UI;
 /// <summary>
 /// The liquid glass folder popup window displaying a paged grid of apps, shortcuts, and files.
 /// Items can be launched, added via drag &amp; drop, or removed from the folder without deleting source files.
-/// Backed by Windows 11 DWM Acrylic blur and 1px edge rim.
+/// Drawn on a <see cref="GlassCard"/>, using a snapshot of the screen taken just before it appears.
 /// </summary>
 public partial class FolderPopup : Window
 {
+    // A window that just closed can still be on screen for one composition frame.
+    private const double RecentCloseMs = 250;
+
+    // Captured beyond the card, so the blur pulls in real pixels at its edges and the card has room to grow.
+    private const double CaptureOverscan = 64;
+
+    private static long s_lastClosedTimestamp;
+
     private const int PageSize = 12; // 4 columns x 3 rows
     private readonly FolderDef _folder;
     private readonly FolderManager _folderManager;
@@ -53,13 +61,17 @@ public partial class FolderPopup : Window
             if (!_closing && !_isShowingDialog) Close();
         };
         Closing += (_, _) => _closing = true;
-
-        SourceInitialized += (_, _) =>
+        Closed += (_, _) =>
         {
-            PositionNearAnchor();
-            ApplyBackdrop();
+            s_lastClosedTimestamp = Stopwatch.GetTimestamp();
+            PopupCard.SetBackdrop(null);
         };
-        ContentRendered += (_, _) => { PositionNearAnchor(); Activate(); };
+
+        // Runs while the window is still hidden, so the snapshot can't include the popup itself.
+        SourceInitialized += (_, _) => PrepareGlass();
+        ContentRendered += (_, _) => { PlaceWindow(); Activate(); };
+        SizeChanged += (_, _) => { if (IsLoaded) PlaceWindow(); };
+        MouseDown += OnWindowMouseDown;
 
         RenderPage();
     }
@@ -81,17 +93,35 @@ public partial class FolderPopup : Window
         catch { }
     }
 
-    private void ApplyBackdrop()
+    private void PrepareGlass()
     {
-        nint hwnd = new WindowInteropHelper(this).Handle;
-        if (SystemParameters.HighContrast)
+        nint monitor = MonitorFromPoint(_anchor.Center, MONITOR_DEFAULTTONEAREST);
+        double scale = ScreenCapture.MonitorScale(monitor);
+
+        // Content is measured here because the window has no size of its own yet.
+        var content = (FrameworkElement)Content;
+        content.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        RECT card = PlaceWindow(monitor, scale, (int)Math.Ceiling(content.DesiredSize.Width * scale), (int)Math.Ceiling(content.DesiredSize.Height * scale));
+
+        BackdropSnapshot? snapshot = null;
+        if (BackdropSnapshot.IsGlassAllowed())
         {
-            PopupCard.Background = new SolidColorBrush(Color.FromRgb(0x18, 0x20, 0x30));
+            if (Stopwatch.GetElapsedTime(s_lastClosedTimestamp).TotalMilliseconds < RecentCloseMs)
+                DwmHelpers.WaitForNextFrame();
+
+            RECT screen = Win32.MonitorInfo(monitor).rcMonitor;
+            int overscan = (int)Math.Round(CaptureOverscan * scale);
+            var area = new RECT(
+                Math.Max(screen.Left, card.Left - overscan),
+                Math.Max(screen.Top, card.Top - overscan),
+                Math.Min(screen.Right, card.Right + overscan),
+                Math.Min(screen.Bottom, card.Bottom + overscan));
+
+            snapshot = BackdropSnapshot.Capture(area, scale);
+            if (snapshot is not null)
+                DiagnosticService.Instance.LogDebug($"Backdrop snapshot took {snapshot.ElapsedMilliseconds:F1} ms");
         }
-        else
-        {
-            DwmHelpers.EnableAcrylic(hwnd, darkMode: true);
-        }
+        PopupCard.SetBackdrop(snapshot);
     }
 
     private void UpdateCount()
@@ -297,18 +327,33 @@ public partial class FolderPopup : Window
         return menu;
     }
 
-    private void PositionNearAnchor()
+    private void PlaceWindow()
     {
-        nint hwnd = new WindowInteropHelper(this).Handle;
-        var size = Win32.Rect(hwnd);
-        var work = Win32.MonitorInfo(MonitorFromPoint(_anchor.Center, MONITOR_DEFAULTTONEAREST)).rcWork;
-        const int gap = 12;
+        nint monitor = MonitorFromPoint(_anchor.Center, MONITOR_DEFAULTTONEAREST);
+        var size = Win32.Rect(new WindowInteropHelper(this).Handle);
+        PlaceWindow(monitor, ScreenCapture.MonitorScale(monitor), size.Width, size.Height);
+    }
 
-        int x = _anchor.Right + gap + size.Width <= work.Right ? _anchor.Right + gap : _anchor.Left - gap - size.Width;
-        int y = _anchor.Top;
-        x = Math.Clamp(x, work.Left, Math.Max(work.Left, work.Right - size.Width));
-        y = Math.Clamp(y, work.Top, Math.Max(work.Top, work.Bottom - size.Height));
-        SetWindowPos(hwnd, 0, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+    /// <summary>Keeps the card, not its shadow, inside the work area. The shadow may extend past the edge.</summary>
+    private RECT PlaceWindow(nint monitor, double scale, int windowWidth, int windowHeight)
+    {
+        const int gap = 12;
+        var work = Win32.MonitorInfo(monitor).rcWork;
+        int margin = (int)Math.Round(GlassCard.ShadowMargin * scale);
+        int cardWidth = windowWidth - margin * 2, cardHeight = windowHeight - margin * 2;
+
+        int x = _anchor.Right + gap + cardWidth <= work.Right ? _anchor.Right + gap : _anchor.Left - gap - cardWidth;
+        x = Math.Clamp(x, work.Left, Math.Max(work.Left, work.Right - cardWidth));
+        int y = Math.Clamp(_anchor.Top, work.Top, Math.Max(work.Top, work.Bottom - cardHeight));
+
+        SetWindowPos(new WindowInteropHelper(this).Handle, 0, x - margin, y - margin, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+        return new RECT(x, y, x + cardWidth, y + cardHeight);
+    }
+
+    // The shadow belongs to this window, so a click on it counts as a click outside the popup.
+    private void OnWindowMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (ReferenceEquals(e.Source, this)) Close();
     }
 
     private void OnBtnCloseClicked(object sender, RoutedEventArgs e) => Close();

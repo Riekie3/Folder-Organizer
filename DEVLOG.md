@@ -238,3 +238,27 @@ Branch `main`.
 - `ScreenshotCapture`: sandboxed config, `--tray` ignored, repo-relative output, About page navigation fixed.
 - Version 1.0.2 (props, installer); version text read from assembly; release zip name uses the tag.
 - README corrected. Not released: waiting for confirmation.
+
+## Stage 1 - Glass engine (branch `stage/1-glass-engine`)
+
+- `FrostFilter`, `GlassTint`, `BackdropAnalyzer` in `GlassFolders.Core/Glass`: pure image maths, 38 new unit tests (104 total).
+- `ScreenCapture` (GDI, native memory only), `BackdropSnapshot`, `GlassCard`. `FolderPopup` positions and captures in `SourceInitialized`, while still hidden.
+- `EnableAcrylic` and `EnableMica` removed from every layered window, then deleted as unused.
+- First version captured the whole monitor, so the card could move or resize freely. Measured 16–51 ms for `BitBlt` alone, over budget. Time scales with area, so it now captures the card plus 64 DIP. Stage 4's Settings glass can still use a monitor-wide capture, because it doesn't need to open as fast.
+
+Tested with a throwaway harness that opens the real `FolderPopup` on sandbox config over full-screen test windows (1920×1080 at 125 %, Release):
+
+| Check | Result |
+|---|---|
+| Corners and square block, on bloom and the dev PC's dark wallpaper | Smooth, no block (by eye from screen captures) |
+| Capture + frost during 6 real popup opens | 8–18 ms |
+| Capture + frost, repeated every 120 ms | Median 20 ms, min 8, max 58. Spikes over the 30 ms target; CPU power state is the likely cause, not confirmed |
+| Same at Stage 2's card size (1240×830 with overscan) | Median 37 ms, min 12, max 41. Over target: revisit in Stage 2 |
+| Popup reopened right after another closed | Glass identical to a clean capture |
+| CPU over 5 s with popup open / after close | 0–31 ms / 16 ms |
+| Solid panel when the backdrop is null or all black | Shown |
+| White, yellow, near-black backdrops | Text readable, tint adapts |
+| Card kept inside work area from a corner anchor | Yes |
+| Empty folder grows when an item is added | Glass stays aligned |
+
+Not tested: a click on a real desktop folder (running `GlassFolders.exe` would rewrite the startup entry to a dev path), the real high contrast and transparency settings (only the solid panel they lead to), other scaling levels, a second monitor, memory in the real app. The shadow click was simulated with a routed event. Stage 5 covers the live desktop.

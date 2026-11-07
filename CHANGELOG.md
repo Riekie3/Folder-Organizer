@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Changed
+- **Popup glass:** replaced Windows' blur with snapshot glass. The popup now has smooth rounded corners and no square block behind it, and you can see the wallpaper's colours through it.
+- **Adaptive tint:** the tint lightens on dark wallpapers and darkens on bright ones, keeping white text readable.
+- **Settings and folder editor:** the Mica and Acrylic backdrops are gone, which also removes their square block. They use a tinted panel until their glass stage.
+
+### Added
+- Solid panel for high contrast, Windows transparency off, and failed or all-black captures.
+- Clicking the popup's shadow now closes it, like any other click outside.
+
 ## [1.0.2] - 2026-11-07
 
 ### Fixed

@@ -30,7 +30,7 @@ GlassFolders achieves a true **0% idle CPU profile** through the following archi
    - When idle or when animations are disabled, all WPF timer and storyboard loops are terminated.
    - Respects Windows 11 `SPI_GETCLIENTAREAANIMATION` (reduced motion).
 3. **No Per-Tile Live Blur:**
-   - Desktop folder tiles use pre-rendered translucent vector layers with static highlights. Real GPU DWM Acrylic blur is exclusively applied to active popups and settings.
+   - Desktop folder tiles use pre-rendered translucent vector layers with static highlights. The popup's glass is a snapshot taken once per open: nothing runs while it stays open or after it closes.
 
 ---
 

@@ -27,10 +27,10 @@ Created & maintained by **[Rie-Sources](https://rie-sources.com/)**.
 
 ## Overview
 
-**GlassFolders** brings the mobile home-screen folder experience to Windows 11 without hacky overlays or third-party bloat. Folders like *Work*, *Games*, *Media*, and *Utilities* sit directly on your desktop layer alongside standard icons. Clicking a folder opens a frosted DWM Acrylic glass panel displaying real application icons, shortcuts, and files.
+**GlassFolders** brings the mobile home-screen folder experience to Windows 11 without hacky overlays or third-party bloat. Folders like *Work*, *Games*, *Media*, and *Utilities* sit directly on your desktop layer alongside standard icons. Clicking a folder opens a frosted glass panel displaying real application icons, shortcuts, and files.
 
 - **Native Desktop Integration:** Each folder is a small, borderless Progman-owned window pinned below normal applications. Desktop rubber-band selection, desktop icons, and Win+D ("Show Desktop") continue to work seamlessly.
-- **Liquid Glass Interface:** Dark glass-style popup and settings with blur backdrops (`DWMSBT_TRANSIENTWINDOW` Acrylic, Mica), light rims and customizable vector category glyphs. A closer match to the design target is in progress.
+- **Liquid Glass Interface:** Frosted popup with smooth rounded corners, a tint that adapts to your wallpaper, light rims and customizable vector category glyphs. Settings and dialogs use a tinted panel for now. A closer match to the design target is in progress.
 - **Automated Explorer Recovery:** Event-driven state machine (`Healthy → ShellLost → WaitingForShell → Reattaching → Verifying`) automatically recovers desktop surfaces with exponential backoff on Explorer crashes, taskbar recreation, session locks, and power resumes.
 - **Multi-Monitor Layouts:** Position math uses work-area relative fractions and persistent monitor identities. When a secondary screen is unplugged, folders gracefully displace to the primary monitor and return to their home screen when reconnected.
 - **Portable Backup & Restore:** Self-contained `.zip` backup format with SHA-256 manifests, automated rolling pre-restore backups (max 10), collision-free merge mode, and intelligent path relinking for cross-PC migration.
@@ -46,7 +46,7 @@ Created & maintained by **[Rie-Sources](https://rie-sources.com/)**.
 
 - **Runtime:** .NET 10 (LTS) WPF with Per-Monitor-V2 DPI awareness.
 - **Platform:** Windows 11 (22H2, 23H2, 24H2, 25H2+) and Windows 10 64-bit.
-- **Compositor:** Direct Desktop Window Manager (DWM) Acrylic blur and Mica backdrops.
+- **Glass:** Each time a popup opens, the area behind it is captured once, blurred and painted into the card. The capture stays in memory until the popup closes and is never saved. There is no continuous screen capture.
 - **Packaging:** Inno Setup per-user installer (`{localappdata}\Programs\GlassFolders`, no administrator privileges required) and standalone portable ZIP distribution.
 
 ---

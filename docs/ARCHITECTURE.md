@@ -15,7 +15,7 @@ GlassFolders is engineered as a zero-idle, high-performance desktop enhancement 
 │                             GlassFolders.App                                │
 │  ┌───────────────────────┐  ┌───────────────────────┐  ┌──────────────────┐ │
 │  │     PocController     │  │   SettingsWindow      │  │  FolderPopup     │ │
-│  │   (Lifecycle & Core)  │  │   (Fluent XAML UI)    │  │  (Acrylic Menu)  │ │
+│  │   (Lifecycle & Core)  │  │   (Fluent XAML UI)    │  │  (Glass Card)    │ │
 │  └───────────┬───────────┘  └───────────────────────┘  └──────────────────┘ │
 │              │                                                              │
 │  ┌───────────┴───────────┐  ┌───────────────────────┐  ┌──────────────────┐ │
@@ -27,8 +27,8 @@ GlassFolders is engineered as a zero-idle, high-performance desktop enhancement 
 ┌──────────────▼──────────────────────────────────────────────────────────────┐
 │                            GlassFolders.Native                              │
 │  ┌───────────────────────┐  ┌───────────────────────┐  ┌──────────────────┐ │
-│  │   DesktopWindows      │  │      DwmHelpers       │  │ DisplayConfig    │ │
-│  │ (Progman/DefView Find)│  │ (Acrylic/Mica BT/Dark)│  │ (EnumMonitors)   │ │
+│  │   DesktopWindows      │  │     ScreenCapture     │  │ DisplayConfig    │ │
+│  │ (Progman/DefView Find)│  │ (One-shot GDI capture)│  │ (EnumMonitors)   │ │
 │  └───────────────────────┘  └───────────────────────┘  └──────────────────┘ │
 └──────────────┬──────────────────────────────────────────────────────────────┘
                │
@@ -146,13 +146,20 @@ $$y_{rel} = \frac{y_{abs} - \text{WorkArea.Top}}{\text{WorkArea.Height} - \text{
 
 ---
 
-## 7. DWM Glass & Visual Effects (`DwmHelpers`)
+## 7. Glass (`BackdropSnapshot`, `GlassCard`)
 
-Folder popups and settings dialogs utilize real Windows 11 Desktop Window Manager (DWM) composition:
-- **DWM Acrylic (`DWMSBT_TRANSIENTWINDOW`):** Applied via `DwmSetWindowAttribute(DWMWA_SYSTEMBACKDROP_TYPE, 3)`. Produces deep frosted-glass blur with transient lighting.
-- **DWM Mica (`DWMSBT_MAINWINDOW`):** Applied via `DwmSetWindowAttribute(DWMWA_SYSTEMBACKDROP_TYPE, 2)`. Blends subtly with desktop background wallpaper.
-- **Dark Mode Harmonization:** `DWMWA_USE_IMMERSIVE_DARK_MODE` (attribute 20) aligns window non-client borders with system dark/light modes.
-- **Rounded Corners:** `DWMWA_WINDOW_CORNER_PREFERENCE` (attribute 33) enforces Fluent `DWMWCP_ROUND` (12px radius).
+Windows' own blur (DWM Acrylic, Mica, accent blur) stays square behind a rounded window: it ignores `SetWindowRgn` and DWM blur regions. So the popup uses snapshot glass instead, with no DWM backdrop:
+
+1. **Capture once, before showing.** While the popup is still hidden, `ScreenCapture` reads the card's area plus 64 DIP around it with GDI (`BitBlt` with `CAPTUREBLT`, physical pixels). The pixels stay in native memory for the length of the call. If a popup closed in the last 250 ms, it first waits one compositor frame (`DwmFlush`) so the old popup can't end up in the glass.
+2. **Frost.** `FrostFilter` (`GlassFolders.Core/Glass`, pure and unit tested) shrinks the image to one pixel per 6.4 DIP, applies three box blur passes and raises saturation. Only this small result is kept.
+3. **Tint.** `BackdropAnalyzer` measures the mean and 90th percentile luminance behind the card. `GlassTint` keeps the reference tint on normal wallpapers, lightens it on dark ones, and adds just enough blue scrim on bright ones to hold 3:1 contrast with white text.
+4. **Paint.** `GlassCard` layers snapshot, scrim, tint, gloss, content and rim in a rounded card on a layered window. The shadow is a separate element, so content isn't drawn through the effect pass. The brush viewbox lines the image up with the card's screen position.
+
+**Solid panel:** `GlassCard` shows an opaque panel when there's no snapshot: high contrast, Windows transparency off, a failed capture, or an all-black capture.
+
+**Limits:** the glass doesn't update while the popup is open, and protected video behind it may capture as black.
+
+Settings and the folder editor have no blur yet. They use a tinted panel until Stage 4 of `docs/VISUAL-PARITY-PLAN.md`.
 
 ---
 

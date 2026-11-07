@@ -1,6 +1,6 @@
 # GlassFolders — User Guide
 
-Welcome to **GlassFolders**, a native Windows 11 desktop organizer that brings elegant, iOS/Android-style app folders to your desktop background with real DWM Acrylic/Mica effects, multi-monitor intelligence, and zero idle overhead.
+Welcome to **GlassFolders**, a native Windows 11 desktop organizer that brings elegant, iOS/Android-style app folders to your desktop background with frosted glass popups, multi-monitor intelligence, and zero idle overhead.
 
 ---
 

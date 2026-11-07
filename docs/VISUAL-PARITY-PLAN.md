@@ -1,6 +1,8 @@
 # GlassFolders – Visual parity plan
 
-_Updated 2026-11-07 against `main` at `2b1b0d0` (the branding update). Goal: make the running app look as close as practical to `Referance/a226f8e2-….png`, then release as v1.1.0._
+_Updated 2026-11-07. Goal: make the running app look as close as practical to `Referance/a226f8e2-….png`, then release as v1.1.0._
+
+**Status:** Stage 0 merged to `main`. Stage 1 built on branch `stage/1-glass-engine`. Stages 2–6 not started. **Nothing is tagged or released until every stage is finished and the look is approved.**
 
 ![Reference, current app and prototype side by side](parity/comparison.png)
 
@@ -137,6 +139,8 @@ Each stage ends with build + tests, a DEVLOG entry and a push. Model suggestions
 
 **Done when:** after opening Settings from a test exe, the Run key and real config are unchanged; a clean install of the published v1.0.2 stays running.
 
+**Result:** code merged. The release steps above are replaced by the publishing rule: no v1.0.2 release, and the first published build is v1.1.0.
+
 ### Stage 1 – Glass engine · Medium · Opus, high
 - Add `BackdropSnapshot` (capture, downsample, blur, saturate; multi-monitor and DPI aware) with unit tests for the pure image maths, in optimized code.
 - Add a reusable `GlassCard`: snapshot, tint, top gloss, 1.2 px light rim, soft shadow.
@@ -146,6 +150,16 @@ Each stage ends with build + tests, a DEVLOG entry and a push. Model suggestions
 
 **Done when:** on bloom and on your wallpaper, corners are smooth and no square block is visible; capture + blur ≤ 30 ms in Release; idle CPU stays at 0.
 
+**Result:**
+
+![Stage 1 glass on the bloom wallpaper, still at the old popup size](parity/stage1-glass-bloom.png)
+
+- Corners and square block: met, on both wallpapers.
+- Time: 8–18 ms across 6 real opens. Repeated every 120 ms it was median 20 ms with spikes up to 58 ms, so 30 ms isn't guaranteed.
+- CPU: nothing runs after the capture. 0–31 ms of CPU over 5 s with the popup open.
+- Settings and the folder editor lost their DWM backdrop, and use a tinted panel until Stage 4.
+- Not run on the live desktop yet: Stage 5.
+
 ### Stage 2 – Popup matches the reference · Large · Opus, high
 - Apply the metrics in section 6, including the popup's position beside the folder.
 - Header: full-colour folder icon, title, divider, expand ⤢, close ✕. Remove the count pill. Move + to right-click and a ⋯ menu; drop stays.
@@ -154,6 +168,8 @@ Each stage ends with build + tests, a DEVLOG entry and a push. Model suggestions
 - 256 px icons with correct alpha, decoded at display size, disk-cached. Low-resolution icons get the rounded tile from reference 2.
 - Two-line labels ("Microsoft / Edge") and the hover plate from reference 2.
 - Real open/close animation, growing from the clicked folder, through `Animate`, honouring the animation settings.
+- Keep capture time in budget at the larger card: Stage 1 measured a median of 37 ms at this size. Options: sample every second pixel when shrinking, or reduce the overscan.
+- Capture enough area for the expanded 4×3 card, since the popup can't capture itself once open. The glass slides rather than leaving a gap if the card outgrows the capture.
 - Expand ⤢ switches to the 4×3 view. Popup stays clamped inside the work area.
 
 **Done when:** overlaid on the reference at matching scale, panel edges, header line and icon centres are within about 4 % of the reference position.
@@ -224,7 +240,7 @@ At this size the popup covers about 56 % of your screen width, as in the referen
 
 ## 8. Decisions
 
-1. **Glass technique:** snapshot glass (recommended), or stay with live DWM blur and accept square corners or further research into a composition-based route.
+1. **Glass technique:** snapshot glass. Decided by starting Stage 1 on the recommended option; tell me if you'd rather have live blur with square corners.
 2. **Default popup size:** reference size (recommended), or smaller.
 3. **Folder style:** reference 1 solid by default with reference 4 as an option (recommended), or reference 4 by default as `PLAN.md` first chose.
 4. **Where work happens:** the latest update was made from `D:\Rie\Antigravity\Folder Organizer`, while this plan was written from `D:\Rie\Claude\Folder Organizer`. Both match `main` now. Use one copy only, and pause other edits while a stage runs, to avoid conflicting changes.
