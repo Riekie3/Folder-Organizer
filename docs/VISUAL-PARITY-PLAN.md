@@ -2,7 +2,7 @@
 
 _Updated 2026-11-07. Goal: make the running app look as close as practical to `Referance/a226f8e2-….png`, then release as v1.1.0._
 
-**Status:** Stages 0 and 1 merged to `main`. Stage 2 built on branch `stage/2-popup-parity`. Stages 3–6 not started. **Nothing is tagged or released until every stage is finished and the look is approved.**
+**Status:** Stages 0, 1 and 2 merged to `main`. Stage 3 built on branch `stage/3-desktop-folders`. Stages 4–6 not started. **Nothing is tagged or released until every stage is finished and the look is approved.**
 
 ![Reference, current app and prototype side by side](parity/comparison.png)
 
@@ -207,6 +207,39 @@ Measured at 1920×1080. Reference positions are scaled from its 1672 px image.
 - Add a simple 16 and 24 px app and tray icon. The current detailed icon doesn't read at small sizes.
 
 **Done when:** a new folder never lands on an existing icon on your desktop, and the column reads like the reference's left side.
+
+**Result:**
+
+![Reference and Stage 3 folders, rendered off-screen over the Windows light bloom wallpaper](parity/stage3-desktop.png)
+
+![The reference and the render blended 50/50](parity/stage3-overlay.png)
+
+![Solid and Glass styles on the light and dark bloom wallpapers](parity/stage3-variants.png)
+
+The images are the app's own `FolderTile`, rendered off-screen at the reference's scale (1672 px for this PC's 1536 DIP desktop), with each folder centred where the reference has it. The plate's glass uses the app's wallpaper code, reading the test wallpaper. Measured in reference pixels:
+
+| Element | Reference | Stage 3 | Off by |
+|---|---|---|---|
+| Folder art | 69 × 58 | 70 × 59 | 1 px |
+| Selected plate | 156 × 126 | 153 × 124 | 3 px |
+| Label tops: Games, Media, Utilities | 561, 689, 817 | 559, 688, 815 | 2 px at most |
+| Label widths | 52, 43, 54 | 49, 45, 55 | 3 px at most |
+
+On this PC's desktop:
+- The grid comes from Windows' own desktop view through `IFolderView`: 95 × 122 px cells at 125 %, read in about 30 ms.
+- A dry run against the 65 icons there placed six test folders. All six landed in free cells and none touched an icon. The first five columns are full, so new folders start in column 6.
+- A sandbox copy of the app, run on the live desktop, placed the four sample folders in column 6, rows 2–5. All four were attached to the desktop. It used 6.9 MB of working set after its memory trim, and exited cleanly.
+- The wallpaper read for the plate takes about 190 ms for the first folder, which decodes the picture, then about 2 ms per folder.
+- Saved positions are moved once so each folder keeps its centre in the larger window. Existing folders aren't placed again, so on this PC the three saved folders still sit at the old right-edge default, over icons, until they are dragged.
+
+Changed from the plan above:
+- Glyphs are the vector shapes from Stage 2, not Segoe Fluent Icons. The popup header, menus and editor share the same art, and nothing depends on a font.
+- The plate is at most one grid cell plus 36 DIP wide, so on a tight grid it doesn't cover the neighbouring icons. On this PC's grid that is 112 DIP instead of the reference's 142. The comparison above uses a wider grid, which allows the full size.
+- Labels are one line, with the full name in a tooltip. Two lines would need two grid rows per folder.
+- Dragging snaps to the nearest free cell of the desktop grid. The old Grid Cell Size slider is gone.
+- Hide, item 8 of the brief's folder menu, stays in v1.2, as section 3 planned.
+
+Not tested on the live desktop: hovering and opening a folder with the real mouse, Change Icon with a picture, other display scales, a second monitor. Stage 5 covers these.
 
 ### Stage 4 – Settings, menus, dialogs · Medium · Sonnet, high (Opus if the moving-glass step fights back)
 - Styles from reference 3: glass toggle, slider, pill input, segmented control, left-aligned sidebar with icons and a selected state.

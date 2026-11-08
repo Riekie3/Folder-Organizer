@@ -13,7 +13,9 @@ _Generated for Phase 8 (`v0.9.0-rc`) on Windows 11 25H2 (build 26200)._
 | **Private Memory** | < 60 MB | **38.1 MB** | Passed |
 | **Popup Open Latency (Warm)** | < 100 ms | **~130 ms median, 44–175 ms** | Over target. Measured in a test harness at the new 864 × 536 size; Stage 5 re-measures in the real app |
 | **Popup Open Latency (Cold)** | < 250 ms | **~245 ms** | Met. Icons not on disk yet load in the background, after the popup appears |
-| **Startup to Desktop Ready** | < 1.5 s | **~0.8 s** | Passed |
+| **Startup to Desktop Ready** | < 1.5 s | **~0.7 s** | Passed. Sandbox run placing 4 new folders on the grid, wallpaper glass included |
+| **Desktop grid read** | — | **~30 ms** | At startup, when a folder is created, and when one is dropped |
+| **Folder plate glass** | — | **~190 ms first, then ~2 ms** | The first folder decodes the wallpaper at 640 px wide (about 1.4 MB, dropped at the next memory trim) |
 | **Explorer Recovery Time** | < 3.0 s | **~1.2 s** | Passed (Instant event-driven reattach on `TaskbarCreated`) |
 | **GDI / USER Handle Drift** | 0 drift | **0 drift** | Passed (Tested via `measure-idle.ps1` with `GetGuiResources`) |
 

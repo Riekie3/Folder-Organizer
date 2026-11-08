@@ -83,8 +83,7 @@ public partial class SettingsWindow : Window
         ChkStartWithWindows.IsChecked = StartupService.IsStartupEnabled();
         ChkCheckMissing.IsChecked = _settings.CheckMissingTargets;
         ChkSnapToGrid.IsChecked = _settings.SnapToGrid;
-        SliderGrid.Value = _settings.GridSize;
-        TxtGridVal.Text = _settings.GridSize.ToString();
+        ChkShowItemCount.IsChecked = _settings.ShowItemCount;
 
         SliderColumns.Value = _settings.PopupColumns;
         TxtColumnsVal.Text = _settings.PopupColumns.ToString();
@@ -196,15 +195,11 @@ public partial class SettingsWindow : Window
         }
     }
 
-    private void OnGridSliderChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    // Folders snap to Windows' own icon grid, so there is no separate grid size to set.
+    private void OnDesktopOptionChanged(object sender, RoutedEventArgs e)
     {
-        if (TxtGridVal is not null && _settings is not null)
-        {
-            int val = (int)e.NewValue;
-            TxtGridVal.Text = val.ToString();
-            _settings.GridSize = val;
-            SaveSettings();
-        }
+        if (_loadingUi || _settings is null) return;
+        SaveSettings();
     }
 
     private void OnColumnsSliderChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -272,11 +267,13 @@ public partial class SettingsWindow : Window
 
     private void OnBtnNewFolderClicked(object sender, RoutedEventArgs e)
     {
-        var dialog = new FolderEditorDialog();
+        var dialog = new FolderEditorDialog(null, _folderManager.Folders.Count);
         if (dialog.ShowDialog() == true)
         {
             var res = dialog.ResultFolder;
             var created = _folderManager.CreateFolder(res.Name, res.ColorA, res.ColorB, res.Glyph);
+            if (res.Size != created.Size) _folderManager.SetFolderSize(created.Id, res.Size);
+            if (res.Style != created.Style) _folderManager.SetFolderStyle(created.Id, res.Style);
             RefreshFoldersList();
             FolderCreated?.Invoke(created);
         }
@@ -405,6 +402,7 @@ public partial class SettingsWindow : Window
         _settings.StartWithWindows = ChkStartWithWindows.IsChecked == true;
         _settings.CheckMissingTargets = ChkCheckMissing.IsChecked == true;
         _settings.SnapToGrid = ChkSnapToGrid.IsChecked == true;
+        _settings.ShowItemCount = ChkShowItemCount.IsChecked == true;
         _configManager.SaveSettings(_settings);
         SettingsChanged?.Invoke();
     }

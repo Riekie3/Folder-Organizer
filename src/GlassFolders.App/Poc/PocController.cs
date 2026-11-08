@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using GlassFolders.App.Desktop;
 using GlassFolders.App.Services;
@@ -28,6 +29,17 @@ namespace GlassFolders.App.Poc;
 /// </summary>
 public sealed class PocController : IDisposable
 {
+    /// <summary>Folder window size before Stage 3, in DIPs. Used once to move old saved positions.</summary>
+    private const double V1TileWidth = 104, V1TileHeight = 112;
+
+    /// <summary>Windows' medium desktop grid in DIPs, used if the desktop's own grid can't be read.</summary>
+    private const double FallbackCellWidth = 76, FallbackCellHeight = 98;
+
+    /// <summary>Largest picture accepted for Change Icon.</summary>
+    private const long MaxPictureBytes = 10 * 1024 * 1024;
+
+    private static readonly string[] Glyphs = ["Folder", "Briefcase", "Gamepad", "Play", "Gear", "Code", "Palette", "Document"];
+
     private readonly IDesktopHost _host;
     private readonly ShellWatcher _watcher;
     private readonly ExplorerRecoveryService _recoveryService;
@@ -40,9 +52,13 @@ public sealed class PocController : IDisposable
     private readonly FolderManager _folderManager;
     private readonly IconCacheService _iconCache;
     private readonly ShellShortcutResolver _resolver;
+    private readonly WallpaperService _wallpaper = new();
     private readonly Dictionary<string, (FolderTile Tile, DesktopSurface Surface)> _tiles = [];
     private readonly string _dataDir;
     private readonly DispatcherTimer _memoryTrimTimer;
+    private readonly DispatcherTimer _backdropTimer;
+    private AppSettings _settings;
+    private double _cellWidthDip = FallbackCellWidth, _cellHeightDip = FallbackCellHeight;
     private FolderPopup? _popup;
     private string? _popupFor;
     private string? _lastClosedPopupId;
@@ -65,7 +81,8 @@ public sealed class PocController : IDisposable
         _folderManager = new FolderManager(_configManager);
         _iconCache = new IconCacheService();
         _resolver = new ShellShortcutResolver();
-        AnimationService.Instance.Settings = _configManager.LoadSettings().Animation;
+        _settings = _configManager.LoadSettings();
+        AnimationService.Instance.Settings = _settings.Animation;
 
         _host = DesktopHostFactory.Create(kind);
         _watcher = new ShellWatcher();
@@ -79,6 +96,14 @@ public sealed class PocController : IDisposable
         {
             _memoryTrimTimer.Stop();
             PerformMemoryTrim();
+        };
+
+        // Wallpaper and display changes arrive in bursts; redraw the folders' glass once they settle.
+        _backdropTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(600) };
+        _backdropTimer.Tick += (_, _) =>
+        {
+            _backdropTimer.Stop();
+            RefreshAllBackdrops();
         };
 
         // Wire recovery state machine
@@ -99,6 +124,9 @@ public sealed class PocController : IDisposable
             if (msg is WM_DISPLAYCHANGE or WM_DPICHANGED or WM_SETTINGCHANGE)
             {
                 _monitorService.NotifyDisplayChanged();
+                // A new wallpaper is announced as a setting change.
+                _backdropTimer.Stop();
+                _backdropTimer.Start();
             }
         };
         _monitorService.MonitorsChanged += OnMonitorsChanged;
@@ -116,19 +144,11 @@ public sealed class PocController : IDisposable
         _folderManager.Changed += OnFolderManagerChanged;
     }
 
+    private static double Scale => GetDpiForSystem() / 96.0;
+
     private void OnFolderManagerChanged()
     {
-        foreach (var (id, pair) in _tiles)
-        {
-            var f = _folderManager.GetFolder(id);
-            if (f is not null)
-            {
-                pair.Tile.SetItemCount(f.Items.Count);
-                pair.Tile.SetLabel(f.Name);
-                pair.Tile.SetGlyph(f.Glyph);
-                pair.Tile.SetColors(ParseColor(f.ColorA, Colors.Blue), ParseColor(f.ColorB, Colors.Navy));
-            }
-        }
+        foreach (var id in _tiles.Keys.ToList()) RefreshTile(id);
         if (_popup is not null && _popup.IsLoaded)
         {
             _popup.RefreshItems();
@@ -162,6 +182,7 @@ public sealed class PocController : IDisposable
         try
         {
             IconCacheService.TrimMemoryCache();
+            _wallpaper.ReleaseCache();
             GC.Collect(2, GCCollectionMode.Aggressive, blocking: true, compacting: true);
             GC.WaitForPendingFinalizers();
             EmptyWorkingSet(Process.GetCurrentProcess().Handle);
@@ -175,8 +196,7 @@ public sealed class PocController : IDisposable
 
     private void OnMonitorsChanged(IReadOnlyList<MonitorDescriptor> monitors)
     {
-        double scale = GetDpiForSystem() / 96.0;
-        int tileW = (int)(104 * scale), tileH = (int)(112 * scale);
+        var (tileW, tileH) = WindowPx(MetricsFor(FolderSize.Medium));
         _displacementManager.UpdateMonitors(monitors, tileW, tileH);
 
         foreach (var (id, pair) in _tiles)
@@ -187,6 +207,8 @@ public sealed class PocController : IDisposable
                 _host.Move(pair.Surface, p.AbsoluteX, p.AbsoluteY);
             }
         }
+        _backdropTimer.Stop();
+        _backdropTimer.Start();
         WriteState("MONITORS-CHANGED");
     }
 
@@ -201,15 +223,12 @@ public sealed class PocController : IDisposable
         }
 
         _activeSettingsWindow = new SettingsWindow(_configManager, _folderManager, _recoveryService, _monitorService);
-        _activeSettingsWindow.FolderCreated += newFolder =>
+        _activeSettingsWindow.FolderCreated += newFolder => PlaceAndCreateTile(newFolder);
+        _activeSettingsWindow.SettingsChanged += () =>
         {
-            var work = Win32.PrimaryWorkArea();
-            double scale = GetDpiForSystem() / 96.0;
-            int tileW = (int)(104 * scale), tileH = (int)(112 * scale);
-            int count = _tiles.Count;
-            int defX = work.Right - tileW - (int)(24 * scale);
-            int defY = work.Top + (int)(24 * scale) + count * (tileH + (int)(12 * scale));
-            CreateTile(newFolder, defX, defY);
+            bool countChanged = _settings.ShowItemCount != _configManager.LoadSettings().ShowItemCount;
+            _settings = _configManager.LoadSettings();
+            if (countChanged) OnFolderManagerChanged();
         };
 
         _activeSettingsWindow.Closed += (_, _) =>
@@ -226,19 +245,14 @@ public sealed class PocController : IDisposable
 
     public void OpenNewFolderDialog()
     {
-        var dialog = new FolderEditorDialog();
+        var dialog = new FolderEditorDialog(null, _folderManager.Folders.Count);
         if (dialog.ShowDialog() == true)
         {
             var res = dialog.ResultFolder;
-            var work = Win32.PrimaryWorkArea();
-            double scale = GetDpiForSystem() / 96.0;
-            int tileW = (int)(104 * scale), tileH = (int)(112 * scale);
-            int count = _tiles.Count;
-            int defX = work.Right - tileW - (int)(24 * scale);
-            int defY = work.Top + (int)(24 * scale) + count * (tileH + (int)(12 * scale));
-
-            var created = _folderManager.CreateFolder(res.Name, res.ColorA, res.ColorB, res.Glyph, defX, defY);
-            CreateTile(created, defX, defY);
+            var created = _folderManager.CreateFolder(res.Name, res.ColorA, res.ColorB, res.Glyph);
+            if (res.Size != created.Size) _folderManager.SetFolderSize(created.Id, res.Size);
+            if (res.Style != created.Style) _folderManager.SetFolderStyle(created.Id, res.Style);
+            PlaceAndCreateTile(created);
         }
     }
 
@@ -281,54 +295,177 @@ public sealed class PocController : IDisposable
         }
     }
 
-    private void CreateAllTiles()
+    // ----- Placement on the desktop icon grid -----
+
+    /// <summary>
+    /// Reads Windows' desktop icon grid for a work area. If Explorer can't answer, it assumes the default
+    /// medium grid with no icons, and says so in the log.
+    /// </summary>
+    private DesktopGrid ReadGrid(RectInt workArea, out List<RectInt> iconCells)
+    {
+        double scale = Scale;
+        var snapshot = DesktopIconGrid.TryRead(out string failure);
+        int cellW, cellH;
+        if (snapshot is null)
+        {
+            DiagnosticService.Instance.LogWarn($"Desktop icon grid unavailable ({failure}); assuming the default grid with no icons");
+            cellW = (int)Math.Round(FallbackCellWidth * scale);
+            cellH = (int)Math.Round(FallbackCellHeight * scale);
+            iconCells = [];
+        }
+        else
+        {
+            cellW = snapshot.CellWidth;
+            cellH = snapshot.CellHeight;
+            iconCells = [.. snapshot.Cells];
+            if (snapshot.AutoArrange)
+                DiagnosticService.Instance.LogInfo("Desktop 'Auto arrange icons' is on: Windows may later move its icons under a folder");
+        }
+
+        _cellWidthDip = cellW / scale;
+        _cellHeightDip = cellH / scale;
+        return DesktopGrid.Create(workArea, cellW, cellH, iconCells);
+    }
+
+    private FolderTileMetrics MetricsFor(FolderSize size) => FolderTileMetrics.For(size, _cellWidthDip, _cellHeightDip);
+
+    private static (int Width, int Height) WindowPx(FolderTileMetrics m) =>
+        ((int)Math.Round(m.WindowWidth * Scale), (int)Math.Round(m.WindowHeight * Scale));
+
+    /// <summary>The folder's box (art and label) on screen, for a window whose top-left is at (x, y).</summary>
+    private static RectInt BoxAt(int x, int y, FolderTileMetrics m)
+    {
+        var (ww, wh) = WindowPx(m);
+        int bw = (int)Math.Round(m.BoxWidth * Scale), bh = (int)Math.Round(m.BoxHeight * Scale);
+        return new RectInt(x + (ww - bw) / 2, y + (wh - bh) / 2, bw, bh);
+    }
+
+    /// <summary>Window top-left that centres the box across a block of cells, with its top on the block's top like a desktop icon.</summary>
+    private static (int X, int Y) PositionFor(RectInt block, FolderTileMetrics m)
+    {
+        var (ww, wh) = WindowPx(m);
+        int bh = (int)Math.Round(m.BoxHeight * Scale);
+        return (block.Left + block.Width / 2 - ww / 2, block.Top + bh / 2 - wh / 2);
+    }
+
+    private List<RectInt> Obstacles(IEnumerable<RectInt> iconCells, string? except = null)
+    {
+        var all = new List<RectInt>(iconCells);
+        foreach (var (id, pair) in _tiles)
+        {
+            if (id == except || !pair.Surface.IsAlive) continue;
+            var r = pair.Surface.ScreenRect;
+            all.Add(BoxAt(r.Left, r.Top, pair.Tile.Metrics));
+        }
+        return all;
+    }
+
+    /// <summary>
+    /// Finds a free spot on the primary monitor's icon grid, down each column from the left, so a new folder
+    /// never lands on a desktop icon or another folder.
+    /// </summary>
+    private (int X, int Y) FindFreeSpot(FolderDef folder, IEnumerable<RectInt>? extraObstacles = null)
     {
         var work = Win32.PrimaryWorkArea();
-        double scale = GetDpiForSystem() / 96.0;
-        int tileW = (int)(104 * scale), tileH = (int)(112 * scale);
+        var grid = ReadGrid(ToRectInt(work), out var icons);
+        var m = MetricsFor(folder.Size);
+        var box = BoxAt(0, 0, m);
+        var (columns, rows) = grid.SpanFor(box.Width, box.Height);
+
+        var obstacles = Obstacles(icons);
+        if (extraObstacles is not null) obstacles.AddRange(extraObstacles);
+
+        var block = grid.FindFreeBlock(columns, rows, obstacles);
+        if (block is null)
+        {
+            DiagnosticService.Instance.LogWarn($"No free desktop cell for folder '{folder.Name}'; placing it in the first cell");
+            block = grid.Block(0, 0, columns, rows);
+        }
+
+        var spot = PositionFor(block.Value, m);
+        DiagnosticService.Instance.LogInfo($"Placed folder '{folder.Name}' in free desktop cell {block} -> window ({spot.X}, {spot.Y})");
+        return spot;
+    }
+
+    private void PlaceAndCreateTile(FolderDef folder)
+    {
+        var (x, y) = FindFreeSpot(folder);
+        SavePosition(folder.Id, x, y);
+        CreateTile(folder, x, y);
+    }
+
+    private void SavePosition(string id, int x, int y)
+    {
+        _layout.Set(id, x, y);
+        _store.Save(_layout);
+        _folderManager.SetFolderPosition(id, x, y);
+    }
+
+    /// <summary>
+    /// Version 1 saved the top-left of a smaller window. Move each saved position once so the folder keeps
+    /// the same centre, which leaves it where the user put it.
+    /// </summary>
+    private void MigrateLayoutToV2()
+    {
+        if (_layout.SchemaVersion >= TileLayout.CurrentSchemaVersion) return;
+
+        double scale = Scale;
+        int oldW = (int)Math.Round(V1TileWidth * scale), oldH = (int)Math.Round(V1TileHeight * scale);
+        foreach (var placement in _layout.Tiles)
+        {
+            var folder = _folderManager.GetFolder(placement.Id);
+            var (newW, newH) = WindowPx(MetricsFor(folder?.Size ?? FolderSize.Medium));
+            placement.X += (oldW - newW) / 2;
+            placement.Y += (oldH - newH) / 2;
+        }
+        _layout.SchemaVersion = TileLayout.CurrentSchemaVersion;
+        _store.Save(_layout);
+        DiagnosticService.Instance.LogInfo($"Moved {_layout.Tiles.Count} saved folder positions to the larger folder window, keeping their centres");
+    }
+
+    private void CreateAllTiles()
+    {
+        // Reading the grid first sets the cell size every tile's metrics depend on.
+        ReadGrid(ToRectInt(Win32.PrimaryWorkArea()), out _);
+        MigrateLayoutToV2();
 
         var folders = _folderManager.Folders.Where(f => f.IsVisible).ToList();
-        for (int i = 0; i < folders.Count; i++)
+        var unplaced = new List<FolderDef>();
+        foreach (var f in folders)
         {
-            var f = folders[i];
             var saved = _layout.Find(f.Id);
-            int defX = work.Right - tileW - (int)(24 * scale);
-            int defY = work.Top + (int)(24 * scale) + i * (tileH + (int)(12 * scale));
-            int x = saved?.X ?? (f.X > 0 ? f.X : defX);
-            int y = saved?.Y ?? (f.Y > 0 ? f.Y : defY);
-            CreateTile(f, x, y);
+            if (saved is not null) CreateTile(f, saved.X, saved.Y);
+            else if (HasRestoredPosition(f)) CreateTile(f, f.X, f.Y);
+            else unplaced.Add(f);
         }
+
+        // Folders without a position, such as the first-run samples, go into free cells after the placed ones.
+        foreach (var f in unplaced) PlaceAndCreateTile(f);
     }
+
+    /// <summary>
+    /// A position in folders.json without one in the layout comes from a restored backup. (0, 0) and (100, 100)
+    /// are the defaults a new folder used to get before it was placed, so they don't count.
+    /// </summary>
+    private static bool HasRestoredPosition(FolderDef f) => !(f.X == 0 && f.Y == 0) && !(f.X == 100 && f.Y == 100);
 
     private void CreateTile(FolderDef folder, int x, int y)
     {
-        double scale = GetDpiForSystem() / 96.0;
-        int tileW = (int)(104 * scale), tileH = (int)(112 * scale);
+        var metrics = MetricsFor(folder.Size);
+        var (tileW, tileH) = WindowPx(metrics);
 
         // Register with multi-monitor displacement manager
         var (relX, relY) = PositionMath.ToRelative(x, y, _monitorService.PrimaryMonitor.WorkArea, tileW, tileH);
         _displacementManager.RegisterFolder(folder.Id, _monitorService.PrimaryMonitor.Key, relX, relY, _monitorService.Monitors, tileW, tileH);
 
-        Color colorA = ParseColor(folder.ColorA, Color.FromRgb(0x7F, 0xB2, 0xFF));
-        Color colorB = ParseColor(folder.ColorB, Color.FromRgb(0x5B, 0x5C, 0xF2));
-
-        var tile = new FolderTile(folder.Id, folder.Name, colorA, colorB);
-        tile.SetGlyph(folder.Glyph);
-        tile.SetItemCount(folder.Items.Count);
+        var tile = new FolderTile(folder.Id);
+        tile.Apply(folder, metrics, _settings.ShowItemCount);
 
         var surface = _host.CreateSurface(folder.Id, tile, x, y);
         tile.GetScreenRect = () => surface.ScreenRect;
         tile.Clicked += OnTileClicked;
         tile.DragMoved += (t, nx, ny) => _host.Move(_tiles[t.Id].Surface, nx, ny);
-        tile.DragEnded += (t, nx, ny) =>
-        {
-            _displacementManager.SetPosition(t.Id, nx, ny, _monitorService.Monitors, tileW, tileH);
-            _layout.Set(t.Id, nx, ny);
-            _store.Save(_layout);
-            _folderManager.SetFolderPosition(t.Id, nx, ny);
-            DiagnosticService.Instance.LogDebug($"Tile moved: {t.Id} -> ({nx}, {ny})");
-            WriteState("MOVED");
-        };
+        tile.DragEnded += OnTileDragEnded;
 
         tile.FilesDropped += (t, files) =>
         {
@@ -339,17 +476,18 @@ public sealed class PocController : IDisposable
                     var item = _resolver.Resolve(file);
                     _folderManager.AddItem(t.Id, item);
                 }
-                var f = _folderManager.GetFolder(t.Id);
-                if (f is not null) tile.SetItemCount(f.Items.Count);
-                DiagnosticService.Instance.LogInfo($"Dropped {files.Length} files into folder '{folder.Name}'");
+                DiagnosticService.Instance.LogInfo($"Dropped {files.Length} files into folder '{_folderManager.GetFolder(t.Id)?.Name}'");
             }
             catch (Exception ex)
             {
-                DiagnosticService.Instance.LogError($"Failed to add dropped files to folder '{folder.Name}'", ex);
+                DiagnosticService.Instance.LogError($"Failed to add dropped files to folder '{_folderManager.GetFolder(t.Id)?.Name}'", ex);
             }
         };
 
-        tile.ContextMenu = BuildMenu(folder, tile);
+        // Built each time it opens, so ticks and names are current.
+        tile.ContextMenu = new ContextMenu();
+        tile.ContextMenuOpening += (_, _) => FillMenu(tile.ContextMenu, folder.Id, tile);
+
         surface.Lost += s =>
         {
             if (_exiting || _recoveryService.IsPaused) return;
@@ -358,78 +496,204 @@ public sealed class PocController : IDisposable
         };
 
         _tiles[folder.Id] = (tile, surface);
+        RefreshBackdrop(folder.Id);
     }
 
-    private ContextMenu BuildMenu(FolderDef folder, FolderTile tile)
+    private void OnTileDragEnded(FolderTile t, int nx, int ny)
     {
-        var menu = new ContextMenu();
+        if (!_tiles.TryGetValue(t.Id, out var pair)) return;
 
-        var open = new MenuItem { Header = "Open Folder" };
+        if (_settings.SnapToGrid)
+        {
+            // Snap to the nearest free cell of the icon grid on the monitor the folder was dropped on.
+            var box = BoxAt(nx, ny, t.Metrics);
+            int cx = box.Left + box.Width / 2, cy = box.Top + box.Height / 2;
+            var monitor = _monitorService.Monitors.FirstOrDefault(m => m.Bounds.Contains(cx, cy)) ?? _monitorService.PrimaryMonitor;
+            var grid = ReadGrid(monitor.WorkArea, out var icons);
+            var (columns, rows) = grid.SpanFor(box.Width, box.Height);
+            if (grid.Columns >= columns && grid.Rows >= rows)
+            {
+                var block = grid.NearestFreeBlock(cx, cy, columns, rows, Obstacles(icons, except: t.Id));
+                (nx, ny) = PositionFor(block, t.Metrics);
+                _host.Move(pair.Surface, nx, ny);
+            }
+        }
+
+        var (tileW, tileH) = WindowPx(t.Metrics);
+        _displacementManager.SetPosition(t.Id, nx, ny, _monitorService.Monitors, tileW, tileH);
+        SavePosition(t.Id, nx, ny);
+        RefreshBackdrop(t.Id);
+        DiagnosticService.Instance.LogDebug($"Tile moved: {t.Id} -> ({nx}, {ny})");
+        WriteState("MOVED");
+    }
+
+    /// <summary>Redraws a folder from its settings. A new size keeps the folder's centre where it was.</summary>
+    private void RefreshTile(string id)
+    {
+        if (!_tiles.TryGetValue(id, out var pair)) return;
+        var folder = _folderManager.GetFolder(id);
+        if (folder is null) return;
+
+        var before = pair.Tile.Metrics;
+        var after = MetricsFor(folder.Size);
+        pair.Tile.Apply(folder, after, _settings.ShowItemCount);
+        if (before == after) return;
+
+        var r = pair.Surface.ScreenRect;
+        var (oldW, oldH) = WindowPx(before);
+        var (newW, newH) = WindowPx(after);
+        int x = r.Left + (oldW - newW) / 2, y = r.Top + (oldH - newH) / 2;
+        _host.Move(pair.Surface, x, y);
+        _displacementManager.SetPosition(id, x, y, _monitorService.Monitors, newW, newH);
+        _layout.Set(id, x, y);
+        _store.Save(_layout);
+        RefreshBackdrop(id);
+    }
+
+    // ----- Glass behind the folders -----
+
+    /// <summary>The frosted plate on screen, for a window whose top-left is at (x, y).</summary>
+    private static RectInt PlateAt(int x, int y, FolderTileMetrics m)
+    {
+        var (ww, wh) = WindowPx(m);
+        int pw = (int)Math.Round(m.PlateWidth * Scale), ph = (int)Math.Round(m.PlateHeight * Scale);
+        return new RectInt(x + (ww - pw) / 2, y + (wh - ph) / 2, pw, ph);
+    }
+
+    private void RefreshBackdrop(string id)
+    {
+        if (!_tiles.TryGetValue(id, out var pair) || !pair.Surface.IsAlive) return;
+        var m = pair.Tile.Metrics;
+        double scale = Scale;
+        var r = pair.Surface.ScreenRect;
+        var plate = PlateAt(r.Left, r.Top, m);
+
+        var box = BoxAt(r.Left, r.Top, m);
+        int line = (int)Math.Round(m.LabelLineHeight * scale);
+        var label = new RectInt(box.Left, box.Bottom - (int)Math.Round(FolderTileMetrics.BoxBottomPadding * scale) - line, box.Width, line);
+
+        var backdrop = _wallpaper.Measure(plate, label);
+        pair.Tile.SetBackdrop(backdrop.Plate, backdrop.LabelLuminance);
+    }
+
+    private void RefreshAllBackdrops()
+    {
+        foreach (var id in _tiles.Keys.ToList()) RefreshBackdrop(id);
+        _memoryTrimTimer.Stop();
+        _memoryTrimTimer.Start();
+    }
+
+    // ----- Folder menu (brief §6.1) -----
+
+    private void FillMenu(ContextMenu menu, string id, FolderTile tile)
+    {
+        menu.Items.Clear();
+        var folder = _folderManager.GetFolder(id);
+        if (folder is null) return;
+
+        var open = new MenuItem { Header = "Open" };
         open.Click += (_, _) => OnTileClicked(tile);
         menu.Items.Add(open);
 
-        var rename = new MenuItem { Header = "Rename Folder..." };
+        var rename = new MenuItem { Header = "Rename..." };
         rename.Click += (_, _) =>
         {
             string? newName = FolderPopup.PromptRename(folder.Name, "Rename Folder");
             if (!string.IsNullOrWhiteSpace(newName) && newName != folder.Name)
             {
                 _folderManager.RenameFolder(folder.Id, newName.Trim());
-                tile.SetLabel(newName.Trim());
                 DiagnosticService.Instance.LogInfo($"Renamed folder '{folder.Id}' to '{newName.Trim()}'");
             }
         };
         menu.Items.Add(rename);
 
-        var add = new MenuItem { Header = "Add Shortcuts / Files..." };
-        add.Click += (_, _) =>
-        {
-            try
-            {
-                var ofd = new OpenFileDialog
-                {
-                    Title = $"Add to {folder.Name}",
-                    Filter = "All Files (*.*)|*.*|Shortcuts (*.lnk)|*.lnk|Applications (*.exe)|*.exe",
-                    Multiselect = true
-                };
-                if (ofd.ShowDialog() == true)
-                {
-                    foreach (string file in ofd.FileNames)
-                    {
-                        var item = _resolver.Resolve(file);
-                        _folderManager.AddItem(folder.Id, item);
-                    }
-                    var f = _folderManager.GetFolder(folder.Id);
-                    if (f is not null) tile.SetItemCount(f.Items.Count);
-                    DiagnosticService.Instance.LogInfo($"Added {ofd.FileNames.Length} files to '{folder.Name}'");
-                }
-            }
-            catch (Exception ex)
-            {
-                DiagnosticService.Instance.LogError($"Error adding files to folder '{folder.Name}'", ex);
-                MessageBox.Show($"Failed to add selected files:\n\n{ex.Message}", "GlassFolders Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        };
-        menu.Items.Add(add);
+        menu.Items.Add(BuildChangeIconMenu(folder));
 
-        var edit = new MenuItem { Header = "Edit Appearance..." };
-        edit.Click += (_, _) =>
-        {
-            var currentFolder = _folderManager.GetFolder(folder.Id) ?? folder;
-            var dialog = new FolderEditorDialog(currentFolder);
-            if (dialog.ShowDialog() == true)
-            {
-                var res = dialog.ResultFolder;
-                _folderManager.RenameFolder(folder.Id, res.Name);
-                _folderManager.SetFolderAppearance(folder.Id, res.ColorA, res.ColorB, res.Glyph);
-                tile.SetLabel(res.Name);
-                tile.SetGlyph(res.Glyph);
-                tile.SetColors(ParseColor(res.ColorA, Colors.Blue), ParseColor(res.ColorB, Colors.Navy));
-            }
-        };
-        menu.Items.Add(edit);
+        var addApp = new MenuItem { Header = "Add Application..." };
+        addApp.Click += (_, _) => AddFiles(folder.Id, isApplication: true);
+        menu.Items.Add(addApp);
 
-        // Move to Monitor submenu
+        var addFiles = new MenuItem { Header = "Add File or Folder" };
+        var files = new MenuItem { Header = "Files..." };
+        files.Click += (_, _) => AddFiles(folder.Id, isApplication: false);
+        var folderItem = new MenuItem { Header = "Folder..." };
+        folderItem.Click += (_, _) => AddFolder(folder.Id);
+        addFiles.Items.Add(files);
+        addFiles.Items.Add(folderItem);
+        menu.Items.Add(addFiles);
+
+        var appearance = new MenuItem { Header = "Appearance..." };
+        appearance.Click += (_, _) => EditAppearance(folder.Id);
+        menu.Items.Add(appearance);
+
+        var size = new MenuItem { Header = "Size" };
+        foreach (var s in new[] { FolderSize.Small, FolderSize.Medium, FolderSize.Large })
+        {
+            var item = new MenuItem { Header = s.ToString(), IsCheckable = true, IsChecked = folder.Size == s };
+            item.Click += (_, _) => _folderManager.SetFolderSize(folder.Id, s);
+            size.Items.Add(item);
+        }
+        menu.Items.Add(size);
+
+        menu.Items.Add(BuildMoveToMonitorMenu(folder));
+
+        var delete = new MenuItem { Header = "Delete Folder" };
+        delete.Click += (_, _) => DeleteFolder(folder.Id);
+        menu.Items.Add(delete);
+
+        menu.Items.Add(new Separator());
+
+        var settings = new MenuItem { Header = "Settings..." };
+        settings.Click += (_, _) => OpenSettings();
+        menu.Items.Add(settings);
+
+        var exit = new MenuItem { Header = "Exit GlassFolders" };
+        exit.Click += (_, _) => Application.Current.Shutdown();
+        menu.Items.Add(exit);
+    }
+
+    private MenuItem BuildChangeIconMenu(FolderDef folder)
+    {
+        var change = new MenuItem { Header = "Change Icon" };
+        bool hasPicture = !string.IsNullOrEmpty(folder.CustomIconPath);
+        foreach (string glyph in Glyphs)
+        {
+            var preview = new FolderIconView { Width = 20, Height = 17 };
+            preview.Show(new FolderDef { ColorA = folder.ColorA, ColorB = folder.ColorB, Style = folder.Style, Glyph = glyph });
+            var item = new MenuItem
+            {
+                Header = glyph == "Folder" ? "Plain folder" : glyph,
+                Icon = preview,
+                IsCheckable = true,
+                IsChecked = !hasPicture && folder.Glyph == glyph,
+            };
+            item.Click += (_, _) =>
+            {
+                string? old = _folderManager.GetFolder(folder.Id)?.CustomIconPath;
+                _folderManager.SetFolderGlyph(folder.Id, glyph);
+                DeletePictureCopy(old);
+            };
+            change.Items.Add(item);
+        }
+
+        change.Items.Add(new Separator());
+        var choose = new MenuItem { Header = "Choose Picture..." };
+        choose.Click += (_, _) => ChooseFolderPicture(folder.Id);
+        change.Items.Add(choose);
+
+        var remove = new MenuItem { Header = "Remove Picture", IsEnabled = hasPicture };
+        remove.Click += (_, _) =>
+        {
+            string? old = _folderManager.GetFolder(folder.Id)?.CustomIconPath;
+            _folderManager.SetCustomIcon(folder.Id, null);
+            DeletePictureCopy(old);
+        };
+        change.Items.Add(remove);
+        return change;
+    }
+
+    private MenuItem BuildMoveToMonitorMenu(FolderDef folder)
+    {
         var moveSub = new MenuItem { Header = "Move to Monitor" };
         foreach (var mon in _monitorService.Monitors)
         {
@@ -440,54 +704,167 @@ public sealed class PocController : IDisposable
             };
             mItem.Click += (_, _) =>
             {
-                double scale = GetDpiForSystem() / 96.0;
-                int tileW = (int)(104 * scale), tileH = (int)(112 * scale);
+                if (!_tiles.TryGetValue(folder.Id, out var pair)) return;
+                var (tileW, tileH) = WindowPx(pair.Tile.Metrics);
                 if (_displacementManager.MoveToMonitor(folder.Id, mon.Key, _monitorService.Monitors, tileW, tileH))
                 {
                     var p = _displacementManager.GetPlacement(folder.Id);
-                    if (p != null && _tiles.TryGetValue(folder.Id, out var pair))
+                    if (p != null)
                     {
                         _host.Move(pair.Surface, p.AbsoluteX, p.AbsoluteY);
-                        _layout.Set(folder.Id, p.AbsoluteX, p.AbsoluteY);
-                        _store.Save(_layout);
-                        _folderManager.SetFolderPosition(folder.Id, p.AbsoluteX, p.AbsoluteY);
+                        SavePosition(folder.Id, p.AbsoluteX, p.AbsoluteY);
+                        RefreshBackdrop(folder.Id);
                         DiagnosticService.Instance.LogInfo($"Moved folder '{folder.Name}' to monitor '{mon.Name}' at ({p.AbsoluteX}, {p.AbsoluteY})");
                     }
                 }
             };
             moveSub.Items.Add(mItem);
         }
-        menu.Items.Add(moveSub);
+        return moveSub;
+    }
 
-        var settings = new MenuItem { Header = "Settings..." };
-        settings.Click += (_, _) => OpenSettings();
-        menu.Items.Add(settings);
-
-        menu.Items.Add(new Separator());
-
-        var delete = new MenuItem { Header = "Delete Folder" };
-        delete.Click += (_, _) =>
+    private void AddFiles(string id, bool isApplication)
+    {
+        var folder = _folderManager.GetFolder(id);
+        if (folder is null) return;
+        try
         {
-            var res = MessageBox.Show(
-                $"Remove folder \"{folder.Name}\" from GlassFolders?\n\nYour actual files and applications will NOT be deleted.",
-                "Delete Folder", MessageBoxButton.YesNo, MessageBoxImage.Question);
-            if (res == MessageBoxResult.Yes)
+            var ofd = new OpenFileDialog
             {
-                _folderManager.DeleteFolder(folder.Id);
-                if (_tiles.TryGetValue(folder.Id, out var pair))
-                {
-                    pair.Surface.Dispose();
-                    _tiles.Remove(folder.Id);
-                }
-            }
+                Title = isApplication ? $"Add applications to {folder.Name}" : $"Add files to {folder.Name}",
+                Filter = isApplication
+                    ? "Applications and shortcuts (*.lnk;*.exe;*.appref-ms;*.url)|*.lnk;*.exe;*.appref-ms;*.url|All files (*.*)|*.*"
+                    : "All files (*.*)|*.*",
+                Multiselect = true,
+                // Keep shortcuts as shortcuts, so their own icon, arguments and start folder are kept.
+                DereferenceLinks = false,
+            };
+            if (isApplication)
+                ofd.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms);
+
+            if (ofd.ShowDialog() != true) return;
+            foreach (string file in ofd.FileNames)
+                _folderManager.AddItem(id, _resolver.Resolve(file));
+            DiagnosticService.Instance.LogInfo($"Added {ofd.FileNames.Length} items to '{folder.Name}'");
+        }
+        catch (Exception ex)
+        {
+            DiagnosticService.Instance.LogError($"Error adding files to folder '{folder.Name}'", ex);
+            MessageBox.Show($"Failed to add selected files:\n\n{ex.Message}", "GlassFolders Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void AddFolder(string id)
+    {
+        var folder = _folderManager.GetFolder(id);
+        if (folder is null) return;
+        try
+        {
+            var dialog = new OpenFolderDialog { Title = $"Add folders to {folder.Name}", Multiselect = true };
+            if (dialog.ShowDialog() != true) return;
+            foreach (string path in dialog.FolderNames)
+                _folderManager.AddItem(id, _resolver.Resolve(path));
+            DiagnosticService.Instance.LogInfo($"Added {dialog.FolderNames.Length} folders to '{folder.Name}'");
+        }
+        catch (Exception ex)
+        {
+            DiagnosticService.Instance.LogError($"Error adding a folder to '{folder.Name}'", ex);
+            MessageBox.Show($"Failed to add the selected folder:\n\n{ex.Message}", "GlassFolders Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void EditAppearance(string id)
+    {
+        var current = _folderManager.GetFolder(id);
+        if (current is null) return;
+        var dialog = new FolderEditorDialog(current, _folderManager.Folders.Count);
+        if (dialog.ShowDialog() != true) return;
+
+        var res = dialog.ResultFolder;
+        _folderManager.RenameFolder(id, res.Name);
+        _folderManager.SetFolderAppearance(id, res.ColorA, res.ColorB, res.Glyph);
+        _folderManager.SetFolderStyle(id, res.Style);
+        _folderManager.SetFolderSize(id, res.Size);
+    }
+
+    /// <summary>
+    /// Change Icon → Choose Picture: copies an image the user picks into the app's own folder and shows it in
+    /// place of the drawn folder. The file is only decoded as a picture; nothing is ever run.
+    /// </summary>
+    private void ChooseFolderPicture(string id)
+    {
+        var folder = _folderManager.GetFolder(id);
+        if (folder is null) return;
+
+        var ofd = new OpenFileDialog
+        {
+            Title = $"Choose a picture for {folder.Name}",
+            Filter = "Pictures (*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.ico;*.tif;*.tiff)|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.ico;*.tif;*.tiff",
         };
-        menu.Items.Add(delete);
+        if (ofd.ShowDialog() != true) return;
 
-        var exit = new MenuItem { Header = "Exit GlassFolders" };
-        exit.Click += (_, _) => Application.Current.Shutdown();
-        menu.Items.Add(exit);
+        try
+        {
+            var info = new FileInfo(ofd.FileName);
+            if (info.Length > MaxPictureBytes)
+                throw new InvalidDataException($"The picture is {info.Length / (1024 * 1024)} MB; the limit is {MaxPictureBytes / (1024 * 1024)} MB.");
 
-        return menu;
+            using (var stream = info.OpenRead())
+            {
+                var frame = BitmapDecoder.Create(stream, BitmapCreateOptions.DelayCreation, BitmapCacheOption.None).Frames[0];
+                if (frame.PixelWidth <= 0 || frame.PixelHeight <= 0) throw new InvalidDataException("The file has no picture in it.");
+            }
+
+            string dir = Path.Combine(AppPaths.BaseAppDataDir, "folder-icons");
+            Directory.CreateDirectory(dir);
+            string copy = Path.Combine(dir, $"{id}-{DateTime.UtcNow.Ticks}{info.Extension.ToLowerInvariant()}");
+            File.Copy(info.FullName, copy);
+
+            string? old = folder.CustomIconPath;
+            _folderManager.SetCustomIcon(id, copy);
+            DeletePictureCopy(old);
+            DiagnosticService.Instance.LogInfo($"Folder '{folder.Name}' now shows a picture ({info.Name})");
+        }
+        catch (Exception ex) when (ex is IOException or NotSupportedException or UnauthorizedAccessException or InvalidDataException or ArgumentException or FileFormatException)
+        {
+            DiagnosticService.Instance.LogWarn($"Picture for folder '{folder.Name}' rejected: {ex.Message}");
+            MessageBox.Show($"That picture can't be used:\n\n{ex.Message}", "Change Icon", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    /// <summary>Removes the app's copy of a folder picture. Only files in the app's own folder are touched.</summary>
+    private static void DeletePictureCopy(string? path)
+    {
+        if (string.IsNullOrEmpty(path)) return;
+        string dir = Path.GetFullPath(Path.Combine(AppPaths.BaseAppDataDir, "folder-icons")) + Path.DirectorySeparatorChar;
+        try
+        {
+            string full = Path.GetFullPath(path);
+            if (full.StartsWith(dir, StringComparison.OrdinalIgnoreCase) && File.Exists(full)) File.Delete(full);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            DiagnosticService.Instance.LogWarn($"Old folder picture could not be removed: {ex.Message}");
+        }
+    }
+
+    private void DeleteFolder(string id)
+    {
+        var folder = _folderManager.GetFolder(id);
+        if (folder is null) return;
+        var res = MessageBox.Show(
+            $"Remove folder \"{folder.Name}\" from GlassFolders?\n\nYour actual files and applications will NOT be deleted.",
+            "Delete Folder", MessageBoxButton.YesNo, MessageBoxImage.Question);
+        if (res != MessageBoxResult.Yes) return;
+
+        string? picture = folder.CustomIconPath;
+        if (_tiles.TryGetValue(id, out var pair))
+        {
+            pair.Surface.Dispose();
+            _tiles.Remove(id);
+        }
+        _folderManager.DeleteFolder(id);
+        DeletePictureCopy(picture);
     }
 
     private void OnTileClicked(FolderTile tile)
@@ -505,12 +882,17 @@ public sealed class PocController : IDisposable
         var folder = _folderManager.GetFolder(tile.Id);
         if (folder is null) return;
 
-        var anchor = tile.GetScreenRect?.Invoke() ?? default;
-        _popup = new FolderPopup(folder, _folderManager, _iconCache, _resolver, anchor, PopupGrid.From(_configManager.LoadSettings()));
+        // The popup measures its distance from the plate, the part that lights up, as in the reference.
+        var window = tile.GetScreenRect?.Invoke() ?? default;
+        var plate = PlateAt(window.Left, window.Top, tile.Metrics);
+        var anchor = new RECT(plate.Left, plate.Top, plate.Right, plate.Bottom);
+        _popup = new FolderPopup(folder, _folderManager, _iconCache, _resolver, anchor, PopupGrid.From(_settings));
         _popupFor = tile.Id;
+        tile.SetOpen(true);
 
         _popup.Closed += (_, _) =>
         {
+            tile.SetOpen(false);
             _lastClosedPopupId = tile.Id;
             _lastClosedPopupTimestamp = Stopwatch.GetTimestamp();
             _popup = null;
@@ -535,16 +917,11 @@ public sealed class PocController : IDisposable
             return false;
         }
 
-        var work = Win32.PrimaryWorkArea();
-        double scale = GetDpiForSystem() / 96.0;
-        int tileW = (int)(104 * scale), tileH = (int)(112 * scale);
-
         var folders = _folderManager.Folders.Where(f => f.IsVisible).ToList();
         int kept = 0, recreated = 0;
 
-        for (int i = 0; i < folders.Count; i++)
+        foreach (var f in folders)
         {
-            var f = folders[i];
             if (_tiles.TryGetValue(f.Id, out var t) && _host.Reattach(t.Surface))
             {
                 kept++;
@@ -560,11 +937,9 @@ public sealed class PocController : IDisposable
             }
 
             var saved = _layout.Find(f.Id);
-            int defX = work.Right - tileW - (int)(24 * scale);
-            int defY = work.Top + (int)(24 * scale) + i * (tileH + (int)(12 * scale));
-            int targetX = saved?.X ?? (last.Width > 0 ? last.Left : defX);
-            int targetY = saved?.Y ?? (last.Height > 0 ? last.Top : defY);
-            CreateTile(f, targetX, targetY);
+            if (saved is not null) CreateTile(f, saved.X, saved.Y);
+            else if (last.Width > 0) CreateTile(f, last.Left, last.Top);
+            else PlaceAndCreateTile(f);
             recreated++;
         }
 
@@ -646,11 +1021,7 @@ public sealed class PocController : IDisposable
         catch (IOException) { }
     }
 
-    private static Color ParseColor(string hex, Color fallback)
-    {
-        try { return (Color)ColorConverter.ConvertFromString(hex); }
-        catch { return fallback; }
-    }
+    private static RectInt ToRectInt(RECT r) => new(r.Left, r.Top, r.Width, r.Height);
 
     public void Dispose()
     {
@@ -659,6 +1030,7 @@ public sealed class PocController : IDisposable
 
         DiagnosticService.Instance.LogInfo("Beginning clean ordered shutdown of GlassFolders...");
         _memoryTrimTimer.Stop();
+        _backdropTimer.Stop();
         _recoveryService.IsShuttingDown = true;
         _recoveryService.Dispose();
 

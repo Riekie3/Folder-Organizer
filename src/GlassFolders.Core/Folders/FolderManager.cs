@@ -30,14 +30,14 @@ public sealed class FolderManager
         Changed?.Invoke();
     }
 
-    public FolderDef CreateFolder(string name, string colorA = "#7FB2FF", string colorB = "#5B5CF2", string glyph = "Folder", int x = 100, int y = 100)
+    public FolderDef CreateFolder(string name, string? colorA = null, string? colorB = null, string glyph = "Folder", int x = 100, int y = 100)
     {
         var folder = new FolderDef
         {
             Id = Guid.NewGuid().ToString("N")[..8],
             Name = name,
-            ColorA = colorA,
-            ColorB = colorB,
+            ColorA = colorA ?? FolderPalette.Default.Front,
+            ColorB = colorB ?? FolderPalette.Default.Back,
             Glyph = glyph,
             X = x,
             Y = y,
@@ -64,6 +64,45 @@ public sealed class FolderManager
         folder.ColorA = colorA;
         folder.ColorB = colorB;
         folder.Glyph = glyph;
+        Save();
+        return true;
+    }
+
+    public bool SetFolderSize(string id, FolderSize size)
+    {
+        var folder = GetFolder(id);
+        if (folder is null) return false;
+        folder.Size = size;
+        Save();
+        return true;
+    }
+
+    public bool SetFolderStyle(string id, FolderStyle style)
+    {
+        var folder = GetFolder(id);
+        if (folder is null) return false;
+        folder.Style = style;
+        Save();
+        return true;
+    }
+
+    /// <summary>Sets the folder's glyph and goes back to the drawn folder. The app's copy of a custom picture is left for the caller to remove.</summary>
+    public bool SetFolderGlyph(string id, string glyph)
+    {
+        var folder = GetFolder(id);
+        if (folder is null) return false;
+        folder.Glyph = glyph;
+        folder.CustomIconPath = null;
+        Save();
+        return true;
+    }
+
+    /// <summary>Shows a picture instead of the drawn folder; null goes back to the drawn folder.</summary>
+    public bool SetCustomIcon(string id, string? path)
+    {
+        var folder = GetFolder(id);
+        if (folder is null) return false;
+        folder.CustomIconPath = path;
         Save();
         return true;
     }

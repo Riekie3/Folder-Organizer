@@ -4,6 +4,8 @@ using System.Windows.Input;
 using System.Windows.Media;
 using GlassFolders.App.Services;
 using GlassFolders.App.Themes;
+using GlassFolders.Core.Glass;
+using GlassFolders.Core.Layout;
 using GlassFolders.Core.Models;
 using GlassFolders.Native;
 using static GlassFolders.Native.NativeMethods;
@@ -11,30 +13,41 @@ using static GlassFolders.Native.NativeMethods;
 namespace GlassFolders.App.Poc;
 
 /// <summary>
-/// Desktop folder tile: click to open, drag to move, drop files to add.
-/// Smooth hover and press animations gated by AnimationService.
-/// Drag math uses physical cursor pixels so it is independent of the window's DPI.
+/// A folder on the desktop: the folder art and its label, on a frosted plate when hovered or open.
+/// Click to open, drag to move, drop files to add. Drag maths uses physical cursor pixels, so it doesn't
+/// depend on the window's DPI.
 /// </summary>
 public partial class FolderTile : UserControl
 {
     private const int DragThreshold = 4;
+    private const double HoverPlateOpacity = 0.7;
+
+    private static readonly Brush DarkInkBrush = Frozen(new SolidColorBrush(Color.FromRgb(0x1C, 0x22, 0x30)));
+    private static readonly Brush OutlineBrush = Frozen(new SolidColorBrush(Color.FromArgb(0xE0, 0x24, 0x29, 0x34)));
+    private static readonly Brush GlowBrush = Frozen(new SolidColorBrush(Color.FromArgb(0x8C, 0xFF, 0xFF, 0xFF)));
+
+    private static T Frozen<T>(T freezable) where T : Freezable
+    {
+        freezable.Freeze();
+        return freezable;
+    }
+
     private POINT _pressCursor;
     private RECT _pressRect;
-    private bool _pressed, _dragging;
+    private bool _pressed, _dragging, _dragOver;
+    private double _luminance;
+    private FolderTileMetrics _metrics;
 
-    public FolderTile(string id, string label, Color a, Color b)
+    public FolderTile(string id)
     {
         InitializeComponent();
         Id = id;
-        Label.Text = label;
-        StopA.Color = a;
-        StopB.Color = b;
-        MouseEnter += (_, _) => SetPlate();
-        MouseLeave += (_, _) => SetPlate();
+        MouseEnter += (_, _) => UpdatePlate();
+        MouseLeave += (_, _) => UpdatePlate();
 
         DragEnter += OnTileDragOver;
         DragOver += OnTileDragOver;
-        DragLeave += (_, _) => SetPlate();
+        DragLeave += (_, _) => { _dragOver = false; UpdatePlate(); };
         Drop += OnTileDrop;
     }
 
@@ -44,6 +57,9 @@ public partial class FolderTile : UserControl
     public static Action<string>? Trace;
     public bool IsOpen { get; private set; }
 
+    /// <summary>The sizes this tile is drawn at, in DIPs.</summary>
+    public FolderTileMetrics Metrics => _metrics;
+
     /// <summary>Provides the current screen rect of the hosting window.</summary>
     public Func<RECT>? GetScreenRect { get; set; }
 
@@ -52,50 +68,73 @@ public partial class FolderTile : UserControl
     public event Action<FolderTile, int, int>? DragEnded;
     public event Action<FolderTile, string[]>? FilesDropped;
 
+    /// <summary>Draws the folder at the given size, with its name, art and optional item count.</summary>
+    public void Apply(FolderDef folder, FolderTileMetrics metrics, bool showCount)
+    {
+        _metrics = metrics;
+
+        Root.Width = metrics.WindowWidth;
+        Root.Height = metrics.WindowHeight;
+        Plate.Width = metrics.PlateWidth;
+        Plate.Height = metrics.PlateHeight;
+        Box.Width = metrics.BoxWidth;
+        Box.Height = metrics.BoxHeight;
+
+        BoxStack.Margin = new Thickness(0, FolderTileMetrics.BoxTopPadding, 0, 0);
+        Art.Width = metrics.IconWidth;
+        Art.Height = metrics.IconHeight;
+        Art.Show(folder);
+
+        Label.Text = folder.Name;
+        Label.FontSize = metrics.LabelFontSize;
+        Label.Height = metrics.LabelLineHeight;
+        Label.MaxWidth = metrics.BoxWidth;
+        Label.Margin = new Thickness(0, FolderTileMetrics.IconLabelGap, 0, 0);
+        ToolTip = folder.Name;
+
+        int count = folder.Items.Count;
+        TxtBadgeCount.Text = count.ToString();
+        CountBadge.Visibility = showCount && count > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        UpdateLabel();
+    }
+
+    /// <summary>
+    /// Sets what is behind the tile: the blurred wallpaper for the plate (or a flat colour, or nothing), and the
+    /// wallpaper's brightness under the label, as relative luminance.
+    /// </summary>
+    public void SetBackdrop(Brush? plateBackdrop, double labelLuminance)
+    {
+        PlateBackdrop.Background = plateBackdrop;
+        _luminance = double.IsFinite(labelLuminance) ? Math.Clamp(labelLuminance, 0, 1) : 0;
+        UpdateLabel();
+    }
+
     public void SetOpen(bool open)
     {
         IsOpen = open;
-        SetPlate();
+        UpdatePlate();
     }
 
-    public void SetLabel(string label) => Label.Text = label;
+    private bool PlateShown => IsOpen || _dragOver || IsMouseOver;
 
-    public void SetColors(Color a, Color b)
+    private void UpdatePlate()
     {
-        StopA.Color = a;
-        StopB.Color = b;
+        double target = IsOpen || _dragOver ? 1.0 : IsMouseOver ? HoverPlateOpacity : 0.0;
+        Animate.Fade(Plate, target, TimeSpan.FromMilliseconds(150), AnimationCategory.TileHover);
+        UpdateLabel();
     }
 
-    public void SetItemCount(int count)
+    private void UpdateLabel()
     {
-        TxtBadgeCount.Text = count.ToString();
-        CountBadge.Visibility = count > 0 ? Visibility.Visible : Visibility.Collapsed;
-    }
-
-    public void SetGlyph(string glyph)
-    {
-        string pathData = glyph.ToLowerInvariant() switch
-        {
-            "briefcase" or "work" =>
-                "M20,26 L44,26 L44,46 L20,46 Z M26,26 L26,20 A2,2 0 0 1 28,18 L36,18 A2,2 0 0 1 38,20 L38,26 M20,33 L44,33",
-            "gamepad" or "games" =>
-                "M18,30 C18,24 23,20 32,20 C41,20 46,24 46,30 C46,38 42,46 39,46 C37,46 36,42 32,42 C28,42 27,46 25,46 C22,46 18,38 18,30 Z M23,29 L27,29 M25,27 L25,31 M37,28 A1.5,1.5 0 1 1 37,28.1 M41,31 A1.5,1.5 0 1 1 41,31.1",
-            "play" or "media" =>
-                "M24,24 L44,34 L24,44 Z",
-            "gear" or "settings" =>
-                "M32,22 A8,8 0 1 1 31.9,22 Z M29,18 L35,18 L36,22 L40,24 L43,21 L47,25 L44,29 L46,33 L50,34 L50,40 L46,41 L44,45 L47,49 L43,53 L39,50 L35,52 L34,56 L28,56 L27,52 L23,50 L19,53 L15,49 L18,45 L16,41 L12,40 L12,34 L16,33 L18,29 L15,25 L19,21 L23,24 L27,22 Z",
-            "code" =>
-                "M25,26 L17,34 L25,42 M39,26 L47,34 L39,42 M34,22 L30,46",
-            _ =>
-                "M24,28 A2,2 0 0 1 26,26 L38,26 A2,2 0 0 1 40,28 L40,42 A2,2 0 0 1 38,44 L26,44 A2,2 0 0 1 24,42 Z"
-        };
-        try { GlyphPath.Data = Geometry.Parse(pathData); } catch { }
-    }
-
-    private void SetPlate()
-    {
-        double targetOpacity = IsOpen ? 1.0 : IsMouseOver ? 0.7 : 0.0;
-        Animate.Fade(Plate, targetOpacity, TimeSpan.FromMilliseconds(150), AnimationCategory.TileHover);
+        var style = PlateShown ? LabelContrast.OnPlate(_luminance) : LabelContrast.OnWallpaper(_luminance);
+        bool dark = style.Ink == LabelInk.Dark;
+        Label.Fill = dark ? DarkInkBrush : Brushes.White;
+        Label.Stroke = dark ? GlowBrush : OutlineBrush;
+        // A firmer edge on bright wallpapers; on dark ones the outline only needs to be a hint.
+        Label.StrokeThickness = dark ? 2.4 : style.ShadowOpacity >= 0.9 ? 2.2 : 1.6;
+        LabelShadow.Opacity = dark ? 0 : style.ShadowOpacity * 0.4;
+        LabelShadow.BlurRadius = style.ShadowBlur;
     }
 
     protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
@@ -105,7 +144,7 @@ public partial class FolderTile : UserControl
         _pressed = true;
         _dragging = false;
         bool captured = CaptureMouse();
-        Animate.Scale(this, 0.96, TimeSpan.FromMilliseconds(100), AnimationCategory.ItemPress);
+        Animate.Scale(Box, 0.96, TimeSpan.FromMilliseconds(100), AnimationCategory.ItemPress);
         Trace?.Invoke($"DOWN {Id} captured={captured} clicks={e.ClickCount}");
         e.Handled = true;
     }
@@ -130,7 +169,7 @@ public partial class FolderTile : UserControl
 
     protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
     {
-        Animate.Scale(this, 1.0, TimeSpan.FromMilliseconds(100), AnimationCategory.ItemPress);
+        Animate.Scale(Box, 1.0, TimeSpan.FromMilliseconds(100), AnimationCategory.ItemPress);
 
         if (!_pressed) return;
         bool wasDragging = _dragging;
@@ -156,7 +195,7 @@ public partial class FolderTile : UserControl
 
     protected override void OnLostMouseCapture(MouseEventArgs e)
     {
-        Animate.Scale(this, 1.0, TimeSpan.FromMilliseconds(100), AnimationCategory.ItemPress);
+        Animate.Scale(Box, 1.0, TimeSpan.FromMilliseconds(100), AnimationCategory.ItemPress);
         _pressed = false;
         _dragging = false;
         base.OnLostMouseCapture(e);
@@ -167,7 +206,11 @@ public partial class FolderTile : UserControl
         if (e.Data.GetDataPresent(DataFormats.FileDrop))
         {
             e.Effects = DragDropEffects.Copy | DragDropEffects.Link;
-            Plate.Opacity = 1.0;
+            if (!_dragOver)
+            {
+                _dragOver = true;
+                UpdatePlate();
+            }
         }
         else
         {
@@ -178,7 +221,8 @@ public partial class FolderTile : UserControl
 
     private void OnTileDrop(object sender, DragEventArgs e)
     {
-        SetPlate();
+        _dragOver = false;
+        UpdatePlate();
         if (e.Data.GetDataPresent(DataFormats.FileDrop))
         {
             try

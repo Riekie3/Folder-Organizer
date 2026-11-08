@@ -161,6 +161,13 @@ Windows' own blur (DWM Acrylic, Mica, accent blur) stays square behind a rounded
 
 Settings and the folder editor have no blur yet. They use a tinted panel until Stage 4 of `docs/VISUAL-PARITY-PLAN.md`.
 
+### Desktop folders: grid and wallpaper glass
+
+- **Grid.** `DesktopIconGrid` asks Explorer's desktop view for its grid spacing and each icon's position through `IFolderView`, read-only. `DesktopGrid` (Core) turns them into cells on a work area and finds the first free block, down each column from the left, or the nearest free block for a drop. Other folders count as taken. If Explorer can't answer, it assumes the default medium grid with no icons and logs a warning.
+- **Sizes.** `FolderTileMetrics` sizes the art, label, box and plate from the folder size and the grid cell. The box must fit whole cells; the plate may reach 36 DIP past it, up to the reference's 142 × 115.
+- **Glass.** A folder sits directly on the wallpaper, so its plate doesn't capture the screen. `DesktopWallpaper` reads the picture, fit and background colour through `IDesktopWallpaper`, `WallpaperMapping` (Core) finds the part of the picture under the plate, and `WallpaperService` blurs it and measures the brightness under the label. `LabelContrast` then picks white text with a dark outline, or dark text on a light plate.
+- **Positions.** A saved position is the folder window's top-left. Layout version 1 had a smaller window, so its positions are moved once to keep each centre.
+
 ---
 
 ## 8. Animation Control & Zero-Wakeup Architecture

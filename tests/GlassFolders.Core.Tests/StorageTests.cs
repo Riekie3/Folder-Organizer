@@ -99,7 +99,7 @@ public sealed class StorageTests : IDisposable
         var loaded = store.Load();
         Assert.NotNull(loaded);
         Assert.Empty(loaded.Tiles);
-        Assert.Equal(1, loaded.SchemaVersion);
+        Assert.Equal(TileLayout.CurrentSchemaVersion, loaded.SchemaVersion);
     }
 
     [Fact]

@@ -22,6 +22,8 @@ public static class Animate
     {
         if (!AnimationService.Instance.ShouldAnimate(category))
         {
+            // Release any fade still holding the value, or the new value wouldn't show.
+            element.BeginAnimation(UIElement.OpacityProperty, null);
             element.Opacity = to;
             onCompleted?.Invoke();
             return;

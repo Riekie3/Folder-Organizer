@@ -285,15 +285,12 @@ internal static class Program
 
         foreach (var (f, x, y) in tiles)
         {
-            Color colorA = (Color)ColorConverter.ConvertFromString(f.ColorA);
-            Color colorB = (Color)ColorConverter.ConvertFromString(f.ColorB);
-            var tile = new FolderTile(f.Id, f.Name, colorA, colorB);
-            tile.SetLabel(f.Name);
-            tile.SetGlyph(f.Glyph);
-            tile.SetItemCount(f.Items.Count);
+            var metrics = GlassFolders.Core.Layout.FolderTileMetrics.For(f.Size, 76, 97.6);
+            var tile = new FolderTile(f.Id);
+            tile.Apply(f, metrics, showCount: false);
 
-            tile.Measure(new Size(104, 112));
-            tile.Arrange(new Rect(0, 0, 104, 112));
+            tile.Measure(new Size(metrics.WindowWidth, metrics.WindowHeight));
+            tile.Arrange(new Rect(0, 0, metrics.WindowWidth, metrics.WindowHeight));
             tile.UpdateLayout();
 
             Canvas.SetLeft(tile, x);

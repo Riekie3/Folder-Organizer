@@ -41,13 +41,39 @@ public sealed class ConfigurationManager
             try
             {
                 var config = JsonSerializer.Deserialize(text, ConfigurationJsonContext.Default.FoldersConfiguration);
-                return config is { SchemaVersion: >= 1 } ? config : CreateDefaultFolders();
+                if (config is not { SchemaVersion: >= 1 }) return CreateDefaultFolders();
+                if (config.SchemaVersion < 2) MigrateFoldersToV2(config);
+                return config;
             }
             catch (JsonException)
             {
                 return CreateDefaultFolders();
             }
         }
+    }
+
+    // Version 1's presets were guesses. Folders still on one of them move to the colour of the same name
+    // measured from the reference; any other colour was chosen by hand and is kept.
+    private static readonly Dictionary<(string, string), FolderColor> V1Presets = new()
+    {
+        [("#7FB2FF", "#5B5CF2")] = FolderPalette.Blue,
+        [("#C38BFF", "#7B3FE8")] = FolderPalette.Purple,
+        [("#FF9A9A", "#E8455A")] = FolderPalette.Coral,
+        [("#6EE7B7", "#059669")] = FolderPalette.Green,
+    };
+
+    private void MigrateFoldersToV2(FoldersConfiguration config)
+    {
+        foreach (var folder in config.Folders)
+        {
+            if (V1Presets.TryGetValue((folder.ColorA.ToUpperInvariant(), folder.ColorB.ToUpperInvariant()), out var color))
+            {
+                folder.ColorA = color.Front;
+                folder.ColorB = color.Back;
+            }
+        }
+        config.SchemaVersion = FoldersConfiguration.CurrentSchemaVersion;
+        SaveFolders(config);
     }
 
     public void SaveFolders(FoldersConfiguration config)
@@ -133,15 +159,15 @@ public sealed class ConfigurationManager
     {
         return new FoldersConfiguration
         {
-            SchemaVersion = 1,
+            SchemaVersion = FoldersConfiguration.CurrentSchemaVersion,
             Folders =
             [
                 new FolderDef
                 {
                     Id = "work",
                     Name = "Work",
-                    ColorA = "#7FB2FF",
-                    ColorB = "#5B5CF2",
+                    ColorA = FolderPalette.Blue.Front,
+                    ColorB = FolderPalette.Blue.Back,
                     Glyph = "Briefcase",
                     Size = FolderSize.Medium,
                     Items =
@@ -155,8 +181,8 @@ public sealed class ConfigurationManager
                 {
                     Id = "games",
                     Name = "Games",
-                    ColorA = "#C38BFF",
-                    ColorB = "#7B3FE8",
+                    ColorA = FolderPalette.Purple.Front,
+                    ColorB = FolderPalette.Purple.Back,
                     Glyph = "Gamepad",
                     Size = FolderSize.Medium,
                     Items = []
@@ -165,9 +191,19 @@ public sealed class ConfigurationManager
                 {
                     Id = "media",
                     Name = "Media",
-                    ColorA = "#FF9A9A",
-                    ColorB = "#E8455A",
+                    ColorA = FolderPalette.Coral.Front,
+                    ColorB = FolderPalette.Coral.Back,
                     Glyph = "Play",
+                    Size = FolderSize.Medium,
+                    Items = []
+                },
+                new FolderDef
+                {
+                    Id = "utilities",
+                    Name = "Utilities",
+                    ColorA = FolderPalette.Green.Front,
+                    ColorB = FolderPalette.Green.Back,
+                    Glyph = "Gear",
                     Size = FolderSize.Medium,
                     Items = []
                 }

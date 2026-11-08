@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using GlassFolders.Native;
 using static GlassFolders.Native.NativeMethods;
 
@@ -210,55 +211,31 @@ public sealed class TrayService : IDisposable
         menu.IsOpen = true;
     }
 
+    private const int SM_CXSMICON = 49;
+
+    /// <summary>
+    /// Makes the tray icon from the app icon's own small frame, at the size the tray uses at this display
+    /// scale (16 px at 100 %, 20 at 125 %, 24 at 150 %). Paused shows it in grey.
+    /// </summary>
     private static unsafe nint GenerateTrayIconHandle(bool paused)
     {
-        const int w = 16, h = 16;
-        uint[] pixels = new uint[w * h];
+        int size = Math.Max(16, GetSystemMetricsForDpi(SM_CXSMICON, GetDpiForSystem()));
+        byte[] pixels = LoadIconFrame(size);
 
-        // Primary and secondary colors for the glossy glass folder
-        uint plateColor = paused ? 0xFF888888 : 0xFF3B6FE0;
-        uint flapColor = paused ? 0xCCAAAAAA : 0xCCE0ECFF;
-        uint rimColor = 0xFFFFFFFF;
-        uint pauseBadgeColor = 0xFFFF9900;
-
-        for (int y = 0; y < h; y++)
+        if (paused)
         {
-            for (int x = 0; x < w; x++)
+            for (int i = 0; i < pixels.Length; i += 4)
             {
-                uint c = 0; // transparent
-
-                // Tab at top left
-                if (y >= 2 && y <= 4 && x >= 1 && x <= 6)
-                {
-                    c = plateColor;
-                }
-                // Back plate
-                else if (y >= 4 && y <= 13 && x >= 1 && x <= 14)
-                {
-                    c = plateColor;
-                }
-
-                // Translucent front flap
-                if (y >= 7 && y <= 13 && x >= 1 && x <= 14)
-                {
-                    c = y == 7 ? rimColor : flapColor;
-                }
-
-                // If paused, add an amber pause indicator in the bottom-right corner
-                if (paused && y >= 9 && y <= 14 && x >= 10 && x <= 14)
-                {
-                    if (x == 11 || x == 13)
-                        c = pauseBadgeColor;
-                }
-
-                pixels[y * w + x] = c;
+                byte grey = (byte)Math.Round(0.114 * pixels[i] + 0.587 * pixels[i + 1] + 0.299 * pixels[i + 2]);
+                pixels[i] = pixels[i + 1] = pixels[i + 2] = grey;
+                pixels[i + 3] = (byte)(pixels[i + 3] * 3 / 4);
             }
         }
 
-        fixed (uint* ptr = pixels)
+        fixed (byte* ptr = pixels)
         {
-            nint hbmColor = CreateBitmap(w, h, 1, 32, (nint)ptr);
-            nint hbmMask = CreateBitmap(w, h, 1, 1, nint.Zero);
+            nint hbmColor = CreateBitmap(size, size, 1, 32, (nint)ptr);
+            nint hbmMask = CreateBitmap(size, size, 1, 1, nint.Zero);
 
             var info = new ICONINFO
             {
@@ -277,6 +254,26 @@ public sealed class TrayService : IDisposable
             return hIcon;
         }
     }
+
+    /// <summary>The app icon frame closest to <paramref name="size"/>, scaled to it if needed, as straight BGRA.</summary>
+    private static byte[] LoadIconFrame(int size)
+    {
+        var info = Application.GetResourceStream(new Uri("pack://application:,,,/GlassFolders;component/assets/app.ico"));
+        using var stream = info.Stream;
+        var decoder = new IconBitmapDecoder(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
+        BitmapSource frame = decoder.Frames.OrderBy(f => f.PixelWidth).FirstOrDefault(f => f.PixelWidth >= size)
+                             ?? decoder.Frames.OrderBy(f => f.PixelWidth).Last();
+        if (frame.PixelWidth != size)
+            frame = new TransformedBitmap(frame, new ScaleTransform(size / (double)frame.PixelWidth, size / (double)frame.PixelHeight));
+
+        var bgra = new FormatConvertedBitmap(frame, PixelFormats.Bgra32, null, 0);
+        var pixels = new byte[size * size * 4];
+        bgra.CopyPixels(new Int32Rect(0, 0, size, size), pixels, size * 4, 0);
+        return pixels;
+    }
+
+    [DllImport("user32.dll")]
+    private static extern int GetSystemMetricsForDpi(int index, uint dpi);
 
     public void Dispose()
     {

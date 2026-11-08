@@ -34,7 +34,7 @@ Welcome to **GlassFolders**, a native Windows 11 desktop organizer that brings e
 ## 2. Folder Basics
 
 ### Desktop Folders
-Folders appear as sleek frosted glass tiles anchored directly to your desktop layer:
+Folders appear on your desktop as coloured folders with a white glyph, lined up with your desktop icons. Pointing at one, or opening it, shows a frosted plate around it.
 - **Never In Your Way:** Desktop folders stay permanently behind normal application windows.
 - **Show Desktop (Win+D):** Pressing `Win+D` shows your desktop with your GlassFolders fully visible and interactive.
 - **Desktop Marquee & Icons:** You can still click desktop shortcuts, drag marquee selection boxes, and right-click the desktop wallpaper.
@@ -47,14 +47,21 @@ Folders appear as sleek frosted glass tiles anchored directly to your desktop la
 - Set how many columns and rows a popup shows in **Settings → Appearance → Popup Layout**.
 
 ### Moving Folders
-- Simply **click and hold** on any folder tile and drag it to your desired position on your desktop.
-- Dragging works seamlessly across multiple displays with automatic grid snapping.
+- **Click and hold** a folder and drag it where you want it.
+- When you let go, it snaps to the nearest free cell of your desktop's icon grid, as desktop icons do. Turn this off with **Settings → General → Snap folders to the desktop icon grid when dragging**.
 
 ### Creating a New Folder
 1. Right-click the **GlassFolders System Tray icon** and select **New Folder...**, OR open **Settings → Folders → Create New Folder**.
 2. Give your folder a name (e.g. *Dev Tools*, *Productivity*, *Games*).
-3. Pick a category glyph (folder, code, terminal, gamepad, globe, briefcase, etc.) and a two-stop glass color gradient.
-4. Click **Create Folder**. Your new folder tile instantly appears on your primary desktop.
+3. Pick a glyph, a colour, a style (Solid or Glass) and a size.
+4. Click **Save**. The folder appears in the first free spot on your main screen's desktop grid, below the icons already in the left column. It never lands on an icon or another folder.
+
+### Changing a Folder's Look
+Right-click a folder:
+- **Change Icon:** pick another glyph, or **Choose Picture...** to show a picture instead of the folder. GlassFolders keeps its own copy of the picture and only ever displays it. **Remove Picture** goes back to the folder.
+- **Size:** Small, Medium or Large. The folder keeps its centre.
+- **Appearance...:** name, glyph, colour, style and size together, with a preview.
+- To show how many items each folder holds, turn on **Settings → General → Show how many items each folder holds**.
 
 ---
 
@@ -87,7 +94,7 @@ Folders appear as sleek frosted glass tiles anchored directly to your desktop la
 Open **Settings → Appearance** to customize global and per-folder aesthetics:
 
 - **Backdrop Effect**: Choose between **DWM Acrylic** (deep frosted blur with transient light reflection) or **Mica** (subtle surface tint integrating with your wallpaper).
-- **Color Gradients**: Configure dual-stop linear gradients to colorize your folder tiles (Azure Blue, Sunset Orange, Emerald Green, Royal Purple, Rose Gold, or Custom Hex).
+- **Folder colours and styles**: right-click a folder and choose **Appearance...** (see *Changing a Folder's Look*).
 - **Opacity & Blur**: Adjust glass opacity (from subtle 30% translucent tint to 95% solid frosted glass) and blur radius.
 - **Dark Mode**: Automatically harmonizes with your Windows system theme (Dark or Light).
 

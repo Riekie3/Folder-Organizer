@@ -239,6 +239,32 @@ Branch `main`.
 - Version 1.0.2 (props, installer); version text read from assembly; release zip name uses the tag.
 - README corrected. Not released: waiting for confirmation.
 
+## Stage 3 - Desktop folders match (branch `stage/3-desktop-folders`)
+
+- `DesktopGrid`, `FolderTileMetrics` in `GlassFolders.Core/Layout`; `WallpaperMapping`, `LabelContrast` in `Core/Glass`; `FolderPalette` in `Core/Models`. 33 new unit tests (185 total).
+- `DesktopIconGrid` (Native) reads the desktop through `IShellWindows`, `IShellBrowser` and `IFolderView`/`IFolderView2`, all documented and read-only. An item's position is its icon's top-left, so each cell's edge comes from the icon size and the desktop's DPI. Asking the view for `IOleWindow` or `IShellView` across processes failed, so the list view's window comes from `DesktopWindows` instead.
+- `DesktopWallpaper` (Native) reads `IDesktopWallpaper`: the picture, the fit and the background colour for each monitor. `WallpaperService` decodes the picture once at 640 px wide, blurs the part under each plate with `FrostFilter`, and measures the brightness under the label. The decoded copy is dropped at the next memory trim.
+- `FolderTile` rewritten around `FolderIconView`: plate (halo, glow, wallpaper glass, cyan veil, rim) and a box of art and label. The box has an almost invisible fill, so the whole box takes the mouse as a desktop icon's cell does. `OutlinedText` draws the label with a real outline; a blurred copy behind the text was too faint.
+- `FolderIconView` gains the Glass style (traced from reference 4) and custom pictures.
+- `PocController`: grid placement, a one-time move of old saved positions that keeps each centre, snapping on drag, size changes that keep the centre, backdrop refresh on wallpaper and display changes, and the brief's folder menu, built each time it opens.
+- Tray icon made from the app icon's small frames at the tray's size for the display scale. New 16, 20, 24 and 32 px frames; 48 px and up keep the existing art.
+- Folders schema 2 (old preset colours), layout schema 2 (window size). The settings log level isn't applied by `DiagnosticService` at all, so debug lines never print; left for Stage 4.
+
+Tested off-screen against the reference, and on the live desktop with a sandbox copy (renamed exe, portable config) after warning the user:
+
+| Check | Result |
+|---|---|
+| Overlay on the reference | Art 1 px, plate 3 px, labels 2 px at most |
+| Solid and Glass, light and dark bloom | Labels white on the wallpaper; dark on the plate over light wallpaper only |
+| Dry run against the desktop's 65 icons | 6 folders, all in free cells, none touching an icon |
+| Sandbox app on the live desktop | 4 sample folders placed in column 6, rows 2–5, all attached; 6.9 MB working set after trim; clean exit through the exit event |
+| Layout from version 1 | Moved once; (100, 100) became (70, 73), keeping the centre |
+| Desktop grid read | About 30 ms |
+| Real wallpaper (ASUS ROG, Fill) under 4 plates | 190 ms for the first, then about 2 ms each; label luminance 0.00–0.08 |
+| Startup entry | Unchanged by the sandbox runs |
+
+Not tested: hovering, opening and right-clicking a folder on the live desktop with the real mouse, Change Icon with a picture, drag snapping, other display scales, a second monitor. Stage 5 covers the live checks.
+
 ## Stage 2 - Popup matches the reference (branch `stage/2-popup-parity`)
 
 - `PopupLayout` in `GlassFolders.Core/Popup`: grid, sizes, paging and placement as pure code. `IconAnalysis` in `Core/Icons`: alpha type, solid area, edge softness. 48 new unit tests (152 total).

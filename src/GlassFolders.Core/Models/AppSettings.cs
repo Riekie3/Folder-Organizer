@@ -16,5 +16,8 @@ public sealed class AppSettings
     public int StartupDelaySeconds { get; set; } = 0;
     public string LogLevel { get; set; } = "Info";
     public bool CheckMissingTargets { get; set; } = true;
+
+    /// <summary>Shows how many items each desktop folder holds. Off by default, as in the reference.</summary>
+    public bool ShowItemCount { get; set; }
     public AnimationSettings Animation { get; set; } = new();
 }

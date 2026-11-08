@@ -28,10 +28,11 @@ public sealed class FolderManagerTests : IDisposable
     public void Initial_load_seeds_default_folders()
     {
         var folders = _folderManager.Folders;
-        Assert.Equal(3, folders.Count);
+        Assert.Equal(4, folders.Count);
         Assert.Contains(folders, f => f.Id == "work" && f.Name == "Work");
         Assert.Contains(folders, f => f.Id == "games" && f.Name == "Games");
         Assert.Contains(folders, f => f.Id == "media" && f.Name == "Media");
+        Assert.Contains(folders, f => f.Id == "utilities" && f.Name == "Utilities");
     }
 
     [Fact]

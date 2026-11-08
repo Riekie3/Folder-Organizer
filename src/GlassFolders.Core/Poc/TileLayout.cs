@@ -10,7 +10,13 @@ namespace GlassFolders.Core.Poc;
 /// </summary>
 public sealed class TileLayout
 {
-    public int SchemaVersion { get; set; } = 1;
+    /// <summary>
+    /// 2: a position is the top-left of the folder window drawn since Stage 3, which is larger than before.
+    /// Version 1 positions are moved once so each folder keeps its centre.
+    /// </summary>
+    public const int CurrentSchemaVersion = 2;
+
+    public int SchemaVersion { get; set; } = CurrentSchemaVersion;
     public List<TilePlacement> Tiles { get; set; } = [];
 
     public TilePlacement? Find(string id) => Tiles.FirstOrDefault(t => t.Id == id);

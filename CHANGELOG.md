@@ -10,6 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **Desktop folders:** redrawn as in the reference, as solid coloured folders with a white glyph, in its blue, purple, coral and green. Folders still on an old preset colour move to the matching new one once; colours chosen by hand are kept.
+- **Selected folder:** a larger frosted plate with a cyan glow, shown on hover and while the folder is open. Its glass is the wallpaper behind it, blurred, read from the wallpaper file rather than the screen.
+- **Folder labels:** white with a dark outline, as in the reference. On the plate over a light wallpaper they turn dark.
+- **Placement:** new folders go into free cells of Windows' desktop icon grid, down each column from the left, never onto an icon or another folder. Saved positions keep their place.
+- **Snapping:** dragging a folder snaps it to the nearest free cell of the desktop icon grid. The Grid Cell Size setting is gone.
+- **Folder menu:** now follows the brief: Open, Rename, Change Icon, Add Application, Add File or Folder, Appearance, Size, Move to Monitor, Delete Folder. Hide per folder is still planned.
+- **Small icons:** the app and tray icons have plain 16–32 px versions, and the tray icon follows the display scale.
+- **Item count badge:** off by default, with a setting.
 - **Popup layout:** rebuilt to match the reference: 864 × 536 card, large full-colour folder icon and title, 96 px app icons, two-line labels, a soft plate on hover, and page dots instead of arrows.
 - **Popup position:** it opens about 350 DIP beside the folder, moving closer or to the other side when there's no room, and always stays inside the work area. Smaller screens scale it to fit.
 - **Popup grid:** the default is now 4 × 2. The columns and rows settings now work. A saved value of 3 rows, the old default, moves to 2 once. The card only draws the rows its items use.
@@ -20,11 +28,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Settings and folder editor:** the Mica and Acrylic backdrops are gone, which also removes their square block. They use a tinted panel until their glass stage.
 
 ### Added
+- **Change Icon:** choose another glyph, or a picture (PNG, JPG, ICO and others). The app keeps its own copy and never runs the file.
+- **Folder sizes:** Small, Medium and Large, from the folder menu or Appearance.
+- **Glass folder style:** reference 4's folder with a frosted front flap, as an option in Appearance.
+- A fourth sample folder, Utilities, on first run.
 - **Expand button:** shows one more row per page, and stays on the same items.
 - **Open and close animation:** the popup grows out of the clicked folder and shrinks back into it. It follows the animation settings and Windows' animation effects setting.
 - **Page changes:** mouse wheel, left and right arrows, Page Up, Page Down, Home, End, or click a page dot.
 - Solid panel for high contrast, Windows transparency off, and failed or all-black captures.
 - Clicking the popup's shadow now closes it, like any other click outside.
+
+### Fixed
+- Add Application keeps a shortcut as a shortcut, with its own icon and arguments, instead of adding its target.
+- A fade could stay stuck if animations were turned off while it ran.
 
 ## [1.0.2] - 2026-11-07
 

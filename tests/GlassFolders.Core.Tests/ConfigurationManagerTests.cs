@@ -162,7 +162,66 @@ public sealed class ConfigurationManagerTests : IDisposable
 
         var config = _configManager.LoadFolders();
         Assert.NotNull(config);
-        Assert.Equal(3, config.Folders.Count);
+        Assert.Equal(4, config.Folders.Count);
         Assert.Contains(config.Folders, f => f.Id == "work");
+    }
+
+    [Fact]
+    public void Default_folders_use_the_reference_palette()
+    {
+        var config = ConfigurationManager.CreateDefaultFolders();
+        Assert.Equal(FoldersConfiguration.CurrentSchemaVersion, config.SchemaVersion);
+        Assert.Equal(["Work", "Games", "Media", "Utilities"], config.Folders.Select(f => f.Name));
+        Assert.Equal(FolderPalette.Blue.Front, config.Folders[0].ColorA);
+        Assert.Equal(FolderPalette.Green.Back, config.Folders[3].ColorB);
+        Assert.All(config.Folders, f => Assert.Equal(FolderStyle.Solid, f.Style));
+    }
+
+    [Fact]
+    public void LoadFolders_moves_old_preset_colours_to_the_reference_palette_once()
+    {
+        File.WriteAllText(_configManager.FoldersPath, """
+            {"schemaVersion":1,"folders":[
+              {"id":"a","name":"A","colorA":"#7FB2FF","colorB":"#5B5CF2"},
+              {"id":"b","name":"B","colorA":"#ff9a9a","colorB":"#e8455a"},
+              {"id":"c","name":"C","colorA":"#112233","colorB":"#445566"}]}
+            """);
+
+        var config = _configManager.LoadFolders();
+
+        Assert.Equal(FoldersConfiguration.CurrentSchemaVersion, config.SchemaVersion);
+        Assert.Equal((FolderPalette.Blue.Front, FolderPalette.Blue.Back), (config.Folders[0].ColorA, config.Folders[0].ColorB));
+        Assert.Equal((FolderPalette.Coral.Front, FolderPalette.Coral.Back), (config.Folders[1].ColorA, config.Folders[1].ColorB));
+        Assert.Equal(("#112233", "#445566"), (config.Folders[2].ColorA, config.Folders[2].ColorB));
+
+        // Saved, so it runs once: from version 2 on, the old Blue values are the Violet preset and stay.
+        Assert.Equal(FoldersConfiguration.CurrentSchemaVersion, _configManager.LoadFolders().SchemaVersion);
+        config.Folders[2].ColorA = "#7FB2FF";
+        config.Folders[2].ColorB = "#5B5CF2";
+        _configManager.SaveFolders(config);
+        Assert.Equal("#7FB2FF", _configManager.LoadFolders().Folders[2].ColorA);
+    }
+
+    [Fact]
+    public void Folder_style_size_and_custom_icon_round_trip()
+    {
+        var config = ConfigurationManager.CreateDefaultFolders();
+        config.Folders[0].Style = FolderStyle.Glass;
+        config.Folders[0].Size = FolderSize.Large;
+        config.Folders[0].CustomIconPath = @"C:\icons\work.png";
+        _configManager.SaveFolders(config);
+
+        var loaded = _configManager.LoadFolders().Folders[0];
+        Assert.Equal(FolderStyle.Glass, loaded.Style);
+        Assert.Equal(FolderSize.Large, loaded.Size);
+        Assert.Equal(@"C:\icons\work.png", loaded.CustomIconPath);
+    }
+
+    [Fact]
+    public void Item_count_badge_is_off_by_default()
+    {
+        Assert.False(new AppSettings().ShowItemCount);
+        _configManager.SaveSettings(new AppSettings { ShowItemCount = true });
+        Assert.True(_configManager.LoadSettings().ShowItemCount);
     }
 }

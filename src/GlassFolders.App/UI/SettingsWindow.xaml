@@ -100,16 +100,14 @@
 
                             <Border Style="{StaticResource GlassCard}">
                                 <StackPanel>
-                                    <TextBlock Text="Grid &amp; Desktop Snapping" FontSize="14" FontWeight="SemiBold"
+                                    <TextBlock Text="Desktop Folders" FontSize="14" FontWeight="SemiBold"
                                                Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,10"/>
-                                    <CheckBox x:Name="ChkSnapToGrid" Content="Snap folders to grid when dragging"
-                                               Foreground="{StaticResource BrushTextSecondary}" IsChecked="True" Margin="0,0,0,12"/>
-                                    <DockPanel LastChildFill="True">
-                                        <TextBlock Text="Grid Cell Size (px):" Foreground="{StaticResource BrushTextSecondary}" Width="140" VerticalAlignment="Center"/>
-                                        <TextBlock x:Name="TxtGridVal" Text="20" Foreground="{StaticResource BrushAccent}" Width="30" VerticalAlignment="Center"/>
-                                        <Slider x:Name="SliderGrid" Minimum="10" Maximum="60" Value="20" TickFrequency="5" IsSnapToTickEnabled="True"
-                                                ValueChanged="OnGridSliderChanged"/>
-                                    </DockPanel>
+                                    <CheckBox x:Name="ChkSnapToGrid" Content="Snap folders to the desktop icon grid when dragging"
+                                               Foreground="{StaticResource BrushTextSecondary}" IsChecked="True" Margin="0,0,0,10"
+                                               Checked="OnDesktopOptionChanged" Unchecked="OnDesktopOptionChanged"/>
+                                    <CheckBox x:Name="ChkShowItemCount" Content="Show how many items each folder holds"
+                                               Foreground="{StaticResource BrushTextSecondary}"
+                                               Checked="OnDesktopOptionChanged" Unchecked="OnDesktopOptionChanged"/>
                                 </StackPanel>
                             </Border>
                         </StackPanel>
