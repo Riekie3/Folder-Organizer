@@ -3,7 +3,7 @@
 Phone-style app folders on your real Windows 11 desktop, with a Liquid Glass popup.  
 Created & maintained by **[Rie-Sources](https://rie-sources.com/)**.
 
-> **Status: `v1.0.2`, working but still being polished.** Built for Windows 11 (tested on 25H2). 185/185 automated tests pass, Explorer recovery is event-driven, and there are no runtime dependencies beyond .NET 10. The popup does not yet look like the Liquid Glass design target; see [docs/VISUAL-PARITY-PLAN.md](docs/VISUAL-PARITY-PLAN.md).
+> **Status: `v1.0.2`, working but still being polished.** Built for Windows 11 (tested on 25H2). 231/231 automated tests pass, Explorer recovery is event-driven, and there are no runtime dependencies beyond .NET 10. The popup does not yet look like the Liquid Glass design target; see [docs/VISUAL-PARITY-PLAN.md](docs/VISUAL-PARITY-PLAN.md).
 
 ![GlassFolders Desktop Experience](docs/screenshots/hero-desktop.png)
 
@@ -30,7 +30,7 @@ Created & maintained by **[Rie-Sources](https://rie-sources.com/)**.
 **GlassFolders** brings the mobile home-screen folder experience to Windows 11 without hacky overlays or third-party bloat. Folders like *Work*, *Games*, *Media*, and *Utilities* sit directly on your desktop layer alongside standard icons. Clicking a folder opens a frosted glass panel displaying real application icons, shortcuts, and files.
 
 - **Native Desktop Integration:** Each folder is a small, borderless Progman-owned window pinned below normal applications. Desktop rubber-band selection, desktop icons, and Win+D ("Show Desktop") continue to work seamlessly.
-- **Liquid Glass Interface:** Frosted popup with smooth rounded corners, a tint that adapts to your wallpaper, light rims and customizable vector category glyphs. Settings and dialogs use a tinted panel for now. A closer match to the design target is in progress.
+- **Liquid Glass Interface:** Frosted popup with smooth rounded corners, a tint that adapts to your wallpaper, light rims and customizable vector category glyphs. Settings, menus and dialogs use the same glass, with a light and a dark theme and Appearance sliders for transparency, blur, border, shadow and corners. A closer match to the design target is in progress.
 - **Automated Explorer Recovery:** Event-driven state machine (`Healthy → ShellLost → WaitingForShell → Reattaching → Verifying`) automatically recovers desktop surfaces with exponential backoff on Explorer crashes, taskbar recreation, session locks, and power resumes.
 - **Multi-Monitor Layouts:** Position math uses work-area relative fractions and persistent monitor identities. When a secondary screen is unplugged, folders gracefully displace to the primary monitor and return to their home screen when reconnected.
 - **Portable Backup & Restore:** Self-contained `.zip` backup format with SHA-256 manifests, automated rolling pre-restore backups (max 10), collision-free merge mode, and intelligent path relinking for cross-PC migration.
@@ -65,7 +65,7 @@ cd "Folder-Organizer"
 # Build solution in Release mode
 dotnet build GlassFolders.sln --configuration Release -warnaserror
 
-# Run the test suite (185 tests)
+# Run the test suite (231 tests)
 dotnet test GlassFolders.sln --configuration Release
 
 # Launch GlassFolders

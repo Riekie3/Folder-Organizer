@@ -2,7 +2,7 @@
 
 _Updated 2026-11-07. Goal: make the running app look as close as practical to `Referance/a226f8e2-….png`, then release as v1.1.0._
 
-**Status:** Stages 0, 1 and 2 merged to `main`. Stage 3 built on branch `stage/3-desktop-folders`. Stages 4–6 not started. **Nothing is tagged or released until every stage is finished and the look is approved.**
+**Status:** Stages 0, 1, 2 and 3 merged to `main`. Stage 4 built on branch `stage/4-settings-menus-dialogs`. Stages 5–6 not started. **Nothing is tagged or released until every stage is finished and the look is approved.**
 
 ![Reference, current app and prototype side by side](parity/comparison.png)
 
@@ -249,6 +249,28 @@ Not tested on the live desktop: hovering and opening a folder with the real mous
 - Settings moves on screen, so its glass needs handling: take a monitor-wide snapshot at open and shift it with the window. Fall back to the tinted panel if this looks wrong in testing.
 
 **Done when:** no stock control is visible on any page, and every setting visibly changes something.
+
+**Result (branch `stage/4-settings-menus-dialogs`):** built and tested off-screen and with a sandbox copy on the live desktop. Not yet tried with the real mouse (Stage 5).
+
+![Reference 3 next to the new Settings, light and dark](parity/stage4-settings.png)
+
+![Message box, folder editor, folder menu and rename](parity/stage4-dialogs.png)
+
+| Plan item | Result |
+|---|---|
+| Reference 3 styles | Toggle with white knob, glass slider, pill input, segmented control, sidebar with icons and a blue selected pill |
+| Appearance settings, live | Theme, Transparency, Blur, Border, Shadow, Corner radius, icon size, columns and rows. "Enable DWM Acrylic" removed (it was never connected) |
+| Glass menus, tray menu, rename, message boxes | All menus use one style. The 10 `MessageBox` calls and the rename window are glass dialogs |
+| About | Drawn globe icon; architecture line corrected; Rie-Sources card and links kept |
+| Moving glass | Monitor-wide snapshot at open, shifted as the window moves, as planned. Solid panel off its monitor |
+| Log level (found in Stage 3) and missing-target badge | Both were saved but never read; now connected |
+
+Changed from the plan above:
+- The popup keeps its blue glass in light mode, as in the reference. Theme changes Settings, menus and dialogs.
+- Menus and tooltips can't carry a snapshot, so they are nearly opaque rather than frosted.
+- Not planned: the Blur slider re-filters a half-size copy kept in memory while Settings is open, so it can change without capturing the screen with the window in the way.
+
+Not tested on the live desktop: the controls with the real mouse, the Windows light/dark switch while running, a second monitor, other scales, high contrast. Stage 5 covers these.
 
 ### Stage 5 – Real-world check · Small · Sonnet, high
 Test on the live desktop: 4 wallpapers (bright bloom, your ROG, busy photo, solid), 100/125/150 % scaling, light and dark mode, transparency off, high contrast, popup over an app window and near every screen edge, popup open while a video plays behind it. Re-measure idle CPU, memory and open time.

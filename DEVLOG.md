@@ -239,6 +239,26 @@ Branch `main`.
 - Version 1.0.2 (props, installer); version text read from assembly; release zip name uses the tag.
 - README corrected. Not released: waiting for confirmation.
 
+## Stage 4 - Settings, menus, dialogs (branch `stage/4-settings-menus-dialogs`)
+
+- Core: `AppSettings` gains `Theme`, `GlassTransparency`, `GlassBlur`, `GlassBorder`, `GlassShadow`, `CornerRadius`, `PopupIconSize`. `GlassAppearance` turns them into tint strength, blur radius, rim and shadow opacity, corner radius and icon size; its defaults reproduce the Stage 3 look exactly. `LogLevelSetting` normalises the saved level name. `GlassTint.ForBackdrop` takes a strength, `GlassTint.ForLightPanel` is the light theme's tint, and `BackdropAnalyzer` also reports the 10th percentile. 46 new unit tests (231 total).
+- Strength above 1 first made the tint paler, which white text can't sit on (contrast 2.2:1 at "nearly solid"). It now moves toward deeper blue as it grows, and is eased back if even a full scrim couldn't reach 3:1. The test over every transparency setting caught this.
+- `AppearanceService` swaps `ThemeDark.xaml` or `ThemeLight.xaml` (same `Chrome*` keys, used through `DynamicResource`) and listens to Windows' colour mode. `Controls.xaml` was rewritten: buttons, toggle, slider, segmented control, sidebar item, pill text box, scroll bar, menus, tooltips. The enum is `AppTheme`, because .NET now has `System.Windows.ThemeMode`.
+- `GlassWindow` is the base of Settings, the folder editor and the message boxes. It centres the window on a monitor, captures that whole monitor once before showing, and `GlassCard` slides the image as the window is dragged (the plan's "monitor-wide snapshot, shifted with the window"). Off its monitor the card shows the solid panel. A copy at half the final size is kept, in memory only, so the Blur slider can re-filter without capturing while the window covers the screen. Re-blur is a second `FrostFilter` pass over that copy, with the same output size as one pass.
+- Radio buttons and toggles that start checked raise `Checked` while XAML is still loading; guarded with a `_built` flag after two null-reference crashes in the harness.
+- `GlassMessageBox` and `GlassPromptDialog` replace the 10 `MessageBox` calls and the plain rename window. The startup-failure box falls back to the plain one if the styled box itself can't load.
+- The popup reads the Appearance settings when it is made. The log level and the missing-target badge settings were saved but never read; both are now connected.
+
+Tested off-screen over Windows' bloom wallpapers (light and dark), and on the live desktop with a sandbox copy after warning the user. No real desktop captures are kept or committed.
+
+| Check | Result |
+|---|---|
+| Every Settings page, folder editor, message box, rename, folder menu; light and dark | Rendered and read. Fixes: solid red Delete button, pale slider fill in dark mode, menu icon column closes when empty |
+| Sandbox app on the live desktop, light theme and Debug log level | Settings opened centred with glass in 53 ms; debug line written; exited cleanly through the exit event |
+| Real popup on the live desktop in three Appearance settings | Corner radius, border, shadow, tint, blur, icon size and the missing badge each changed as set |
+
+Not tested: the sliders and menus with the real mouse, the Windows light/dark switch while running, dragging Settings onto a second monitor, 100 % and 150 % scaling, high contrast. Stage 5 covers these.
+
 ## Stage 3 - Desktop folders match (branch `stage/3-desktop-folders`)
 
 - `DesktopGrid`, `FolderTileMetrics` in `GlassFolders.Core/Layout`; `WallpaperMapping`, `LabelContrast` in `Core/Glass`; `FolderPalette` in `Core/Models`. 33 new unit tests (185 total).

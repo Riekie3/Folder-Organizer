@@ -155,11 +155,13 @@ Windows' own blur (DWM Acrylic, Mica, accent blur) stays square behind a rounded
 3. **Tint.** `BackdropAnalyzer` measures the mean and 90th percentile luminance behind the card. `GlassTint` keeps the reference tint on normal wallpapers, lightens it on dark ones, and adds just enough blue scrim on bright ones to hold 3:1 contrast with white text.
 4. **Paint.** `GlassCard` layers snapshot, scrim, tint, gloss, content and rim in a rounded card on a layered window. The shadow is a separate element, so content isn't drawn through the effect pass. The brush viewbox lines the image up with the card's screen position.
 
+**Settings, dialogs and menus.** Settings, the folder editor and the message boxes derive from `GlassWindow`, which centres the window on a monitor, captures that whole monitor once while hidden and hands it to the `GlassCard`; the card shifts the image as the window moves. The snapshot keeps a half-size unblurred copy in memory (never saved) so the Blur slider can re-filter without capturing again. `AppearanceService` holds the Appearance settings and swaps the dark or light colour set (`ThemeDark.xaml`, `ThemeLight.xaml`, used through `DynamicResource`); `GlassAppearance` (pure, tested) maps the sliders to tint strength, blur radius, rim and shadow. Menus and tooltips are separate small windows and can't carry a snapshot, so they use a nearly opaque tint. The light theme's tint (`GlassTint.ForLightPanel`) adds a white scrim only as far as needed for 4.5:1 dark ink over the wallpaper's darkest 10 %.
+
 **Solid panel:** `GlassCard` shows an opaque panel when there's no snapshot: high contrast, Windows transparency off, a failed capture, or an all-black capture.
 
 **Limits:** the glass doesn't update while the popup is open, and protected video behind it may capture as black.
 
-Settings and the folder editor have no blur yet. They use a tinted panel until Stage 4 of `docs/VISUAL-PARITY-PLAN.md`.
+Settings, the folder editor and the message boxes use the same snapshot glass (see above).
 
 ### Desktop folders: grid and wallpaper glass
 

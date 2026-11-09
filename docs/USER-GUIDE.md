@@ -91,12 +91,23 @@ Right-click a folder:
 
 ## 4. Customizing Appearance & Glass Effects
 
-Open **Settings → Appearance** to customize global and per-folder aesthetics:
+Open **Settings → Appearance**. Changes show in Settings at once and are saved a moment after the last one. The folder popup uses them the next time it opens.
 
-- **Backdrop Effect**: Choose between **DWM Acrylic** (deep frosted blur with transient light reflection) or **Mica** (subtle surface tint integrating with your wallpaper).
+- **Theme**: *Follow Windows*, *Light* or *Dark*. This sets the colours of Settings, menus and dialogs. *Follow Windows* changes when you change Windows' colour mode. The folder popup keeps its blue glass in both.
+- **Transparency**: how see-through the glass is. Low is nearly solid; high shows more of the wallpaper. Text always stays readable.
+- **Blur**: how soft the wallpaper behind the glass is.
+- **Border**: the light edge around the glass. 0 hides it.
+- **Shadow**: the shadow under the glass. 0 hides it.
+- **Corner radius**: how round the popup's corners are (16 to 48). Settings and dialogs use a slightly smaller radius.
+- **App icon size**: *Small*, *Medium* or *Large* app icons in the popup.
+- **Columns and rows**: how many apps fit on a popup page.
+- **Reset glass settings** puts the five glass sliders back to their defaults.
+
+If Windows has **Transparency effects** off, or high contrast is on, the glass becomes a solid panel.
+
+Under **Explorer Recovery**, **Log level** chooses how much the diagnostic log records: Errors, Warnings, Info or Debug.
+
 - **Folder colours and styles**: right-click a folder and choose **Appearance...** (see *Changing a Folder's Look*).
-- **Opacity & Blur**: Adjust glass opacity (from subtle 30% translucent tint to 95% solid frosted glass) and blur radius.
-- **Dark Mode**: Automatically harmonizes with your Windows system theme (Dark or Light).
 
 ---
 

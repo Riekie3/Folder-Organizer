@@ -25,9 +25,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Add items:** the + button moved to a right-click menu and a ⋯ button that appears when the pointer is on the header. Dropping files still works.
 - **Popup glass:** replaced Windows' blur with snapshot glass. The popup now has smooth rounded corners and no square block behind it, and you can see the wallpaper's colours through it.
 - **Adaptive tint:** the tint lightens on dark wallpapers and darkens on bright ones, keeping white text readable.
-- **Settings and folder editor:** the Mica and Acrylic backdrops are gone, which also removes their square block. They use a tinted panel until their glass stage.
+- **Settings, folder editor and message boxes:** now drawn on the same snapshot glass as the popup, in the style of reference 3: a sidebar with icons and a blue selected pill, toggles with a white knob, glass sliders, pill inputs and segmented controls. No stock Windows control is left on any page. Windows' own Mica and Acrylic backdrops (and their square block) are gone.
+- **Menus:** the folder menu, the popup's menus and the tray menu are glass menus with rounded corners, a shadow and a blue hover pill.
+- **Rename and dialogs:** the rename box and all 10 message boxes (backup, restore, reset, delete, errors) are glass dialogs. Buttons say what they do ("Replace" and "Merge" instead of Yes and No), and Delete and Reset are red.
+- **Window placement:** Settings and dialogs open centred on the monitor of their owner, or the one holding the pointer, and can be dragged. Their glass stays lined up with the screen as they move.
+- **About page:** the globe emoji is a drawn icon, and the architecture line no longer claims DWM Acrylic.
 
 ### Added
+- **Appearance settings, all working live:** Theme (Follow Windows, Light, Dark; Follow Windows changes while the app runs), Transparency, Blur, Border, Shadow, Corner radius, app icon size (Small, Medium, Large), popup columns and rows. Settings shows the change at once; the popup uses it the next time it opens. The popup keeps its blue glass in both themes.
+- **Light theme:** dark ink on milky glass. A white scrim is added only where a dark wallpaper would make the ink hard to read (4.5:1 or better).
+- **Log level setting:** Errors, Warnings, Info or Debug under Explorer Recovery. It now takes effect at start and as soon as it changes.
 - **Change Icon:** choose another glyph, or a picture (PNG, JPG, ICO and others). The app keeps its own copy and never runs the file.
 - **Folder sizes:** Small, Medium and Large, from the folder menu or Appearance.
 - **Glass folder style:** reference 4's folder with a frosted front flap, as an option in Appearance.
@@ -39,6 +46,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clicking the popup's shadow now closes it, like any other click outside.
 
 ### Fixed
+- The "Show a warning badge on shortcuts whose target is missing" setting did nothing. The popup now follows it.
+- The log level setting was ignored; logs were always written at Info.
 - Add Application keeps a shortcut as a shortcut, with its own icon and arguments, instead of adding its target.
 - A fade could stay stuck if animations were turned off while it ran.
 
