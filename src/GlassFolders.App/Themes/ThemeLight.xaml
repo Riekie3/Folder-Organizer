@@ -1,0 +1,56 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+        Colours for Settings, menus and dialogs in light mode: dark blue ink on milky glass, as in reference 3.
+        Same keys as ThemeDark.xaml.
+    -->
+
+    <!-- Ink. Checked against the lightest tint over the darkest wallpaper: at least 4.5:1. -->
+    <SolidColorBrush x:Key="ChromeText" Color="#FF14223F"/>
+    <SolidColorBrush x:Key="ChromeTextSecondary" Color="#FF2B3C60"/>
+    <SolidColorBrush x:Key="ChromeTextMuted" Color="#FF4A5C82"/>
+    <SolidColorBrush x:Key="ChromeLink" Color="#1F5BD6"/>
+
+    <!-- Surfaces -->
+    <SolidColorBrush x:Key="ChromeCard" Color="#99FFFFFF"/>
+    <SolidColorBrush x:Key="ChromeCardBorder" Color="#CCFFFFFF"/>
+    <SolidColorBrush x:Key="ChromeRow" Color="#80FFFFFF"/>
+    <SolidColorBrush x:Key="ChromeSidebar" Color="#66FFFFFF"/>
+    <SolidColorBrush x:Key="ChromeDivider" Color="#2E14223F"/>
+
+    <!-- Buttons, inputs, tracks -->
+    <SolidColorBrush x:Key="ChromeControl" Color="#B3FFFFFF"/>
+    <SolidColorBrush x:Key="ChromeControlHover" Color="#E6FFFFFF"/>
+    <SolidColorBrush x:Key="ChromeControlPressed" Color="#80FFFFFF"/>
+    <SolidColorBrush x:Key="ChromeControlBorder" Color="#6685A3D6"/>
+    <SolidColorBrush x:Key="ChromeInput" Color="#CCFFFFFF"/>
+    <SolidColorBrush x:Key="ChromeInputFocus" Color="#F2FFFFFF"/>
+    <SolidColorBrush x:Key="ChromeTrack" Color="#8C8CA6D6"/>
+    <SolidColorBrush x:Key="ChromeKnob" Color="#FFFFFFFF"/>
+
+    <!-- Selected state -->
+    <SolidColorBrush x:Key="ChromeAccent" Color="#2A62CE"/>
+    <SolidColorBrush x:Key="ChromeAccentHover" Color="#3A74E2"/>
+    <SolidColorBrush x:Key="ChromeAccentBorder" Color="#B3FFFFFF"/>
+    <SolidColorBrush x:Key="ChromeAccentText" Color="#FFFFFFFF"/>
+    <SolidColorBrush x:Key="ChromeFocus" Color="#FF14223F"/>
+    <SolidColorBrush x:Key="ChromeSliderFill" Color="#2A62CE"/>
+
+    <!-- Status -->
+    <SolidColorBrush x:Key="ChromeOk" Color="#0E8F55"/>
+    <SolidColorBrush x:Key="ChromeWarn" Color="#B45F06"/>
+    <SolidColorBrush x:Key="ChromeDanger" Color="#C2332B"/>
+    <SolidColorBrush x:Key="ChromeDangerFill" Color="#26D6382E"/>
+    <SolidColorBrush x:Key="ChromeDangerSolid" Color="#C9302C"/>
+
+    <!-- Menus -->
+    <LinearGradientBrush x:Key="ChromeMenu" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#FAF8FBFF" Offset="0"/>
+        <GradientStop Color="#FAE6EFFC" Offset="1"/>
+    </LinearGradientBrush>
+    <SolidColorBrush x:Key="ChromeMenuBorder" Color="#8085A3D6"/>
+    <SolidColorBrush x:Key="ChromeMenuHover" Color="#33266AD6"/>
+
+    <Color x:Key="ChromeShadowColor">#1B2D5E</Color>
+</ResourceDictionary>

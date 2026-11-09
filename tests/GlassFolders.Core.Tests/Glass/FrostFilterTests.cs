@@ -192,4 +192,28 @@ public class FrostFilterTests
         Assert.True(black.IsBlank);
         Assert.False(dark.IsBlank);
     }
+
+    [Fact]
+    public void BlurRadiusCanBeChosenAndTheDefaultIsUnchanged()
+    {
+        Assert.Equal(FrostSettings.DefaultBlurRadius, FrostSettings.ForScale(1.25).BlurRadius);
+        Assert.Equal(5, FrostSettings.ForScale(1.25, 5).BlurRadius);
+        Assert.Equal(0, FrostSettings.ForScale(1.25, -2).BlurRadius);
+        Assert.Equal(FrostSettings.ForScale(1.25).Downsample, FrostSettings.ForScale(1.25, 5).Downsample);
+    }
+
+    [Fact]
+    public void FinishingFromAHalfSizeCopyGivesTheSameSizeAsOneStep()
+    {
+        // Settings keeps a half-size copy so the blur can change while the window is open.
+        var px = new byte[640 * 360 * 4];
+        for (int i = 0; i < px.Length; i += 4) { px[i] = (byte)(i % 251); px[i + 1] = 90; px[i + 2] = 200; px[i + 3] = 255; }
+
+        var direct = FrostFilter.Apply(px, 640, 360, 640 * 4, new FrostSettings(8, 3, 3, 1.25));
+        var half = FrostFilter.Apply(px, 640, 360, 640 * 4, new FrostSettings(4, 0, 0, 1.0));
+        var finished = FrostFilter.Apply(half.Pixels, half.Width, half.Height, half.Stride, new FrostSettings(2, 3, 3, 1.25));
+
+        Assert.Equal(direct.Width, finished.Width);
+        Assert.Equal(direct.Height, finished.Height);
+    }
 }

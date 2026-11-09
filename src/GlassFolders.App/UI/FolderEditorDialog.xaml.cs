@@ -10,7 +10,7 @@ namespace GlassFolders.App.UI;
 /// <summary>
 /// Creates a folder or edits its name, colour, glyph, style and size, with a live preview of the desktop art.
 /// </summary>
-public partial class FolderEditorDialog : Window
+public partial class FolderEditorDialog : GlassWindow
 {
     private static readonly (string Name, string GlyphKey)[] Glyphs =
     [
@@ -26,6 +26,8 @@ public partial class FolderEditorDialog : Window
 
     private readonly FolderDef _folder;
     private readonly FolderDef _preview;
+    private readonly List<(Button Button, string Glyph)> _glyphButtons = [];
+    private readonly List<(Border Swatch, string Front)> _swatches = [];
     private bool _ready;
 
     /// <param name="existing">The folder to edit, or null to create one.</param>
@@ -33,6 +35,7 @@ public partial class FolderEditorDialog : Window
     public FolderEditorDialog(FolderDef? existing = null, int existingFolders = 0)
     {
         InitializeComponent();
+        UseGlass(Card);
         if (existing is null)
         {
             var color = FolderPalette.ForNewFolder(existingFolders);
@@ -71,6 +74,7 @@ public partial class FolderEditorDialog : Window
     private void PopulateGlyphs()
     {
         GlyphsPanel.Children.Clear();
+        _glyphButtons.Clear();
         foreach (var (name, key) in Glyphs)
         {
             var btn = new Button
@@ -84,7 +88,9 @@ public partial class FolderEditorDialog : Window
 
             var iconView = new Viewbox { Width = 18, Height = 18 };
             var canvas = new Canvas { Width = 64, Height = 64 };
-            canvas.Children.Add(new Path { Fill = (Brush)FindResource("BrushTextPrimary"), Data = (Geometry)FindResource(key) });
+            var shape = new Path { Data = (Geometry)FindResource(key) };
+            shape.SetResourceReference(Shape.FillProperty, "ChromeText");
+            canvas.Children.Add(shape);
             iconView.Child = canvas;
             btn.Content = iconView;
 
@@ -95,6 +101,7 @@ public partial class FolderEditorDialog : Window
                 UpdatePreview();
             };
 
+            _glyphButtons.Add((btn, glyphName));
             GlyphsPanel.Children.Add(btn);
         }
     }
@@ -102,6 +109,7 @@ public partial class FolderEditorDialog : Window
     private void PopulateColorPresets()
     {
         ColorPresetsPanel.Children.Clear();
+        _swatches.Clear();
         foreach (var color in FolderPalette.All)
         {
             var btn = new Button
@@ -113,20 +121,22 @@ public partial class FolderEditorDialog : Window
                 ToolTip = color.Name
             };
 
-            btn.Content = new Border
+            var swatch = new Border
             {
                 CornerRadius = new CornerRadius(13),
                 BorderThickness = new Thickness(1),
-                BorderBrush = Brushes.White,
                 Background = new LinearGradientBrush(
                     (Color)ColorConverter.ConvertFromString(color.Front),
                     (Color)ColorConverter.ConvertFromString(color.Back), 90)
             };
+            btn.Content = swatch;
+            _swatches.Add((swatch, color.Front));
             btn.Template = new ControlTemplate(typeof(Button))
             {
                 VisualTree = new FrameworkElementFactory(typeof(ContentPresenter))
             };
 
+            btn.Width = btn.Height = 28;
             btn.Click += (_, _) =>
             {
                 _preview.ColorA = color.Front;
@@ -164,6 +174,33 @@ public partial class FolderEditorDialog : Window
         PreviewArt.Width = icon;
         PreviewArt.Height = icon * FolderTileMetrics.ArtAspect;
         PreviewArt.Show(_preview);
+        MarkSelection();
+    }
+
+    /// <summary>Rings the chosen colour and lights the chosen icon, so the form shows what is picked.</summary>
+    private void MarkSelection()
+    {
+        foreach (var (swatch, front) in _swatches)
+        {
+            bool selected = string.Equals(front, _preview.ColorA, StringComparison.OrdinalIgnoreCase);
+            swatch.BorderThickness = new Thickness(selected ? 3 : 1);
+            swatch.SetResourceReference(Border.BorderBrushProperty, selected ? "ChromeText" : "ChromeControlBorder");
+        }
+
+        foreach (var (button, glyph) in _glyphButtons)
+        {
+            bool selected = string.Equals(glyph, _preview.Glyph, StringComparison.OrdinalIgnoreCase);
+            if (selected) button.SetResourceReference(Control.BackgroundProperty, "ChromeControl");
+            else button.ClearValue(Control.BackgroundProperty);
+        }
+    }
+
+    private void OnHeaderMouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (e.OriginalSource is not (Button or Path))
+        {
+            try { DragMove(); } catch (InvalidOperationException) { }
+        }
     }
 
     private void OnBtnSaveClicked(object sender, RoutedEventArgs e)

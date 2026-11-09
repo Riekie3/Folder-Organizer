@@ -83,6 +83,8 @@ public sealed class PocController : IDisposable
         _resolver = new ShellShortcutResolver();
         _settings = _configManager.LoadSettings();
         AnimationService.Instance.Settings = _settings.Animation;
+        AppearanceService.Instance.Apply(_settings);
+        DiagnosticService.Instance.CurrentLogLevel = DiagnosticService.LevelFor(_settings.LogLevel);
 
         _host = DesktopHostFactory.Create(kind);
         _watcher = new ShellWatcher();
@@ -750,7 +752,7 @@ public sealed class PocController : IDisposable
         catch (Exception ex)
         {
             DiagnosticService.Instance.LogError($"Error adding files to folder '{folder.Name}'", ex);
-            MessageBox.Show($"Failed to add selected files:\n\n{ex.Message}", "GlassFolders Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            GlassMessageBox.Show(null, "Couldn't add the files", $"Some files could not be added.\n\n{ex.Message}", kind: GlassMessageKind.Error);
         }
     }
 
@@ -769,7 +771,7 @@ public sealed class PocController : IDisposable
         catch (Exception ex)
         {
             DiagnosticService.Instance.LogError($"Error adding a folder to '{folder.Name}'", ex);
-            MessageBox.Show($"Failed to add the selected folder:\n\n{ex.Message}", "GlassFolders Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            GlassMessageBox.Show(null, "Couldn't add the folder", $"The folder could not be added.\n\n{ex.Message}", kind: GlassMessageKind.Error);
         }
     }
 
@@ -828,7 +830,7 @@ public sealed class PocController : IDisposable
         catch (Exception ex) when (ex is IOException or NotSupportedException or UnauthorizedAccessException or InvalidDataException or ArgumentException or FileFormatException)
         {
             DiagnosticService.Instance.LogWarn($"Picture for folder '{folder.Name}' rejected: {ex.Message}");
-            MessageBox.Show($"That picture can't be used:\n\n{ex.Message}", "Change Icon", MessageBoxButton.OK, MessageBoxImage.Warning);
+            GlassMessageBox.Show(null, "Change icon", $"That picture can't be used.\n\n{ex.Message}", kind: GlassMessageKind.Warning);
         }
     }
 
@@ -852,10 +854,10 @@ public sealed class PocController : IDisposable
     {
         var folder = _folderManager.GetFolder(id);
         if (folder is null) return;
-        var res = MessageBox.Show(
-            $"Remove folder \"{folder.Name}\" from GlassFolders?\n\nYour actual files and applications will NOT be deleted.",
-            "Delete Folder", MessageBoxButton.YesNo, MessageBoxImage.Question);
-        if (res != MessageBoxResult.Yes) return;
+        var res = GlassMessageBox.Show(null, "Delete folder",
+            $"Remove \"{folder.Name}\" from GlassFolders?\n\nYour files and applications are not deleted.",
+            GlassMessageButtons.YesNo, GlassMessageKind.Warning, yesLabel: "Delete", noLabel: "Cancel", dangerYes: true);
+        if (res != GlassMessageResult.Yes) return;
 
         string? picture = folder.CustomIconPath;
         if (_tiles.TryGetValue(id, out var pair))
@@ -886,7 +888,7 @@ public sealed class PocController : IDisposable
         var window = tile.GetScreenRect?.Invoke() ?? default;
         var plate = PlateAt(window.Left, window.Top, tile.Metrics);
         var anchor = new RECT(plate.Left, plate.Top, plate.Right, plate.Bottom);
-        _popup = new FolderPopup(folder, _folderManager, _iconCache, _resolver, anchor, PopupGrid.From(_settings));
+        _popup = new FolderPopup(folder, _folderManager, _iconCache, _resolver, anchor, PopupGrid.From(_settings), _settings.CheckMissingTargets);
         _popupFor = tile.Id;
         tile.SetOpen(true);
 

@@ -1,168 +1,258 @@
-<Window x:Class="GlassFolders.App.UI.SettingsWindow"
+<ui:GlassWindow x:Class="GlassFolders.App.UI.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
-        ShowInTaskbar="True" ResizeMode="CanResize" Width="840" Height="620"
-        MinHeight="540" MinWidth="700" WindowStartupLocation="CenterScreen"
+        xmlns:ui="clr-namespace:GlassFolders.App.UI"
+        ShowInTaskbar="True" Width="900" Height="660"
         Title="GlassFolders Settings" Icon="pack://application:,,,/GlassFolders;component/assets/app.ico">
 
-    <Border Margin="16" CornerRadius="28" BorderThickness="1"
-            BorderBrush="{StaticResource BrushGlassBorderBright}"
-            Background="{StaticResource BrushPopupBackground}"
-            Effect="{StaticResource ShadowPopup}">
+    <ui:GlassWindow.Resources>
+        <Style x:Key="RowLabel" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource ChromeText}"/>
+            <Setter Property="FontSize" Value="13.5"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="ValueText" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource ChromeTextSecondary}"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="HorizontalAlignment" Value="Right"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="Divider" TargetType="Rectangle">
+            <Setter Property="Height" Value="1"/>
+            <Setter Property="Fill" Value="{DynamicResource ChromeDivider}"/>
+            <Setter Property="Margin" Value="0,6"/>
+        </Style>
+        <Style x:Key="LineIcon" TargetType="Path">
+            <Setter Property="Stroke" Value="{DynamicResource ChromeText}"/>
+            <Setter Property="StrokeThickness" Value="1.6"/>
+            <Setter Property="StrokeStartLineCap" Value="Round"/>
+            <Setter Property="StrokeEndLineCap" Value="Round"/>
+            <Setter Property="StrokeLineJoin" Value="Round"/>
+            <Setter Property="Stretch" Value="Uniform"/>
+        </Style>
+    </ui:GlassWindow.Resources>
+
+    <ui:GlassCard x:Name="Card" Margin="40" Width="820" Height="580">
         <Grid>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="220"/>
+                <ColumnDefinition Width="232"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Left: Glass Sidebar Navigation -->
-            <Border Grid.Column="0" BorderThickness="0,0,1,0" BorderBrush="#26FFFFFF"
-                    Background="#14FFFFFF" CornerRadius="28,0,0,28">
-                <Grid Margin="18,24,18,24">
+            <!-- Sidebar -->
+            <Border x:Name="Sidebar" Grid.Column="0" Background="{DynamicResource ChromeSidebar}"
+                    BorderThickness="0,0,1,0" BorderBrush="{DynamicResource ChromeDivider}" MouseLeftButtonDown="OnDragRegionMouseDown">
+                <Grid Margin="16,24,16,20">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
-                    <!-- App Brand Header -->
-                    <StackPanel Grid.Row="0" Margin="4,0,0,24" Orientation="Horizontal"><Image Source="pack://application:,,,/GlassFolders;component/assets/app-icon.png" Width="32" Height="32" Margin="0,0,10,0" VerticalAlignment="Center"/><StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="GlassFolders" FontSize="18" FontWeight="Bold"
-                                   Foreground="{StaticResource BrushTextPrimary}" FontFamily="{StaticResource FontDisplay}"/>
-                        <TextBlock Text="Desktop Organizer" FontSize="11" Foreground="{StaticResource BrushTextMuted}" Margin="0,2,0,0"/></StackPanel>
+                    <StackPanel Grid.Row="0" Margin="6,0,0,22" Orientation="Horizontal">
+                        <Image Source="pack://application:,,,/GlassFolders;component/assets/app-icon.png" Width="34" Height="34" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="GlassFolders" FontSize="18" FontWeight="Bold"
+                                       Foreground="{DynamicResource ChromeText}" FontFamily="{StaticResource FontDisplay}"/>
+                            <TextBlock Text="Desktop Organizer" FontSize="11.5" Foreground="{DynamicResource ChromeTextMuted}" Margin="0,2,0,0"/>
+                        </StackPanel>
                     </StackPanel>
 
-                    <!-- Nav Items -->
                     <StackPanel Grid.Row="1">
-                        <Button x:Name="NavGeneral" Content="General" Height="38" Margin="0,0,0,6"
-                                HorizontalContentAlignment="Left" Padding="14,0" Style="{StaticResource GlassButton}"
-                                Click="OnNavGeneralClicked"/>
-                        <Button x:Name="NavAppearance" Content="Appearance" Height="38" Margin="0,0,0,6"
-                                HorizontalContentAlignment="Left" Padding="14,0" Style="{StaticResource GlassButton}"
-                                Click="OnNavAppearanceClicked"/>
-                        <Button x:Name="NavLayout" Content="Desktop Layout" Height="38" Margin="0,0,0,6"
-                                HorizontalContentAlignment="Left" Padding="14,0" Style="{StaticResource GlassButton}"
-                                Click="OnNavLayoutClicked"/>
-                        <Button x:Name="NavAnimation" Content="Animations" Height="38" Margin="0,0,0,6"
-                                HorizontalContentAlignment="Left" Padding="14,0" Style="{StaticResource GlassButton}"
-                                Click="OnNavAnimationClicked"/>
-                        <Button x:Name="NavRecovery" Content="Explorer Recovery" Height="38" Margin="0,0,0,6"
-                                HorizontalContentAlignment="Left" Padding="14,0" Style="{StaticResource GlassButton}"
-                                Click="OnNavRecoveryClicked"/>
-                        <Button x:Name="NavBackup" Content="Backup &amp; Restore" Height="38" Margin="0,0,0,6"
-                                HorizontalContentAlignment="Left" Padding="14,0" Style="{StaticResource GlassButton}"
-                                Click="OnNavBackupClicked"/>
-                        <Button x:Name="NavAbout" Content="About" Height="38" Margin="0,0,0,6"
-                                HorizontalContentAlignment="Left" Padding="14,0" Style="{StaticResource GlassButton}"
-                                Click="OnNavAboutClicked"/>
+                        <RadioButton x:Name="NavGeneral" Content="General" Style="{StaticResource NavItem}" Tag="{StaticResource IconGeneral}"
+                                     GroupName="Nav" IsChecked="True" Checked="OnNavGeneralClicked"/>
+                        <RadioButton x:Name="NavAppearance" Content="Appearance" Style="{StaticResource NavItem}" Tag="{StaticResource IconAppearance}"
+                                     GroupName="Nav" Checked="OnNavAppearanceClicked"/>
+                        <RadioButton x:Name="NavLayout" Content="Desktop Layout" Style="{StaticResource NavItem}" Tag="{StaticResource IconLayout}"
+                                     GroupName="Nav" Checked="OnNavLayoutClicked"/>
+                        <RadioButton x:Name="NavAnimation" Content="Animations" Style="{StaticResource NavItem}" Tag="{StaticResource IconAnimation}"
+                                     GroupName="Nav" Checked="OnNavAnimationClicked"/>
+                        <RadioButton x:Name="NavRecovery" Content="Explorer Recovery" Style="{StaticResource NavItem}" Tag="{StaticResource IconRecovery}"
+                                     GroupName="Nav" Checked="OnNavRecoveryClicked"/>
+                        <RadioButton x:Name="NavBackup" Content="Backup &amp; Restore" Style="{StaticResource NavItem}" Tag="{StaticResource IconBackup}"
+                                     GroupName="Nav" Checked="OnNavBackupClicked"/>
+                        <RadioButton x:Name="NavAbout" Content="About" Style="{StaticResource NavItem}" Tag="{StaticResource IconAbout}"
+                                     GroupName="Nav" Checked="OnNavAboutClicked"/>
                     </StackPanel>
 
-                    <!-- Version indicator at bottom -->
                     <StackPanel Grid.Row="2" HorizontalAlignment="Center">
-                        <TextBlock x:Name="TxtSidebarVersion" Text="v" FontSize="10" Foreground="{StaticResource BrushTextMuted}" HorizontalAlignment="Center"/>
-                        <TextBlock Text="rie-sources.com" FontSize="9" Foreground="{StaticResource BrushAccent}" HorizontalAlignment="Center" Margin="0,2,0,0" Cursor="Hand" MouseLeftButtonDown="OnBrandUrlClicked"/>
+                        <TextBlock x:Name="TxtSidebarVersion" Text="v" FontSize="11" Foreground="{DynamicResource ChromeTextMuted}" HorizontalAlignment="Center"/>
+                        <TextBlock Text="rie-sources.com" FontSize="11.5" Foreground="{DynamicResource ChromeLink}" HorizontalAlignment="Center"
+                                   Margin="0,3,0,0" Cursor="Hand" MouseLeftButtonDown="OnBrandUrlClicked"/>
                     </StackPanel>
                 </Grid>
             </Border>
 
-            <!-- Right: Content Area -->
-            <Grid Grid.Column="1" Margin="28,24,28,24">
+            <!-- Content -->
+            <Grid Grid.Column="1" Margin="30,24,24,24">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <!-- Page Header + Window Controls -->
-                <Grid Grid.Row="0" Margin="0,0,0,20">
-                    <TextBlock x:Name="TxtPageTitle" Text="General Settings" FontSize="22" FontWeight="SemiBold"
-                               Foreground="{StaticResource BrushTextPrimary}" FontFamily="{StaticResource FontDisplay}"/>
-                    <Button Content="✕" Width="30" Height="30" HorizontalAlignment="Right"
-                            Style="{StaticResource GlassIconButton}" Click="OnBtnCloseClicked"/>
+                <Grid Grid.Row="0" Margin="0,0,0,16" Background="Transparent" MouseLeftButtonDown="OnDragRegionMouseDown">
+                    <TextBlock x:Name="TxtPageTitle" Text="General" FontSize="24" FontWeight="SemiBold"
+                               Foreground="{DynamicResource ChromeText}" FontFamily="{StaticResource FontDisplay}" VerticalAlignment="Center"/>
+                    <Button HorizontalAlignment="Right" Style="{StaticResource GlassIconButton}" Click="OnBtnCloseClicked" ToolTip="Close" AutomationProperties.Name="Close">
+                        <Path Style="{StaticResource LineIcon}" Data="{StaticResource IconClose}" Width="16" Height="16"/>
+                    </Button>
                 </Grid>
 
-                <!-- Pages Container -->
-                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,0,12,0">
                     <StackPanel>
-                        <!-- PAGE 1: GENERAL -->
+
+                        <!-- GENERAL -->
                         <StackPanel x:Name="PageGeneral" Visibility="Visible">
                             <Border Style="{StaticResource GlassCard}" Margin="0,0,0,14">
                                 <StackPanel>
-                                    <TextBlock Text="Startup &amp; Behavior" FontSize="14" FontWeight="SemiBold"
-                                               Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,10"/>
-                                    <CheckBox x:Name="ChkStartWithWindows" Content="Start GlassFolders when Windows starts (system tray)"
-                                               Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,10"
-                                               Checked="OnStartupCheckChanged" Unchecked="OnStartupCheckChanged"/>
-                                    <CheckBox x:Name="ChkCheckMissing" Content="Show warning badge on shortcuts with missing targets"
-                                               Foreground="{StaticResource BrushTextSecondary}" IsChecked="True"/>
+                                    <TextBlock Text="Startup and behaviour" Style="{StaticResource CardTitle}"/>
+                                    <CheckBox x:Name="ChkStartWithWindows" Content="Start GlassFolders when Windows starts"
+                                              Checked="OnStartupCheckChanged" Unchecked="OnStartupCheckChanged"/>
+                                    <Rectangle Style="{StaticResource Divider}"/>
+                                    <CheckBox x:Name="ChkCheckMissing" Content="Show a warning badge on shortcuts whose target is missing"
+                                              IsChecked="True" Checked="OnDesktopOptionChanged" Unchecked="OnDesktopOptionChanged"/>
                                 </StackPanel>
                             </Border>
 
                             <Border Style="{StaticResource GlassCard}">
                                 <StackPanel>
-                                    <TextBlock Text="Desktop Folders" FontSize="14" FontWeight="SemiBold"
-                                               Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,10"/>
+                                    <TextBlock Text="Desktop folders" Style="{StaticResource CardTitle}"/>
                                     <CheckBox x:Name="ChkSnapToGrid" Content="Snap folders to the desktop icon grid when dragging"
-                                               Foreground="{StaticResource BrushTextSecondary}" IsChecked="True" Margin="0,0,0,10"
-                                               Checked="OnDesktopOptionChanged" Unchecked="OnDesktopOptionChanged"/>
+                                              IsChecked="True" Checked="OnDesktopOptionChanged" Unchecked="OnDesktopOptionChanged"/>
+                                    <Rectangle Style="{StaticResource Divider}"/>
                                     <CheckBox x:Name="ChkShowItemCount" Content="Show how many items each folder holds"
-                                               Foreground="{StaticResource BrushTextSecondary}"
-                                               Checked="OnDesktopOptionChanged" Unchecked="OnDesktopOptionChanged"/>
+                                              Checked="OnDesktopOptionChanged" Unchecked="OnDesktopOptionChanged"/>
                                 </StackPanel>
                             </Border>
                         </StackPanel>
 
-                        <!-- PAGE 2: APPEARANCE -->
+                        <!-- APPEARANCE -->
                         <StackPanel x:Name="PageAppearance" Visibility="Collapsed">
                             <Border Style="{StaticResource GlassCard}" Margin="0,0,0,14">
                                 <StackPanel>
-                                    <TextBlock Text="Liquid Glass Effects" FontSize="14" FontWeight="SemiBold"
-                                               Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,10"/>
-                                    <CheckBox x:Name="ChkAcrylicBlur" Content="Enable DWM Acrylic background blur"
-                                               Foreground="{StaticResource BrushTextSecondary}" IsChecked="True" Margin="0,0,0,10"/>
-                                    <TextBlock Text="Uses GPU hardware composition to blur your desktop wallpaper behind popups."
-                                               FontSize="11" Foreground="{StaticResource BrushTextMuted}" Margin="24,0,0,0" TextWrapping="Wrap"/>
+                                    <TextBlock Text="Theme" Style="{StaticResource CardTitle}"/>
+                                    <Border Style="{StaticResource SegmentedBar}">
+                                        <StackPanel Orientation="Horizontal">
+                                            <RadioButton x:Name="RbThemeSystem" Content="Follow Windows" GroupName="Theme" Style="{StaticResource SegmentedItem}" Checked="OnThemeChecked"/>
+                                            <RadioButton x:Name="RbThemeLight" Content="Light" GroupName="Theme" Style="{StaticResource SegmentedItem}" Checked="OnThemeChecked"/>
+                                            <RadioButton x:Name="RbThemeDark" Content="Dark" GroupName="Theme" Style="{StaticResource SegmentedItem}" Checked="OnThemeChecked"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <TextBlock Style="{StaticResource HintText}" Margin="0,10,0,0"
+                                               Text="Sets the colours of Settings, menus and dialogs. The folder popup keeps its blue glass in both."/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource GlassCard}" Margin="0,0,0,14">
+                                <StackPanel>
+                                    <TextBlock Text="Glass" Style="{StaticResource CardTitle}"/>
+                                    <Grid Margin="0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="130"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="44"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Transparency" Style="{StaticResource RowLabel}"/>
+                                        <Slider x:Name="SliderTransparency" Grid.Column="1" Minimum="0" Maximum="100" SmallChange="1" LargeChange="10" ValueChanged="OnAppearanceSliderChanged"/>
+                                        <TextBlock x:Name="TxtTransparencyVal" Grid.Column="2" Style="{StaticResource ValueText}"/>
+                                    </Grid>
+                                    <Grid Margin="0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="130"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="44"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Blur" Style="{StaticResource RowLabel}"/>
+                                        <Slider x:Name="SliderBlur" Grid.Column="1" Minimum="0" Maximum="100" SmallChange="1" LargeChange="10" ValueChanged="OnAppearanceSliderChanged"/>
+                                        <TextBlock x:Name="TxtBlurVal" Grid.Column="2" Style="{StaticResource ValueText}"/>
+                                    </Grid>
+                                    <Grid Margin="0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="130"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="44"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Border" Style="{StaticResource RowLabel}"/>
+                                        <Slider x:Name="SliderBorder" Grid.Column="1" Minimum="0" Maximum="100" SmallChange="1" LargeChange="10" ValueChanged="OnAppearanceSliderChanged"/>
+                                        <TextBlock x:Name="TxtBorderVal" Grid.Column="2" Style="{StaticResource ValueText}"/>
+                                    </Grid>
+                                    <Grid Margin="0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="130"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="44"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Shadow" Style="{StaticResource RowLabel}"/>
+                                        <Slider x:Name="SliderShadow" Grid.Column="1" Minimum="0" Maximum="100" SmallChange="1" LargeChange="10" ValueChanged="OnAppearanceSliderChanged"/>
+                                        <TextBlock x:Name="TxtShadowVal" Grid.Column="2" Style="{StaticResource ValueText}"/>
+                                    </Grid>
+                                    <Grid Margin="0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="130"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="44"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Corner radius" Style="{StaticResource RowLabel}"/>
+                                        <Slider x:Name="SliderCorner" Grid.Column="1" Minimum="16" Maximum="48" SmallChange="1" LargeChange="4" IsSnapToTickEnabled="True" TickFrequency="1" ValueChanged="OnAppearanceSliderChanged"/>
+                                        <TextBlock x:Name="TxtCornerVal" Grid.Column="2" Style="{StaticResource ValueText}"/>
+                                    </Grid>
+                                    <TextBlock Style="{StaticResource HintText}" Margin="0,8,0,10"
+                                               Text="Changes show here at once and apply to the folder popup the next time it opens. If Windows has transparency effects off, or high contrast is on, the glass becomes a solid panel."/>
+                                    <Button Content="Reset glass settings" Style="{StaticResource GlassButton}" HorizontalAlignment="Left" Click="OnBtnResetAppearanceClicked"/>
                                 </StackPanel>
                             </Border>
 
                             <Border Style="{StaticResource GlassCard}">
                                 <StackPanel>
-                                    <TextBlock Text="Popup Layout" FontSize="14" FontWeight="SemiBold"
-                                               Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,12"/>
-                                    <DockPanel LastChildFill="True" Margin="0,0,0,12">
-                                        <TextBlock Text="Grid Columns:" Foreground="{StaticResource BrushTextSecondary}" Width="140" VerticalAlignment="Center"/>
-                                        <TextBlock x:Name="TxtColumnsVal" Text="4" Foreground="{StaticResource BrushAccent}" Width="30" VerticalAlignment="Center"/>
-                                        <Slider x:Name="SliderColumns" Minimum="3" Maximum="6" Value="4" IsSnapToTickEnabled="True"
-                                                ValueChanged="OnColumnsSliderChanged"/>
-                                    </DockPanel>
-                                    <DockPanel LastChildFill="True">
-                                        <TextBlock Text="Grid Rows:" Foreground="{StaticResource BrushTextSecondary}" Width="140" VerticalAlignment="Center"/>
-                                        <TextBlock x:Name="TxtRowsVal" Text="2" Foreground="{StaticResource BrushAccent}" Width="30" VerticalAlignment="Center"/>
-                                        <Slider x:Name="SliderRows" Minimum="2" Maximum="5" Value="2" IsSnapToTickEnabled="True"
-                                                ValueChanged="OnRowsSliderChanged"/>
-                                    </DockPanel>
+                                    <TextBlock Text="Folder popup" Style="{StaticResource CardTitle}"/>
+                                    <TextBlock Text="App icon size" Style="{StaticResource RowLabel}" Margin="0,2,0,8"/>
+                                    <Border Style="{StaticResource SegmentedBar}" Margin="0,0,0,12">
+                                        <StackPanel Orientation="Horizontal">
+                                            <RadioButton x:Name="RbIconSmall" Content="Small" GroupName="IconSize" Style="{StaticResource SegmentedItem}" Checked="OnIconSizeChecked"/>
+                                            <RadioButton x:Name="RbIconMedium" Content="Medium" GroupName="IconSize" Style="{StaticResource SegmentedItem}" Checked="OnIconSizeChecked"/>
+                                            <RadioButton x:Name="RbIconLarge" Content="Large" GroupName="IconSize" Style="{StaticResource SegmentedItem}" Checked="OnIconSizeChecked"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Grid Margin="0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="130"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="44"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Columns" Style="{StaticResource RowLabel}"/>
+                                        <Slider x:Name="SliderColumns" Grid.Column="1" Minimum="3" Maximum="6" Value="4" IsSnapToTickEnabled="True" TickFrequency="1" ValueChanged="OnColumnsSliderChanged"/>
+                                        <TextBlock x:Name="TxtColumnsVal" Grid.Column="2" Style="{StaticResource ValueText}" Text="4"/>
+                                    </Grid>
+                                    <Grid Margin="0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="130"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="44"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Rows" Style="{StaticResource RowLabel}"/>
+                                        <Slider x:Name="SliderRows" Grid.Column="1" Minimum="2" Maximum="5" Value="2" IsSnapToTickEnabled="True" TickFrequency="1" ValueChanged="OnRowsSliderChanged"/>
+                                        <TextBlock x:Name="TxtRowsVal" Grid.Column="2" Style="{StaticResource ValueText}" Text="2"/>
+                                    </Grid>
                                 </StackPanel>
                             </Border>
                         </StackPanel>
 
-                        <!-- PAGE 3: DESKTOP LAYOUT -->
+                        <!-- DESKTOP LAYOUT -->
                         <StackPanel x:Name="PageLayout" Visibility="Collapsed">
                             <Border Style="{StaticResource GlassCard}" Margin="0,0,0,14">
                                 <StackPanel>
-                                    <TextBlock Text="Connected Displays (Multi-Monitor)" FontSize="14" FontWeight="SemiBold"
-                                               Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,8"/>
-                                    <TextBlock Text="GlassFolders pins folders relative to their home display. If a display is disconnected, folders temporarily displace to the primary display without losing their home layout."
-                                               FontSize="12" Foreground="{StaticResource BrushTextSecondary}" TextWrapping="Wrap" Margin="0,0,0,12"/>
-
+                                    <TextBlock Text="Connected displays" Style="{StaticResource CardTitle}"/>
+                                    <TextBlock Style="{StaticResource BodyText}" Margin="0,0,0,12"
+                                               Text="Each folder stays on its own display. If a display is unplugged, its folders move to the main display for now and go back when it returns."/>
                                     <ItemsControl x:Name="MonitorsList">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Border Background="#1AFFFFFF" CornerRadius="8" Padding="12,10" Margin="0,0,0,6">
+                                                <Border Background="{DynamicResource ChromeRow}" CornerRadius="12" Padding="14,10" Margin="0,0,0,6">
                                                     <DockPanel LastChildFill="True">
-                                                        <TextBlock Text="🖥️" FontSize="16" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                                        <Path Style="{StaticResource LineIcon}" Data="{StaticResource IconLayout}" Width="20" Height="20" Margin="0,0,12,0"/>
                                                         <StackPanel VerticalAlignment="Center">
-                                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="White"/>
-                                                            <TextBlock Text="{Binding WorkArea, StringFormat='Work Area: {0}'}" FontSize="11" Foreground="#80FFFFFF" Margin="0,2,0,0"/>
+                                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="{DynamicResource ChromeText}"/>
+                                                            <TextBlock Text="{Binding WorkArea, StringFormat='Work area: {0}'}" FontSize="12" Foreground="{DynamicResource ChromeTextMuted}" Margin="0,2,0,0"/>
                                                         </StackPanel>
                                                     </DockPanel>
                                                 </Border>
@@ -172,23 +262,19 @@
                                 </StackPanel>
                             </Border>
 
-                            <Border Style="{StaticResource GlassCard}" Margin="0,0,0,14">
+                            <Border Style="{StaticResource GlassCard}">
                                 <StackPanel>
                                     <DockPanel LastChildFill="False" Margin="0,0,0,12">
-                                        <TextBlock Text="Desktop Folders" FontSize="14" FontWeight="SemiBold"
-                                                   Foreground="{StaticResource BrushTextPrimary}" VerticalAlignment="Center"/>
-                                        <Button Content="+ New Folder" DockPanel.Dock="Right" Style="{StaticResource GlassButton}"
-                                                Click="OnBtnNewFolderClicked"/>
+                                        <TextBlock Text="Desktop folders" Style="{StaticResource CardTitle}" Margin="0" VerticalAlignment="Center"/>
+                                        <Button Content="New folder" DockPanel.Dock="Right" Style="{StaticResource AccentButton}" Padding="16,6" Click="OnBtnNewFolderClicked"/>
                                     </DockPanel>
-
-                                    <!-- Folders List -->
                                     <ItemsControl x:Name="FoldersList">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Border Background="#1AFFFFFF" CornerRadius="8" Padding="12,8" Margin="0,0,0,6">
+                                                <Border Background="{DynamicResource ChromeRow}" CornerRadius="12" Padding="14,10" Margin="0,0,0,6">
                                                     <DockPanel LastChildFill="True">
-                                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
-                                                        <TextBlock Text="{Binding Items.Count, StringFormat='({0} items)'}" Foreground="#80FFFFFF" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="{DynamicResource ChromeText}" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding Items.Count, StringFormat='{}{0} items'}" Foreground="{DynamicResource ChromeTextMuted}" Margin="10,0,0,0" VerticalAlignment="Center"/>
                                                     </DockPanel>
                                                 </Border>
                                             </DataTemplate>
@@ -198,170 +284,157 @@
                             </Border>
                         </StackPanel>
 
-                        <!-- PAGE 4: ANIMATIONS -->
+                        <!-- ANIMATIONS -->
                         <StackPanel x:Name="PageAnimation" Visibility="Collapsed">
                             <Border Style="{StaticResource GlassCard}" Margin="0,0,0,14">
                                 <StackPanel>
-                                    <TextBlock Text="Global Animation Controls" FontSize="14" FontWeight="SemiBold"
-                                               Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,10"/>
-                                    <CheckBox x:Name="ChkGlobalAnim" Content="Enable fluid animations across GlassFolders"
-                                               Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,10"
-                                               Checked="OnAnimationSettingChanged" Unchecked="OnAnimationSettingChanged"/>
-                                    <CheckBox x:Name="ChkFollowWindowsAnim" Content="Respect Windows 'Animation effects' setting (reduced motion)"
-                                               Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,12"
-                                               Checked="OnAnimationSettingChanged" Unchecked="OnAnimationSettingChanged"/>
-
-                                    <DockPanel LastChildFill="True">
-                                        <TextBlock Text="Animation Speed:" Foreground="{StaticResource BrushTextSecondary}" Width="140" VerticalAlignment="Center"/>
-                                        <TextBlock x:Name="TxtAnimSpeedVal" Text="1.0x" Foreground="{StaticResource BrushAccent}" Width="40" VerticalAlignment="Center"/>
-                                        <Slider x:Name="SliderAnimSpeed" Minimum="0.5" Maximum="2.0" Value="1.0" TickFrequency="0.25" IsSnapToTickEnabled="True"
+                                    <TextBlock Text="Animation controls" Style="{StaticResource CardTitle}"/>
+                                    <CheckBox x:Name="ChkGlobalAnim" Content="Use animations"
+                                              Checked="OnAnimationSettingChanged" Unchecked="OnAnimationSettingChanged"/>
+                                    <Rectangle Style="{StaticResource Divider}"/>
+                                    <CheckBox x:Name="ChkFollowWindowsAnim" Content="Follow the Windows &quot;Animation effects&quot; setting"
+                                              Checked="OnAnimationSettingChanged" Unchecked="OnAnimationSettingChanged"/>
+                                    <Rectangle Style="{StaticResource Divider}"/>
+                                    <Grid Margin="0,4,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="130"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="44"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Speed" Style="{StaticResource RowLabel}"/>
+                                        <Slider x:Name="SliderAnimSpeed" Grid.Column="1" Minimum="0.5" Maximum="2.0" Value="1.0" TickFrequency="0.25" IsSnapToTickEnabled="True"
                                                 ValueChanged="OnAnimSpeedSliderChanged"/>
-                                    </DockPanel>
+                                        <TextBlock x:Name="TxtAnimSpeedVal" Grid.Column="2" Style="{StaticResource ValueText}" Text="1.0x"/>
+                                    </Grid>
                                 </StackPanel>
                             </Border>
 
                             <Border Style="{StaticResource GlassCard}" x:Name="CardAnimCategories">
                                 <StackPanel>
-                                    <TextBlock Text="Animation Categories" FontSize="14" FontWeight="SemiBold"
-                                               Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,12"/>
-
-                                    <CheckBox x:Name="ChkAnimOpenClose" Content="Folder popup open &amp; close scale/fade"
-                                              Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,8"
-                                              Checked="OnAnimationSettingChanged" Unchecked="OnAnimationSettingChanged"/>
-                                    <CheckBox x:Name="ChkAnimTileHover" Content="Desktop folder tile hover glow"
-                                              Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,8"
-                                              Checked="OnAnimationSettingChanged" Unchecked="OnAnimationSettingChanged"/>
-                                    <CheckBox x:Name="ChkAnimItemPress" Content="Item click and press feedback"
-                                              Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,8"
-                                              Checked="OnAnimationSettingChanged" Unchecked="OnAnimationSettingChanged"/>
-                                    <CheckBox x:Name="ChkAnimPageTrans" Content="Popup page dots transition slide"
-                                              Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,8"
-                                              Checked="OnAnimationSettingChanged" Unchecked="OnAnimationSettingChanged"/>
-                                    <CheckBox x:Name="ChkAnimWindowTrans" Content="Window transitions"
-                                              Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,8"
-                                              Checked="OnAnimationSettingChanged" Unchecked="OnAnimationSettingChanged"/>
-                                    <CheckBox x:Name="ChkAnimDragGhost" Content="Drag ghost &amp; slot rearrange"
-                                              Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,8"
-                                              Checked="OnAnimationSettingChanged" Unchecked="OnAnimationSettingChanged"/>
-                                    <CheckBox x:Name="ChkAnimShimmer" Content="Subtle glass gloss shimmer on open (never loops)"
-                                              Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,8"
-                                              Checked="OnAnimationSettingChanged" Unchecked="OnAnimationSettingChanged"/>
-                                    <CheckBox x:Name="ChkAnimSettingsNav" Content="Settings navigation transitions"
-                                              Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,12"
-                                              Checked="OnAnimationSettingChanged" Unchecked="OnAnimationSettingChanged"/>
-
-                                    <Button Content="Reset Animation Settings to Defaults" Style="{StaticResource GlassButton}"
-                                            HorizontalAlignment="Left" Padding="14,6" Click="OnBtnResetAnimDefaultsClicked"/>
+                                    <TextBlock Text="What animates" Style="{StaticResource CardTitle}"/>
+                                    <CheckBox x:Name="ChkAnimOpenClose" Content="Folder popup opening and closing" Checked="OnAnimationSettingChanged" Unchecked="OnAnimationSettingChanged"/>
+                                    <Rectangle Style="{StaticResource Divider}"/>
+                                    <CheckBox x:Name="ChkAnimTileHover" Content="Desktop folder hover glow" Checked="OnAnimationSettingChanged" Unchecked="OnAnimationSettingChanged"/>
+                                    <Rectangle Style="{StaticResource Divider}"/>
+                                    <CheckBox x:Name="ChkAnimItemPress" Content="Press feedback on items" Checked="OnAnimationSettingChanged" Unchecked="OnAnimationSettingChanged"/>
+                                    <Rectangle Style="{StaticResource Divider}"/>
+                                    <CheckBox x:Name="ChkAnimPageTrans" Content="Sliding between popup pages" Checked="OnAnimationSettingChanged" Unchecked="OnAnimationSettingChanged"/>
+                                    <Rectangle Style="{StaticResource Divider}"/>
+                                    <CheckBox x:Name="ChkAnimWindowTrans" Content="Popup growing and shrinking" Checked="OnAnimationSettingChanged" Unchecked="OnAnimationSettingChanged"/>
+                                    <Rectangle Style="{StaticResource Divider}"/>
+                                    <CheckBox x:Name="ChkAnimDragGhost" Content="Dragging a folder" Checked="OnAnimationSettingChanged" Unchecked="OnAnimationSettingChanged"/>
+                                    <Rectangle Style="{StaticResource Divider}"/>
+                                    <CheckBox x:Name="ChkAnimShimmer" Content="A soft glint when the popup opens (plays once)" Checked="OnAnimationSettingChanged" Unchecked="OnAnimationSettingChanged"/>
+                                    <Rectangle Style="{StaticResource Divider}"/>
+                                    <CheckBox x:Name="ChkAnimSettingsNav" Content="Moving between Settings pages" Checked="OnAnimationSettingChanged" Unchecked="OnAnimationSettingChanged"/>
+                                    <Button Content="Reset animation settings" Style="{StaticResource GlassButton}" HorizontalAlignment="Left" Margin="0,14,0,0"
+                                            Click="OnBtnResetAnimDefaultsClicked"/>
                                 </StackPanel>
                             </Border>
                         </StackPanel>
 
-                        <!-- PAGE 5: EXPLORER RECOVERY -->
+                        <!-- EXPLORER RECOVERY -->
                         <StackPanel x:Name="PageRecovery" Visibility="Collapsed">
                             <Border Style="{StaticResource GlassCard}" Margin="0,0,0,14">
                                 <StackPanel>
-                                    <TextBlock Text="Explorer Shell Integration &amp; Recovery" FontSize="14" FontWeight="SemiBold"
-                                               Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,10"/>
-                                    <TextBlock Text="GlassFolders continuously monitors Explorer for crashes, restarts, and power events. It automatically reattaches desktop folder windows with idempotent backoff."
-                                               FontSize="12" Foreground="{StaticResource BrushTextSecondary}" TextWrapping="Wrap" Margin="0,0,0,14"/>
+                                    <TextBlock Text="Explorer recovery" Style="{StaticResource CardTitle}"/>
+                                    <TextBlock Style="{StaticResource BodyText}" Margin="0,0,0,14"
+                                               Text="GlassFolders watches Explorer for crashes, restarts and wake-ups, and puts the desktop folders back by itself."/>
 
                                     <Grid Margin="0,0,0,12">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="140"/>
+                                            <ColumnDefinition Width="130"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
                                         <Grid.RowDefinitions>
-                                            <RowDefinition Height="28"/>
-                                            <RowDefinition Height="28"/>
-                                            <RowDefinition Height="28"/>
+                                            <RowDefinition Height="30"/>
+                                            <RowDefinition Height="30"/>
+                                            <RowDefinition Height="30"/>
                                         </Grid.RowDefinitions>
 
-                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="State:" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
-                                        <Border Grid.Row="0" Grid.Column="1" HorizontalAlignment="Left" CornerRadius="6" Padding="8,2"
-                                                x:Name="BadgeRecoveryState" Background="#2235D07F">
-                                            <TextBlock x:Name="TxtRecoveryState" Text="Healthy" FontWeight="SemiBold" Foreground="#35D07F" FontSize="12"/>
+                                        <TextBlock Grid.Row="0" Text="State" Style="{StaticResource RowLabel}" Foreground="{DynamicResource ChromeTextMuted}"/>
+                                        <Border Grid.Row="0" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Center" CornerRadius="10" Padding="10,2" x:Name="BadgeRecoveryState"
+                                                Background="{DynamicResource ChromeRow}">
+                                            <TextBlock x:Name="TxtRecoveryState" Text="Healthy" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource ChromeOk}"/>
                                         </Border>
 
-                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Last Event:" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
-                                        <TextBlock Grid.Row="1" Grid.Column="1" x:Name="TxtRecoveryLastEvent" Text="Initialized" Foreground="{StaticResource BrushTextSecondary}" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Row="1" Text="Last event" Style="{StaticResource RowLabel}" Foreground="{DynamicResource ChromeTextMuted}"/>
+                                        <TextBlock Grid.Row="1" Grid.Column="1" x:Name="TxtRecoveryLastEvent" Text="Initialized" Style="{StaticResource RowLabel}" Foreground="{DynamicResource ChromeTextSecondary}"/>
 
-                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Reattach Count:" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
-                                        <TextBlock Grid.Row="2" Grid.Column="1" x:Name="TxtReattachCount" Text="0" Foreground="{StaticResource BrushAccent}" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Row="2" Text="Reattach count" Style="{StaticResource RowLabel}" Foreground="{DynamicResource ChromeTextMuted}"/>
+                                        <TextBlock Grid.Row="2" Grid.Column="1" x:Name="TxtReattachCount" Text="0" Style="{StaticResource RowLabel}" Foreground="{DynamicResource ChromeTextSecondary}"/>
                                     </Grid>
 
-                                    <Button x:Name="BtnRecoverNow" Content="Recover Now (Force Reattach)" Style="{StaticResource GlassButton}"
-                                            HorizontalAlignment="Left" Padding="16,8" Margin="0,6,0,0" Click="OnBtnRecoverNowClicked"/>
+                                    <Button x:Name="BtnRecoverNow" Content="Recover now" Style="{StaticResource GlassButton}" HorizontalAlignment="Left" Click="OnBtnRecoverNowClicked"/>
                                 </StackPanel>
                             </Border>
 
                             <Border Style="{StaticResource GlassCard}">
                                 <StackPanel>
-                                    <TextBlock Text="Diagnostics &amp; Logs" FontSize="14" FontWeight="SemiBold"
-                                               Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,10"/>
-                                    <TextBlock Text="Rolling diagnostic logs (up to 5 × 1 MB) are saved in your local app data."
-                                               FontSize="12" Foreground="{StaticResource BrushTextSecondary}" TextWrapping="Wrap" Margin="0,0,0,12"/>
-
-                                    <DockPanel LastChildFill="False">
-                                        <Button Content="Open Logs Folder" Style="{StaticResource GlassButton}"
-                                                Padding="14,6" Click="OnBtnOpenLogsClicked"/>
-                                    </DockPanel>
+                                    <TextBlock Text="Diagnostics" Style="{StaticResource CardTitle}"/>
+                                    <TextBlock Style="{StaticResource BodyText}" Margin="0,0,0,12"
+                                               Text="Logs roll over at 1 MB, and the five newest are kept in your local app data. A lower level writes more."/>
+                                    <TextBlock Text="Log level" Style="{StaticResource RowLabel}" Margin="0,0,0,8"/>
+                                    <Border Style="{StaticResource SegmentedBar}" Margin="0,0,0,14">
+                                        <StackPanel Orientation="Horizontal">
+                                            <RadioButton x:Name="RbLogError" Content="Errors" GroupName="LogLevel" Style="{StaticResource SegmentedItem}" Checked="OnLogLevelChecked"/>
+                                            <RadioButton x:Name="RbLogWarning" Content="Warnings" GroupName="LogLevel" Style="{StaticResource SegmentedItem}" Checked="OnLogLevelChecked"/>
+                                            <RadioButton x:Name="RbLogInfo" Content="Info" GroupName="LogLevel" Style="{StaticResource SegmentedItem}" Checked="OnLogLevelChecked"/>
+                                            <RadioButton x:Name="RbLogDebug" Content="Debug" GroupName="LogLevel" Style="{StaticResource SegmentedItem}" Checked="OnLogLevelChecked"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Button Content="Open logs folder" Style="{StaticResource GlassButton}" HorizontalAlignment="Left" Click="OnBtnOpenLogsClicked"/>
                                 </StackPanel>
                             </Border>
                         </StackPanel>
 
-                        <!-- PAGE 6: BACKUP & RESTORE -->
+                        <!-- BACKUP & RESTORE -->
                         <StackPanel x:Name="PageBackup" Visibility="Collapsed">
                             <Border Style="{StaticResource GlassCard}" Margin="0,0,0,14">
                                 <StackPanel>
-                                    <TextBlock Text="Export Portable Backup" FontSize="14" FontWeight="SemiBold"
-                                               Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,8"/>
-                                    <TextBlock Text="Create a portable ZIP package containing your folder definitions, layouts, settings, and cached icons. Backups are self-contained and safe to move across PCs."
-                                               FontSize="12" Foreground="{StaticResource BrushTextSecondary}" TextWrapping="Wrap" Margin="0,0,0,12"/>
-                                    <Button Content="Export Backup (.zip)..." Style="{StaticResource GlassButton}"
-                                            HorizontalAlignment="Left" Padding="16,8" Click="OnBtnExportBackupClicked"/>
+                                    <TextBlock Text="Export a backup" Style="{StaticResource CardTitle}"/>
+                                    <TextBlock Style="{StaticResource BodyText}" Margin="0,0,0,12"
+                                               Text="Saves your folders, layout, settings and icon cache in one ZIP that you can move to another PC."/>
+                                    <Button Content="Export backup…" Style="{StaticResource GlassButton}" HorizontalAlignment="Left" Click="OnBtnExportBackupClicked"/>
                                 </StackPanel>
                             </Border>
 
                             <Border Style="{StaticResource GlassCard}" Margin="0,0,0,14">
                                 <StackPanel>
-                                    <TextBlock Text="Restore Backup" FontSize="14" FontWeight="SemiBold"
-                                               Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,8"/>
-                                    <TextBlock Text="Restore from a previously created backup ZIP. You will be prompted to choose between replacing your current setup or merging new folders into it. An automatic pre-restore backup is always created first."
-                                               FontSize="12" Foreground="{StaticResource BrushTextSecondary}" TextWrapping="Wrap" Margin="0,0,0,12"/>
-                                    <Button Content="Import &amp; Restore Backup..." Style="{StaticResource GlassButton}"
-                                            HorizontalAlignment="Left" Padding="16,8" Click="OnBtnImportBackupClicked"/>
+                                    <TextBlock Text="Restore a backup" Style="{StaticResource CardTitle}"/>
+                                    <TextBlock Style="{StaticResource BodyText}" Margin="0,0,0,12"
+                                               Text="Choose a backup ZIP, then replace your setup or merge its folders into it. A safety backup of your current setup is made first."/>
+                                    <Button Content="Restore from backup…" Style="{StaticResource GlassButton}" HorizontalAlignment="Left" Click="OnBtnImportBackupClicked"/>
                                 </StackPanel>
                             </Border>
 
                             <Border Style="{StaticResource GlassCard}">
                                 <StackPanel>
-                                    <TextBlock Text="Reset Configuration" FontSize="14" FontWeight="SemiBold"
-                                               Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,8"/>
-                                    <TextBlock Text="Revert folders and settings back to factory defaults. Your actual files and applications will never be deleted."
-                                               FontSize="12" Foreground="{StaticResource BrushTextSecondary}" TextWrapping="Wrap" Margin="0,0,0,12"/>
-                                    <Button Content="Reset to Factory Defaults" Style="{StaticResource GlassButton}"
-                                            HorizontalAlignment="Left" Padding="16,8" Click="OnBtnResetDefaultsClicked"/>
+                                    <TextBlock Text="Start over" Style="{StaticResource CardTitle}"/>
+                                    <TextBlock Style="{StaticResource BodyText}" Margin="0,0,0,12"
+                                               Text="Puts folders and settings back to the defaults. Your files and applications are never deleted."/>
+                                    <Button Content="Reset to defaults…" Style="{StaticResource DangerButton}" HorizontalAlignment="Left" Click="OnBtnResetDefaultsClicked"/>
                                 </StackPanel>
                             </Border>
                         </StackPanel>
 
-                        <!-- PAGE 7: ABOUT -->
+                        <!-- ABOUT -->
                         <StackPanel x:Name="PageAbout" Visibility="Collapsed">
                             <Border Style="{StaticResource GlassCard}">
                                 <StackPanel>
                                     <Image Source="pack://application:,,,/GlassFolders;component/assets/app-icon.png" Width="64" Height="64" HorizontalAlignment="Left" Margin="0,0,0,12"/>
-                                    <TextBlock Text="GlassFolders" FontSize="20" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}"/>
-                                    <TextBlock x:Name="TxtAboutVersion" Text="Version" FontSize="12" Foreground="{StaticResource BrushAccent}" Margin="0,2,0,12"/>
-                                    <TextBlock Text="Phone-style app folders on your real Windows 11 desktop, with a Liquid Glass popup."
-                                               Foreground="{StaticResource BrushTextSecondary}" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,14"/>
+                                    <TextBlock Text="GlassFolders" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource ChromeText}" FontFamily="{StaticResource FontDisplay}"/>
+                                    <TextBlock x:Name="TxtAboutVersion" Text="Version" FontSize="13" Foreground="{DynamicResource ChromeLink}" Margin="0,2,0,12"/>
+                                    <TextBlock Style="{StaticResource BodyText}" Margin="0,0,0,16"
+                                               Text="Phone-style app folders on your real Windows 11 desktop, with a Liquid Glass popup."/>
 
-                                    <Border Background="#1A3B6FE0" CornerRadius="12" BorderThickness="1" BorderBrush="#4D3B6FE0" Padding="14,10" Margin="0,0,0,16">
+                                    <Border Background="{DynamicResource ChromeRow}" BorderBrush="{DynamicResource ChromeCardBorder}" CornerRadius="14" BorderThickness="1" Padding="16,12" Margin="0,0,0,18">
                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                            <TextBlock Text="🌐" FontSize="14" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                            <Path Style="{StaticResource LineIcon}" Data="{StaticResource IconGlobe}" Width="24" Height="24" Margin="0,0,14,0"/>
                                             <StackPanel VerticalAlignment="Center">
-                                                <TextBlock Text="Developed by Rie-Sources" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}"/>
+                                                <TextBlock Text="Developed by Rie-Sources" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource ChromeText}"/>
                                                 <TextBlock Margin="0,2,0,0">
-                                                    <Hyperlink NavigateUri="https://rie-sources.com/" RequestNavigate="OnHyperlinkRequestNavigate" Foreground="{StaticResource BrushAccent}">
+                                                    <Hyperlink NavigateUri="https://rie-sources.com/" RequestNavigate="OnHyperlinkRequestNavigate" Foreground="{DynamicResource ChromeLink}">
                                                         <Run Text="https://rie-sources.com/"/>
                                                     </Hyperlink>
                                                 </TextBlock>
@@ -369,12 +442,11 @@
                                         </StackPanel>
                                     </Border>
 
-                                    <TextBlock Text="Architecture: .NET 10 (LTS) WPF · Win32 DWM Acrylic · Per-Monitor-V2 DPI · Granular Animation Control"
-                                               FontSize="11" Foreground="{StaticResource BrushTextMuted}" Margin="0,0,0,4"/>
-                                    <TextBlock Text="Developed with pair-programming on Windows 11 25H2."
-                                               FontSize="11" Foreground="{StaticResource BrushTextMuted}" Margin="0,0,0,16"/>
-                                    <TextBlock Text="Copyright © 2026 Rie-Sources (https://rie-sources.com/). Released under the MIT License."
-                                               FontSize="11" Foreground="{StaticResource BrushTextMuted}"/>
+                                    <TextBlock Style="{StaticResource HintText}" Margin="0,0,0,4"
+                                               Text="Built with .NET 10 and WPF. The glass is a one-time snapshot of the screen behind each window, blurred and tinted. Per-monitor DPI aware."/>
+                                    <TextBlock Style="{StaticResource HintText}" Margin="0,0,0,16" Text="Made for Windows 11."/>
+                                    <TextBlock Style="{StaticResource HintText}"
+                                               Text="Copyright © 2026 Rie-Sources (https://rie-sources.com/). Released under the MIT License."/>
                                 </StackPanel>
                             </Border>
                         </StackPanel>
@@ -382,5 +454,5 @@
                 </ScrollViewer>
             </Grid>
         </Grid>
-    </Border>
-</Window>
+    </ui:GlassCard>
+</ui:GlassWindow>

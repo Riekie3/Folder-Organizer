@@ -224,4 +224,54 @@ public sealed class ConfigurationManagerTests : IDisposable
         _configManager.SaveSettings(new AppSettings { ShowItemCount = true });
         Assert.True(_configManager.LoadSettings().ShowItemCount);
     }
+
+    [Fact]
+    public void Appearance_settings_default_to_the_tuned_look()
+    {
+        var s = new AppSettings();
+        Assert.Equal(AppTheme.System, s.Theme);
+        Assert.Equal(GlassAppearance.DefaultTransparency, s.GlassTransparency);
+        Assert.Equal(GlassAppearance.DefaultBlur, s.GlassBlur);
+        Assert.Equal(GlassAppearance.DefaultBorder, s.GlassBorder);
+        Assert.Equal(GlassAppearance.DefaultShadow, s.GlassShadow);
+        Assert.Equal(GlassAppearance.DefaultCornerRadius, s.CornerRadius);
+        Assert.Equal(PopupIconSize.Medium, s.PopupIconSize);
+    }
+
+    [Fact]
+    public void Appearance_settings_round_trip()
+    {
+        _configManager.SaveSettings(new AppSettings
+        {
+            Theme = AppTheme.Light,
+            GlassTransparency = 80,
+            GlassBlur = 20,
+            GlassBorder = 0,
+            GlassShadow = 100,
+            CornerRadius = 24,
+            PopupIconSize = PopupIconSize.Large,
+            LogLevel = "Debug",
+        });
+
+        var loaded = _configManager.LoadSettings();
+        Assert.Equal(AppTheme.Light, loaded.Theme);
+        Assert.Equal(80, loaded.GlassTransparency);
+        Assert.Equal(20, loaded.GlassBlur);
+        Assert.Equal(0, loaded.GlassBorder);
+        Assert.Equal(100, loaded.GlassShadow);
+        Assert.Equal(24, loaded.CornerRadius);
+        Assert.Equal(PopupIconSize.Large, loaded.PopupIconSize);
+        Assert.Equal("Debug", loaded.LogLevel);
+    }
+
+    [Fact]
+    public void A_settings_file_from_before_the_appearance_options_gets_the_defaults()
+    {
+        File.WriteAllText(_configManager.SettingsPath, """{"schemaVersion":2,"popupColumns":5,"popupRows":2}""");
+        var loaded = _configManager.LoadSettings();
+        Assert.Equal(5, loaded.PopupColumns);
+        Assert.Equal(AppTheme.System, loaded.Theme);
+        Assert.Equal(GlassAppearance.DefaultBlur, loaded.GlassBlur);
+        Assert.Equal(GlassAppearance.DefaultCornerRadius, loaded.CornerRadius);
+    }
 }

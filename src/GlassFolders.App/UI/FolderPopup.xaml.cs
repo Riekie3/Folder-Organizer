@@ -32,8 +32,6 @@ public partial class FolderPopup : Window
     // Captured beyond the card so the blur pulls in real pixels at its edges. Capture time follows the area.
     private const double CaptureOverscan = 24;
 
-    private const double IconSize = 96;
-    private const double LowResolutionIconSize = 60;
     private const double LabelWidth = 128;
     private const double LabelLineHeight = 23.5;
 
@@ -56,6 +54,10 @@ public partial class FolderPopup : Window
     private readonly RECT _anchor;
     private readonly PopupGrid _grid;
     private readonly Dictionary<string, Grid> _iconHosts = [];
+    private readonly GlassAppearance _appearance = AppearanceService.Instance.Glass;
+    private readonly bool _showMissingBadge;
+    private double IconSize => _appearance.IconSize;
+    private double LowResolutionIconSize => _appearance.LowResolutionIconSize;
 
     private delegate void ResizeFrame(bool completed);
 
@@ -70,9 +72,12 @@ public partial class FolderPopup : Window
     private bool _closing;
     private bool _isShowingDialog;
 
-    public FolderPopup(FolderDef folder, FolderManager folderManager, IconCacheService iconCache, IShortcutResolver resolver, RECT anchor, PopupGrid? grid = null)
+    public FolderPopup(FolderDef folder, FolderManager folderManager, IconCacheService iconCache, IShortcutResolver resolver, RECT anchor, PopupGrid? grid = null, bool showMissingBadge = true)
     {
         InitializeComponent();
+        _showMissingBadge = showMissingBadge;
+        // The popup keeps its blue glass in light and dark mode; the sliders in Settings still shape it.
+        PopupCard.ApplyAppearance(_appearance, light: false);
         _folder = folder;
         Title = "GlassFolders – " + folder.Name;
         _folderManager = folderManager;
@@ -164,7 +169,7 @@ public partial class FolderPopup : Window
             if (Stopwatch.GetElapsedTime(s_lastClosedTimestamp).TotalMilliseconds < RecentCloseMs)
                 DwmHelpers.WaitForNextFrame();
 
-            snapshot = BackdropSnapshot.Capture(CaptureArea(), _scale);
+            snapshot = BackdropSnapshot.Capture(CaptureArea(), _scale, _appearance.BlurRadius);
             if (snapshot is not null)
                 DiagnosticService.Instance.LogDebug($"Backdrop snapshot took {snapshot.ElapsedMilliseconds:F1} ms");
         }
@@ -388,7 +393,7 @@ public partial class FolderPopup : Window
         if (icon is not null) ShowIcon(iconHost, icon, fadeIn: false);
         else missing.Add(item);
 
-        if (!_resolver.TargetExists(item)) iconHost.Children.Add(CreateMissingBadge());
+        if (_showMissingBadge && !_resolver.TargetExists(item)) iconHost.Children.Add(CreateMissingBadge());
 
         var label = new TextBlock
         {
@@ -449,7 +454,7 @@ public partial class FolderPopup : Window
             }));
     }
 
-    private static void ShowIcon(Grid host, AppIcon icon, bool fadeIn)
+    private void ShowIcon(Grid host, AppIcon icon, bool fadeIn)
     {
         var image = new Image
         {
@@ -698,46 +703,9 @@ public partial class FolderPopup : Window
         e.Handled = true;
     }
 
-    public static string? PromptRename(string currentName, string title = "Rename", Window? owner = null)
-    {
-        var win = new Window
-        {
-            Title = title,
-            Width = 340,
-            Height = 160,
-            WindowStartupLocation = owner != null ? WindowStartupLocation.CenterOwner : WindowStartupLocation.CenterScreen,
-            Owner = owner,
-            WindowStyle = WindowStyle.ToolWindow,
-            ResizeMode = ResizeMode.NoResize,
-            Background = new SolidColorBrush(Color.FromRgb(0x20, 0x24, 0x38))
-        };
-
-        var sp = new StackPanel { Margin = new Thickness(16) };
-        var txt = new TextBox
-        {
-            Text = currentName,
-            Margin = new Thickness(0, 0, 0, 16),
-            FontSize = 14,
-            Padding = new Thickness(6, 4, 6, 4)
-        };
-        var btnOk = new Button
-        {
-            Content = "OK",
-            Width = 80,
-            Height = 28,
-            IsDefault = true,
-            HorizontalAlignment = HorizontalAlignment.Right
-        };
-
-        btnOk.Click += (_, _) => win.DialogResult = true;
-        sp.Children.Add(txt);
-        sp.Children.Add(btnOk);
-        win.Content = sp;
-        txt.SelectAll();
-        txt.Focus();
-
-        return win.ShowDialog() == true ? txt.Text : null;
-    }
+    /// <summary>Asks for a new name on a glass prompt. Returns null if cancelled.</summary>
+    public static string? PromptRename(string currentName, string title = "Rename", Window? owner = null) =>
+        GlassPromptDialog.Show(owner, title, currentName);
 
     private static RectInt ToRectInt(RECT r) => new(r.Left, r.Top, r.Width, r.Height);
 

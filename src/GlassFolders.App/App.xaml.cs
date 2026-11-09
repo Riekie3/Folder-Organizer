@@ -83,14 +83,29 @@ public partial class App : Application
         catch (Exception ex)
         {
             DiagnosticService.Instance.LogError("StartupException", ex);
-            MessageBox.Show($"GlassFolders failed to start:\n\n{ex.Message}\n\nSee %LOCALAPPDATA%\\GlassFolders\\logs for details.",
-                "GlassFolders Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            ShowStartupError(ex);
             Shutdown();
+        }
+    }
+
+    private static void ShowStartupError(Exception ex)
+    {
+        string text = $"GlassFolders could not start.\n\n{ex.Message}\n\nThe log in %LOCALAPPDATA%\\GlassFolders\\logs has the details.";
+        try
+        {
+            UI.GlassMessageBox.Show(null, "GlassFolders", text, kind: UI.GlassMessageKind.Error);
+        }
+        catch (Exception boxEx)
+        {
+            // The styled box needs the app's resources; if those are the problem, the plain one still tells the user.
+            DiagnosticService.Instance.LogError("Could not show the startup error on glass", boxEx);
+            MessageBox.Show(text, "GlassFolders", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
+        AppearanceService.Instance.Stop();
         _poc?.Dispose();
         _singleInstance?.Dispose();
         base.OnExit(e);

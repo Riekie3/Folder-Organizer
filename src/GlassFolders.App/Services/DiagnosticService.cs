@@ -28,6 +28,10 @@ public sealed class DiagnosticService
     private const int MaxRollingFiles = 5;
 
     public DiagnosticLogLevel CurrentLogLevel { get; set; } = DiagnosticLogLevel.Info;
+
+    /// <summary>Turns the level name saved in settings into a level. Unknown names mean Info.</summary>
+    public static DiagnosticLogLevel LevelFor(string? settingName) =>
+        Enum.Parse<DiagnosticLogLevel>(GlassFolders.Core.Models.LogLevelSetting.Normalize(settingName));
     public string LogDirectory => _logDir;
 
     public DiagnosticService()

@@ -135,7 +135,7 @@
                                    Foreground="{StaticResource BrushTextPrimary}" Effect="{StaticResource ShadowText}"/>
                         <TextBlock Text="Drop shortcuts or files here, or add them from a menu." FontSize="16" Margin="0,8,0,16"
                                    HorizontalAlignment="Center" Foreground="{StaticResource BrushTextPrimary}" Effect="{StaticResource ShadowText}"/>
-                        <Button Content="Add items…" Style="{StaticResource GlassButton}" HorizontalAlignment="Center" FontSize="15"
+                        <Button Content="Add items…" Style="{StaticResource PopupGlassButton}" HorizontalAlignment="Center" FontSize="15"
                                 Padding="18,8" Click="OnBtnAddClicked"/>
                     </StackPanel>
                 </Grid>

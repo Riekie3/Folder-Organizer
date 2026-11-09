@@ -130,4 +130,85 @@ public class BackdropAnalyzerTests
         var light = BackdropAnalyzer.Measure(Filled(10, 10, (_, _) => 255), x, y, w, h);
         Assert.Equal(1, light.Mean, 3);
     }
+
+    [Theory]
+    [InlineData(0.0, 0.0)]
+    [InlineData(0.0, 50.0)]
+    [InlineData(0.1, 100.0)]
+    [InlineData(0.5, 0.0)]
+    [InlineData(0.9, 100.0)]
+    [InlineData(1.0, 0.0)]
+    public void WhiteTextStaysReadableAtEveryTransparencySetting(double luminance, double transparency)
+    {
+        double strength = GlassFolders.Core.Models.GlassAppearance.TintStrengthFor((int)transparency);
+        var tint = GlassTint.ForBackdrop(new BackdropLight(luminance, luminance), strength);
+        Assert.True(tint.TextContrastOver(luminance) >= GlassTint.MinTextContrast,
+            $"contrast {tint.TextContrastOver(luminance):F2} at luminance {luminance}, transparency {transparency}");
+    }
+
+    [Fact]
+    public void ClearerGlassHasAWeakerTintAndSolidGlassAStrongerOne()
+    {
+        var mid = new BackdropLight(0.2, 0.4);
+        var solid = GlassTint.ForBackdrop(mid, GlassFolders.Core.Models.GlassAppearance.TintStrengthFor(0));
+        var normal = GlassTint.ForBackdrop(mid);
+        var clear = GlassTint.ForBackdrop(mid, GlassFolders.Core.Models.GlassAppearance.TintStrengthFor(100));
+        Assert.True(clear.Bottom.A < normal.Bottom.A);
+        Assert.True(normal.Bottom.A < solid.Bottom.A);
+    }
+
+    [Fact]
+    public void StrengthOfOneIsTheOriginalTint()
+    {
+        var light = new BackdropLight(0.2, 0.4);
+        Assert.Equal(GlassTint.ForBackdrop(light), GlassTint.ForBackdrop(light, 1));
+    }
+
+    [Theory]
+    [InlineData(0.0)]
+    [InlineData(0.02)]
+    [InlineData(0.1)]
+    [InlineData(0.3)]
+    [InlineData(0.6)]
+    [InlineData(1.0)]
+    public void DarkInkStaysReadableOnTheLightPanelOverAnyWallpaper(double darkest)
+    {
+        foreach (double strength in new[] { 0.3, 1.0, 1.8 })
+        {
+            var tint = GlassTint.ForLightPanel(new BackdropLight(darkest, darkest, darkest), strength);
+            Assert.True(tint.InkContrastOver(darkest) >= GlassTint.MinInkContrast,
+                $"ink contrast {tint.InkContrastOver(darkest):F2} over {darkest}, strength {strength}");
+        }
+    }
+
+    [Fact]
+    public void LightPanelOverALightWallpaperNeedsNoScrim()
+    {
+        var tint = GlassTint.ForLightPanel(new BackdropLight(0.8, 0.9, 0.7));
+        Assert.Equal(0, tint.Scrim.A);
+    }
+
+    [Fact]
+    public void LightPanelOverADarkWallpaperGetsAWhiteScrim()
+    {
+        var tint = GlassTint.ForLightPanel(new BackdropLight(0.02, 0.05, 0.0));
+        Assert.True(tint.Scrim.A > 60);
+        Assert.Equal(255, tint.Scrim.R);
+    }
+
+    [Fact]
+    public void AnalyzerReportsHowDarkTheDarkPartsAre()
+    {
+        var px = new byte[20 * 10 * 4];
+        for (int i = 0; i < px.Length; i += 4)
+        {
+            bool darkHalf = (i / 4) % 20 < 4; // 20% of pixels are black, the rest white
+            byte v = darkHalf ? (byte)0 : (byte)255;
+            px[i] = px[i + 1] = px[i + 2] = v;
+            px[i + 3] = 255;
+        }
+        var light = BackdropAnalyzer.Measure(new FrostedImage(px, 20, 10), 0, 0, 20, 10);
+        Assert.Equal(0, light.Dark, 3);
+        Assert.Equal(1, light.Bright, 3);
+    }
 }

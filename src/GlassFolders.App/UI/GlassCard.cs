@@ -5,6 +5,7 @@ using System.Windows.Media;
 using System.Windows.Media.Effects;
 using GlassFolders.App.Services;
 using GlassFolders.Core.Glass;
+using GlassFolders.Core.Models;
 
 namespace GlassFolders.App.UI;
 
@@ -22,6 +23,9 @@ public sealed class GlassCard : UserControl
     private static readonly Brush SolidPanel = Freeze(new LinearGradientBrush(
         Color.FromRgb(0x1A, 0x2B, 0x52), Color.FromRgb(0x10, 0x1B, 0x36), new Point(0, 0), new Point(1, 1)));
 
+    private static readonly Brush LightSolidPanel = Freeze(new LinearGradientBrush(
+        Color.FromRgb(0xF4, 0xF8, 0xFF), Color.FromRgb(0xDC, 0xE8, 0xFA), new Point(0, 0), new Point(1, 1)));
+
     private static readonly Brush Gloss = Freeze(new LinearGradientBrush(
         new GradientStopCollection
         {
@@ -30,21 +34,18 @@ public sealed class GlassCard : UserControl
         },
         new Point(0, 0), new Point(0, 1)));
 
-    private static readonly Brush Rim = Freeze(new SolidColorBrush(Color.FromArgb(0xB0, 255, 255, 255)));
+    private static readonly Brush Rim = Freeze(new SolidColorBrush(Color.FromRgb(255, 255, 255)));
+    private static readonly Brush LightRim = Freeze(new SolidColorBrush(Color.FromRgb(255, 255, 255)));
 
-    private readonly Border _shadow = new()
+    private readonly DropShadowEffect _shadowEffect = new()
     {
-        Background = Brushes.Black,
-        IsHitTestVisible = false,
-        Effect = new DropShadowEffect
-        {
-            BlurRadius = 48,
-            ShadowDepth = 14,
-            Direction = 270,
-            Opacity = 0.38,
-            Color = Color.FromRgb(0x0A, 0x1E, 0x78),
-        },
+        BlurRadius = 48,
+        ShadowDepth = 14,
+        Direction = 270,
+        Opacity = 0.38,
+        Color = Color.FromRgb(0x0A, 0x1E, 0x78),
     };
+    private readonly Border _shadow;
     private readonly Border _backdrop = new() { Background = SolidPanel };
     private readonly Border _scrim = new() { IsHitTestVisible = false };
     private readonly Border _tint = new() { IsHitTestVisible = false };
@@ -55,9 +56,13 @@ public sealed class GlassCard : UserControl
     private BackdropSnapshot? _snapshot;
     private ImageBrush? _snapshotBrush;
     private Window? _hostWindow;
+    private double _tintStrength = 1;
+    private bool _light;
+    private bool _outsideSnapshot;
 
     public GlassCard()
     {
+        _shadow = new Border { Background = Brushes.Black, IsHitTestVisible = false, Effect = _shadowEffect };
         var root = new Grid();
         // Separate from the card so items and text aren't drawn through the shadow's effect pass.
         root.Children.Add(_shadow);
@@ -106,7 +111,7 @@ public sealed class GlassCard : UserControl
         {
             _snapshotBrush = null;
             CurrentTint = null;
-            _backdrop.Background = SolidPanel;
+            _backdrop.Background = SolidFor(_light);
             _scrim.Background = null;
             _tint.Background = null;
             return;
@@ -122,6 +127,36 @@ public sealed class GlassCard : UserControl
         AlignBackdrop();
     }
 
+    /// <summary>
+    /// Applies the Appearance settings: tint strength, edge, shadow and corners. <paramref name="light"/> switches to the light
+    /// theme's milky panel. Takes effect at once, including on a card that is already open.
+    /// </summary>
+    public void ApplyAppearance(GlassAppearance appearance, bool light, bool chrome = false)
+    {
+        _tintStrength = appearance.TintStrength;
+        bool themeChanged = _light != light;
+        _light = light;
+        CornerRadius = chrome ? appearance.ChromeCornerRadius : appearance.CornerRadius;
+
+        _rim.Opacity = appearance.RimOpacity;
+        _rim.BorderBrush = light ? LightRim : Rim;
+        _shadowEffect.Opacity = appearance.ShadowOpacity;
+        _shadow.Visibility = appearance.ShadowOpacity <= 0.001 ? Visibility.Collapsed : Visibility.Visible;
+        _gloss.Opacity = light ? 0.55 : 1;
+
+        if (_snapshot is null)
+        {
+            _backdrop.Background = SolidFor(light);
+        }
+        else if (themeChanged || CurrentTint is not null)
+        {
+            CurrentTint = null; // force the tint to be rebuilt for the new strength or theme
+            AlignBackdrop();
+        }
+    }
+
+    private static Brush SolidFor(bool light) => light ? LightSolidPanel : SolidPanel;
+
     /// <summary>Lines the snapshot up with where the card is on screen. Runs when the card moves or resizes.</summary>
     private void AlignBackdrop()
     {
@@ -135,9 +170,25 @@ public sealed class GlassCard : UserControl
         Point topLeft = parent.PointToScreen(new Point(offset.X, offset.Y));
         var card = new Rect(topLeft.X, topLeft.Y, ActualWidth * dpi.DpiScaleX, ActualHeight * dpi.DpiScaleY);
 
-        // If the card ever leaves the captured area, slide the image rather than show a gap.
-        // The blur is soft enough that the small shift can't be seen.
+        // A card dragged to a different monitor has no snapshot under it, so it shows the solid panel until it comes back.
         var area = _snapshot.ScreenArea;
+        double cx = card.X + card.Width / 2, cy = card.Y + card.Height / 2;
+        bool outside = cx < area.Left || cx > area.Right || cy < area.Top || cy > area.Bottom;
+        if (outside != _outsideSnapshot)
+        {
+            _outsideSnapshot = outside;
+            _backdrop.Background = outside ? SolidFor(_light) : _snapshotBrush;
+            if (outside)
+            {
+                CurrentTint = null;
+                _scrim.Background = null;
+                _tint.Background = null;
+            }
+        }
+        if (outside) return;
+
+        // If the card only partly leaves the captured area, slide the image rather than show a gap.
+        // The blur is soft enough that the small shift can't be seen.
         double w = Math.Min(1, card.Width / area.Width), h = Math.Min(1, card.Height / area.Height);
         _snapshotBrush.Viewbox = new Rect(
             Math.Clamp((card.X - area.Left) / area.Width, 0, 1 - w),
@@ -145,7 +196,7 @@ public sealed class GlassCard : UserControl
             w,
             h);
 
-        ApplyTint(_snapshot.TintFor(card));
+        ApplyTint(_snapshot.TintFor(card, _tintStrength, _light));
     }
 
     private void ApplyTint(GlassTint tint)

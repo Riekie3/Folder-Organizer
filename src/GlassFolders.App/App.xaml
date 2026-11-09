@@ -5,8 +5,11 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
+                <!-- AppearanceService swaps this one for ThemeLight.xaml when the light theme is in use. Keep it first. -->
+                <ResourceDictionary Source="Themes/ThemeDark.xaml"/>
                 <ResourceDictionary Source="Themes/Tokens.xaml"/>
                 <ResourceDictionary Source="Themes/FolderGlyphs.xaml"/>
+                <ResourceDictionary Source="Themes/Icons.xaml"/>
                 <ResourceDictionary Source="Themes/Controls.xaml"/>
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>

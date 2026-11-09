@@ -149,7 +149,6 @@ public sealed class TrayService : IDisposable
         SetForegroundWindow(_msgWindow.Handle);
 
         var menu = new ContextMenu();
-        menu.Style = Application.Current.TryFindResource("GlassContextMenuStyle") as Style;
 
         // 1. New Folder...
         var itemNewFolder = new MenuItem { Header = "New Folder..." };

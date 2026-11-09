@@ -11,8 +11,11 @@ public readonly record struct FrostSettings(int Downsample, int BlurRadius, int 
     /// The default look, scaled so the blur has the same on-screen size at any display scale.
     /// At 125 % this is a downsample of 8, the value tuned against the reference image.
     /// </summary>
-    public static FrostSettings ForScale(double dpiScale) =>
-        new(Math.Max(2, (int)Math.Round(6.4 * dpiScale)), BlurRadius: 3, BlurPasses: 3, Saturation: 1.25);
+    public static FrostSettings ForScale(double dpiScale, int blurRadius = DefaultBlurRadius) =>
+        new(Math.Max(2, (int)Math.Round(6.4 * dpiScale)), BlurRadius: Math.Max(0, blurRadius), BlurPasses: 3, Saturation: 1.25);
+
+    /// <summary>The blur radius the reference look was tuned with.</summary>
+    public const int DefaultBlurRadius = 3;
 }
 
 /// <summary>A small, blurred copy of part of the screen. Pixels are BGRA, top-down, alpha 255.</summary>

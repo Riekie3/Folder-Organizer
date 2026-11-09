@@ -1,0 +1,58 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+        Colours for Settings, menus and dialogs in dark mode: white ink on blue glass.
+        ThemeLight.xaml has the same keys. ThemeService swaps one for the other at run time,
+        so every control that uses these must reference them with DynamicResource.
+    -->
+
+    <!-- Ink -->
+    <SolidColorBrush x:Key="ChromeText" Color="#FFFFFFFF"/>
+    <SolidColorBrush x:Key="ChromeTextSecondary" Color="#E0FFFFFF"/>
+    <SolidColorBrush x:Key="ChromeTextMuted" Color="#A6FFFFFF"/>
+    <SolidColorBrush x:Key="ChromeLink" Color="#9CC4FF"/>
+
+    <!-- Surfaces -->
+    <SolidColorBrush x:Key="ChromeCard" Color="#26FFFFFF"/>
+    <SolidColorBrush x:Key="ChromeCardBorder" Color="#38FFFFFF"/>
+    <SolidColorBrush x:Key="ChromeRow" Color="#1AFFFFFF"/>
+    <SolidColorBrush x:Key="ChromeSidebar" Color="#14FFFFFF"/>
+    <SolidColorBrush x:Key="ChromeDivider" Color="#33FFFFFF"/>
+
+    <!-- Buttons, inputs, tracks -->
+    <SolidColorBrush x:Key="ChromeControl" Color="#2EFFFFFF"/>
+    <SolidColorBrush x:Key="ChromeControlHover" Color="#47FFFFFF"/>
+    <SolidColorBrush x:Key="ChromeControlPressed" Color="#1FFFFFFF"/>
+    <SolidColorBrush x:Key="ChromeControlBorder" Color="#4DFFFFFF"/>
+    <SolidColorBrush x:Key="ChromeInput" Color="#26FFFFFF"/>
+    <SolidColorBrush x:Key="ChromeInputFocus" Color="#38FFFFFF"/>
+    <SolidColorBrush x:Key="ChromeTrack" Color="#59FFFFFF"/>
+    <SolidColorBrush x:Key="ChromeKnob" Color="#FFFFFFFF"/>
+
+    <!-- Selected state (the blue pill in reference 3) -->
+    <SolidColorBrush x:Key="ChromeAccent" Color="#2F6FE4"/>
+    <SolidColorBrush x:Key="ChromeAccentHover" Color="#4180F2"/>
+    <SolidColorBrush x:Key="ChromeAccentBorder" Color="#8CFFFFFF"/>
+    <SolidColorBrush x:Key="ChromeAccentText" Color="#FFFFFFFF"/>
+    <SolidColorBrush x:Key="ChromeFocus" Color="#FFFFFFFF"/>
+    <!-- The filled part of a slider. Blue vanishes on blue glass, so dark mode uses a pale blue. -->
+    <SolidColorBrush x:Key="ChromeSliderFill" Color="#D2E2FF"/>
+
+    <!-- Status -->
+    <SolidColorBrush x:Key="ChromeOk" Color="#4BE08F"/>
+    <SolidColorBrush x:Key="ChromeWarn" Color="#FFB547"/>
+    <SolidColorBrush x:Key="ChromeDanger" Color="#FF7B72"/>
+    <SolidColorBrush x:Key="ChromeDangerFill" Color="#33FF5A4F"/>
+    <SolidColorBrush x:Key="ChromeDangerSolid" Color="#E0474C"/>
+
+    <!-- Menus and tooltips are small windows of their own, so they can't show a snapshot. These are nearly opaque. -->
+    <LinearGradientBrush x:Key="ChromeMenu" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#F51C3466" Offset="0"/>
+        <GradientStop Color="#F5122448" Offset="1"/>
+    </LinearGradientBrush>
+    <SolidColorBrush x:Key="ChromeMenuBorder" Color="#66FFFFFF"/>
+    <SolidColorBrush x:Key="ChromeMenuHover" Color="#40FFFFFF"/>
+
+    <Color x:Key="ChromeShadowColor">#0A1028</Color>
+</ResourceDictionary>
