@@ -2,7 +2,7 @@
 
 _Updated 2026-11-07. Goal: make the running app look as close as practical to `Referance/a226f8e2-….png`, then release as v1.1.0._
 
-**Status:** Stages 0, 1, 2 and 3 merged to `main`. Stage 4 built on branch `stage/4-settings-menus-dialogs`. Stages 5–6 not started. **Nothing is tagged or released until every stage is finished and the look is approved.**
+**Status:** Stages 0, 1, 2, 3 and 4 merged to `main`. Stages 5–6 not started. **Nothing is tagged or released until every stage is finished and the look is approved.**
 
 ![Reference, current app and prototype side by side](parity/comparison.png)
 
@@ -250,7 +250,7 @@ Not tested on the live desktop: hovering and opening a folder with the real mous
 
 **Done when:** no stock control is visible on any page, and every setting visibly changes something.
 
-**Result (branch `stage/4-settings-menus-dialogs`):** built and tested off-screen and with a sandbox copy on the live desktop. Not yet tried with the real mouse (Stage 5).
+**Result:** built and tested off-screen and with a sandbox copy on the live desktop. Not yet tried with the real mouse (Stage 5).
 
 ![Reference 3 next to the new Settings, light and dark](parity/stage4-settings.png)
 
