@@ -293,7 +293,7 @@ internal static class Program
     {
         var canvas = (Canvas)wallpaper.Content;
         RECT anchor = default;
-        int y = 90;
+        int y = 300; // low enough that the popup clears whatever the user keeps at the top edge of their screen
         foreach (var f in folders)
         {
             var metrics = GlassFolders.Core.Layout.FolderTileMetrics.For(f.Size, 76, 97.6);
