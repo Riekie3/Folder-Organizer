@@ -384,7 +384,7 @@ public partial class FolderPopup : Window
 
     private UIElement CreateItemView(FolderItem item, List<FolderItem> missing)
     {
-        var button = new Button { Style = (Style)Resources["ItemTileStyle"], ToolTip = item.TargetPath };
+        var button = new Button { Style = (Style)Resources["ItemTileStyle"], ToolTip = item.TargetPath, Tag = item.Id };
 
         var iconHost = new Grid { Width = IconSize, Height = IconSize, HorizontalAlignment = HorizontalAlignment.Center };
         _iconHosts[item.Id] = iconHost;
@@ -727,21 +727,46 @@ public partial class FolderPopup : Window
                 BorderBrush = new SolidColorBrush(Color.FromArgb(0xB0, 0xFF, 0xFF, 0xFF)),
                 Background = new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF)),
                 HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top,
-                IsHitTestVisible = false,
+                IsHitTestVisible = false, Opacity = 0, Visibility = Visibility.Collapsed,
             };
             GridHost.Children.Add(_dropMarker);
         }
         _dropMarker.Width = cellW - 20;
         _dropMarker.Height = cellH - 4;
-        _dropMarker.Margin = new Thickness((local % ItemsGrid.Columns) * cellW + 10, (local / ItemsGrid.Columns) * cellH, 0, 0);
-        _dropMarker.Visibility = Visibility.Visible;
+        var target = new Thickness((local % ItemsGrid.Columns) * cellW + 10, (local / ItemsGrid.Columns) * cellH, 0, 0);
+        if (_dropMarker.Visibility == Visibility.Visible && _dropMarker.Opacity > 0)
+        {
+            if (_dropMarker.Margin != target)
+                Animate.SlideMargin(_dropMarker, target, TimeSpan.FromMilliseconds(140), AnimationCategory.DragGhost);
+        }
+        else
+        {
+            // First appearance: place it where it belongs and fade it in.
+            _dropMarker.BeginAnimation(FrameworkElement.MarginProperty, null);
+            _dropMarker.Margin = target;
+            _dropMarker.Visibility = Visibility.Visible;
+            Animate.Fade(_dropMarker, 1, TimeSpan.FromMilliseconds(120), AnimationCategory.DragGhost);
+        }
     }
 
     private void OnDragLeave(object sender, DragEventArgs e) => HideDropMarker();
 
     private void HideDropMarker()
     {
-        if (_dropMarker is not null) _dropMarker.Visibility = Visibility.Collapsed;
+        if (_dropMarker is null) return;
+        _dropMarker.BeginAnimation(FrameworkElement.MarginProperty, null);
+        _dropMarker.BeginAnimation(OpacityProperty, null);
+        _dropMarker.Opacity = 0;
+        _dropMarker.Visibility = Visibility.Collapsed;
+    }
+
+    /// <summary>Where each tile on this page sits now, by item, so a reorder can glide them to their new places.</summary>
+    private Dictionary<string, Point> TilePositions()
+    {
+        var map = new Dictionary<string, Point>();
+        foreach (UIElement child in ItemsGrid.Children)
+            if (child is FrameworkElement { Tag: string id } fe) map[id] = fe.TranslatePoint(new Point(0, 0), ItemsGrid);
+        return map;
     }
 
     private void OnDragOver(object sender, DragEventArgs e)
@@ -771,8 +796,20 @@ public partial class FolderPopup : Window
                 {
                     int from = _folder.Items.FindIndex(i => i.Id == id);
                     int to = DropIndexAt(e);
-                    if (from >= 0 && from != to && _folderManager.ReorderItem(_folder.Id, from, to))
-                        RenderItemsAndLayout();
+                    if (from >= 0 && from != to)
+                    {
+                        var before = TilePositions();
+                        if (_folderManager.ReorderItem(_folder.Id, from, to))
+                        {
+                            RenderItemsAndLayout();
+                            ItemsGrid.UpdateLayout();
+                            foreach (UIElement child in ItemsGrid.Children)
+                            {
+                                if (child is not FrameworkElement { Tag: string moved } fe || !before.TryGetValue(moved, out Point old)) continue;
+                                Animate.Glide(fe, old - fe.TranslatePoint(new Point(0, 0), ItemsGrid), TimeSpan.FromMilliseconds(260), AnimationCategory.DragGhost);
+                            }
+                        }
+                    }
                 }
             }
             catch (Exception ex)

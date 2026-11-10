@@ -75,6 +75,36 @@ public static class Animate
         st.BeginAnimation(ScaleTransform.ScaleYProperty, anim);
     }
 
+    /// <summary>Starts an element offset from where it now is and lets it glide into place.</summary>
+    public static void Glide(UIElement element, Vector from, TimeSpan baseDuration, AnimationCategory category)
+    {
+        if (from.X == 0 && from.Y == 0) return;
+        var move = new TranslateTransform();
+        element.RenderTransform = move;
+        if (!AnimationService.Instance.ShouldAnimate(category)) { element.RenderTransform = Transform.Identity; return; }
+
+        var duration = AnimationService.Instance.GetDuration(baseDuration, category);
+        var x = new DoubleAnimation(from.X, 0, duration) { EasingFunction = DefaultEase };
+        var y = new DoubleAnimation(from.Y, 0, duration) { EasingFunction = DefaultEase };
+        y.Completed += (_, _) => element.RenderTransform = Transform.Identity;
+        move.BeginAnimation(TranslateTransform.XProperty, x);
+        move.BeginAnimation(TranslateTransform.YProperty, y);
+    }
+
+    /// <summary>Slides an element's margin to a new value, or sets it at once when animations are off.</summary>
+    public static void SlideMargin(FrameworkElement element, Thickness to, TimeSpan baseDuration, AnimationCategory category)
+    {
+        if (!AnimationService.Instance.ShouldAnimate(category))
+        {
+            element.BeginAnimation(FrameworkElement.MarginProperty, null);
+            element.Margin = to;
+            return;
+        }
+        var duration = AnimationService.Instance.GetDuration(baseDuration, category);
+        element.BeginAnimation(FrameworkElement.MarginProperty,
+            new ThicknessAnimation(to, duration) { EasingFunction = DefaultEase, FillBehavior = FillBehavior.HoldEnd });
+    }
+
     /// <summary>Grows a popup card out of a point, given relative to the card. Text is left crisp afterwards.</summary>
     public static void PopupOpen(FrameworkElement card, Point origin, Action? onCompleted = null)
     {
