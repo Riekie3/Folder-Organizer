@@ -34,7 +34,7 @@ public static class PopupMetrics
     public const double CellHeight = 176;
 
     /// <summary>The popup is drawn this much of the reference size, so it sits more lightly on the desktop.</summary>
-    public const double SizeScale = 0.9;
+    public const double SizeScale = 0.8;
 
     public static double CardWidth(int columns) => GridLeft + columns * CellWidth + GridRight;
 

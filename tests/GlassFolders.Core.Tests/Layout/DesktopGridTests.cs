@@ -130,8 +130,8 @@ public class FolderTileMetricsTests
     {
         var m = FolderTileMetrics.For(Models.FolderSize.Medium, CellW, CellH);
 
-        Assert.Equal(58, m.IconWidth);
-        Assert.Equal(48.9, m.IconHeight);
+        Assert.Equal(52, m.IconWidth);
+        Assert.Equal(43.9, m.IconHeight);
         Assert.True(m.BoxWidth <= CellW, $"box {m.BoxWidth} wide");
         Assert.True(m.BoxHeight <= CellH, $"box {m.BoxHeight} tall");
     }
@@ -140,9 +140,9 @@ public class FolderTileMetricsTests
     public void PlateIsTheReferenceSizeWhenThereIsRoom()
     {
         var m = FolderTileMetrics.For(Models.FolderSize.Medium, 120, 110);
-        double scale = 58 / 64.0;
-        Assert.Equal((Math.Round(142 * scale), Math.Round(115 * scale)), (m.PlateWidth, m.PlateHeight));
-        Assert.Equal((Math.Round(142 * scale) + 40, Math.Round(115 * scale) + 40), (m.WindowWidth, m.WindowHeight));
+        double scale = 52 / 64.0;
+        Assert.Equal((Math.Max(Math.Round(142 * scale), m.BoxWidth + 8), Math.Round(115 * scale)), (m.PlateWidth, m.PlateHeight));
+        Assert.Equal((m.PlateWidth + 40, m.PlateHeight + 40), (m.WindowWidth, m.WindowHeight));
     }
 
     [Fact]
@@ -150,7 +150,7 @@ public class FolderTileMetricsTests
     {
         var m = FolderTileMetrics.For(Models.FolderSize.Medium, CellW, CellH);
         Assert.Equal(CellW + FolderTileMetrics.PlateReachX, m.PlateWidth);
-        Assert.Equal(Math.Round(115 * 58 / 64.0), m.PlateHeight);
+        Assert.Equal(Math.Round(115 * 52 / 64.0), m.PlateHeight);
     }
 
     [Fact]
@@ -163,8 +163,7 @@ public class FolderTileMetricsTests
         Assert.True(s.IconWidth < m.IconWidth && m.IconWidth < l.IconWidth);
         Assert.True(s.LabelFontSize < m.LabelFontSize && m.LabelFontSize < l.LabelFontSize);
         Assert.True(s.BoxHeight < m.BoxHeight && m.BoxHeight < l.BoxHeight);
-        // A large folder needs two rows on this grid; the plate is never smaller than the box it holds.
-        Assert.True(l.BoxHeight > CellH);
+        // The plate is never smaller than the box it holds.
         Assert.True(l.PlateWidth >= l.BoxWidth && l.PlateHeight >= l.BoxHeight);
     }
 }

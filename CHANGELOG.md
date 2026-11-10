@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed (size)
-- **Smaller:** the popup is drawn at 90 % of the reference size (about 778 × 482 DIP) and desktop folders at 58 px, down from 64, with the labels scaled to match. Screens too small for the card still shrink it further.
+- **Smaller:** the popup is drawn at 80 % of the reference size (about 691 × 429 DIP) and desktop folders at 52 px, down from 64, with the labels scaled to match. Screens too small for the card still shrink it further.
 
 ### Added
 - **Screenshot tool:** `tools/ScreenshotCapture` now takes real on-screen captures. It draws a neutral wallpaper full screen, opens the real popup, Settings and folder editor on it and reads the screen back, so the glass in the README is the app's real glass. It uses Windows' own programs for the sample items, so no icon shows a missing badge.
