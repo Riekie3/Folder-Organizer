@@ -2,7 +2,7 @@
 
 _Updated 2026-11-07. Goal: make the running app look as close as practical to `Referance/a226f8e2-….png`, then release as v1.1.0._
 
-**Status:** Stages 0, 1, 2, 3, 4 and 5 merged to `main`. Stage 6 is on branch `stage-6-proof-docs`: captures, docs and installer build done, release waiting for approval. **Nothing is tagged or released until every stage is finished and the look is approved.**
+**Status:** Stages 0, 1, 2, 3, 4 and 5 merged to `main`. Stage 6 done and merged; v1.1.0 released after the owner approved the look. **Nothing is tagged or released until every stage is finished and the look is approved.**
 
 ![Reference, current app and prototype side by side](parity/comparison.png)
 

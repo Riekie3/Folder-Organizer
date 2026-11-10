@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-10
+
 ### Changed (size)
 - **Smaller:** the popup is drawn at 70 % of the reference size (about 605 × 375 DIP) and desktop folders match Windows' own desktop icons (48 DIP for Medium icons, read from the desktop view and applied when folders are next refreshed, for example at start or after a scale change). Small and large folders are 0.75 and 1.25 times that. Screens too small for the card still shrink it further.
 
@@ -16,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Screenshot tool:** `tools/ScreenshotCapture` now takes real on-screen captures. It draws a neutral wallpaper full screen, opens the real popup, Settings and folder editor on it and reads the screen back, so the glass in the README is the app's real glass. It uses Windows' own programs for the sample items, so no icon shows a missing badge.
 
 ### Version
-- **1.1.0** in `Directory.Build.props` and the installer. Not tagged or published; that waits for the owner's approval of the look.
+- **1.1.0** in `Directory.Build.props` and the installer.
 
 ### Changed
 - **Desktop folders:** redrawn as in the reference, as solid coloured folders with a white glyph, in its blue, purple, coral and green. Folders still on an old preset colour move to the matching new one once; colours chosen by hand are kept.
