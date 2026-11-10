@@ -150,6 +150,8 @@ public partial class FolderPopup : Window
     {
         if (_opened || _closing) return;
         _opened = true;
+        // The window is in its final place now; before this the glass could have been measured at the screen's corner.
+        PopupCard.RealignBackdrop();
         Activate();
         Animate.PopupOpen(PopupCard, AnimationOrigin());
     }

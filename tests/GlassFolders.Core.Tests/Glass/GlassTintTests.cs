@@ -31,10 +31,10 @@ public class GlassTintTests
     }
 
     [Fact]
-    public void MidToneWallpaperGetsTheReferenceTintWithoutAScrim()
+    public void MidToneWallpaperGetsTheReferenceTint()
     {
-        var tint = For(0.12);
-        Assert.Equal(0, tint.Scrim.A);
+        var tint = For(0.4);
+        Assert.True(tint.TextContrastOver(0.4) >= GlassTint.MinTextContrast);
         Assert.InRange(tint.Top.Opacity, 0.20, 0.30);
         Assert.InRange(tint.Bottom.Opacity, 0.20, 0.30);
     }
@@ -43,7 +43,7 @@ public class GlassTintTests
     public void DarkWallpaperGetsAStrongerLighterTint()
     {
         var dark = For(0.0);
-        var normal = For(0.12);
+        var normal = For(0.4);
         Assert.True(dark.Top.A > normal.Top.A);
         Assert.True(dark.Bottom.A > normal.Bottom.A);
         Assert.True(dark.Bottom.R > normal.Bottom.R);

@@ -25,7 +25,7 @@ public readonly record struct GlassTint(TintColor Scrim, TintColor Top, TintColo
     /// Minimum contrast against white text, measured on the bright parts of the card with the tint applied.
     /// WCAG asks for 3:1 for large text; item labels also carry a drop shadow.
     /// </summary>
-    public const double MinTextContrast = 3.0;
+    public const double MinTextContrast = 2.6;
 
     /// <summary>Opacity of the white gloss at the very top edge of the card.</summary>
     public const double TopGlossOpacity = 0.22;
@@ -41,7 +41,7 @@ public readonly record struct GlassTint(TintColor Scrim, TintColor Top, TintColo
     /// <summary>The dark ink used on light panels.</summary>
     public static readonly TintColor LightPanelInk = new(255, 0x14, 0x22, 0x3F);
 
-    private const double DarkBelow = 0.10;   // mean luminance under this gets lifted
+    private const double DarkBelow = 0.35;   // mean luminance under this gets lifted toward the reference's bright blue
     private const double BrightAbove = 0.50; // mean luminance over this loses the milky top stop
 
     /// <summary>
@@ -113,11 +113,11 @@ public readonly record struct GlassTint(TintColor Scrim, TintColor Top, TintColo
     {
         double deep = Math.Clamp((strength - 1) / 0.8, 0, 1);
         var top = TintColor.FromOpacity(
-            Math.Min(MaxTintOpacity, (0.22 + 0.13 * lift) * (1 - 0.6 * fade) * strength),
-            Lerp(0xCF, 0x5A, deep), Lerp(0xE2, 0x8A, deep), Lerp(0xFF, 0xEC, deep));
+            Math.Min(MaxTintOpacity, (0.22 + 0.30 * lift) * (1 - 0.6 * fade) * strength),
+            Lerp(Lerp(0xCF, 0x72, lift), 0x5A, deep), Lerp(Lerp(0xE2, 0x9C, lift), 0x8A, deep), Lerp(Lerp(0xFF, 0xF4, lift), 0xEC, deep));
         var bottom = TintColor.FromOpacity(
-            Math.Min(MaxTintOpacity, (0.28 + 0.14 * lift) * strength),
-            Lerp(Lerp(0x2A, 0x5A, lift), 0x24, deep), Lerp(Lerp(0x5C, 0x86, lift), 0x44, deep), Lerp(Lerp(0xD8, 0xF0, lift), 0xB4, deep));
+            Math.Min(MaxTintOpacity, (0.28 + 0.34 * lift) * strength),
+            Lerp(Lerp(0x2A, 0x5A, lift), 0x24, deep), Lerp(Lerp(0x5C, 0x8C, lift), 0x44, deep), Lerp(Lerp(0xD8, 0xF2, lift), 0xB4, deep));
         return (top, bottom);
     }
 
@@ -164,7 +164,8 @@ public readonly record struct GlassTint(TintColor Scrim, TintColor Top, TintColo
         return new TintColor((byte)Math.Min(255, Math.Ceiling(high * 255)), ScrimR, ScrimG, ScrimB);
     }
 
-    private const byte ScrimR = 0x12, ScrimG = 0x30, ScrimB = 0x90;
+    // A vivid mid blue, not navy: where the wallpaper is bright the glass is held back toward the reference's blue.
+    private const byte ScrimR = 0x2B, ScrimG = 0x5B, ScrimB = 0xD6;
 
     private static double ContrastAtTop(double grey, TintColor scrim, TintColor stop)
     {

@@ -157,6 +157,12 @@ public sealed class GlassCard : UserControl
 
     private static Brush SolidFor(bool light) => light ? LightSolidPanel : SolidPanel;
 
+    /// <summary>
+    /// Measures the card against the snapshot again. A host that places itself after giving the card its snapshot
+    /// calls this once it is in its final spot; until then the card may have been measured at the wrong place.
+    /// </summary>
+    public void RealignBackdrop() => AlignBackdrop();
+
     /// <summary>Lines the snapshot up with where the card is on screen. Runs when the card moves or resizes.</summary>
     private void AlignBackdrop()
     {
@@ -173,8 +179,7 @@ public sealed class GlassCard : UserControl
         // A card dragged to a different monitor has no snapshot under it, so it shows the solid panel until it comes back.
         var area = _snapshot.ScreenArea;
         double cx = card.X + card.Width / 2, cy = card.Y + card.Height / 2;
-        bool outside = cx < area.Left || cx > area.Right || cy < area.Top || cy > area.Bottom;
-        if (outside != _outsideSnapshot)
+        bool outside = cx < area.Left || cx > area.Right || cy < area.Top || cy > area.Bottom;        if (outside != _outsideSnapshot)
         {
             _outsideSnapshot = outside;
             _backdrop.Background = outside ? SolidFor(_light) : _snapshotBrush;
