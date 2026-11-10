@@ -33,15 +33,18 @@ public static class PopupMetrics
     public const double CellWidth = 205;
     public const double CellHeight = 176;
 
+    /// <summary>The popup is drawn this much of the reference size, so it sits more lightly on the desktop.</summary>
+    public const double SizeScale = 0.9;
+
     public static double CardWidth(int columns) => GridLeft + columns * CellWidth + GridRight;
 
     public static double CardHeight(int rows) => HeaderHeight + GridTopGap + rows * CellHeight + FooterHeight;
 
-    /// <summary>Scale that fits a card on a small screen. 1 when it already fits; the popup never grows past its design size.</summary>
+    /// <summary>Scale that fits a card on a small screen. <see cref="SizeScale"/> when it fits; smaller when the screen is tight. It never grows past that.</summary>
     public static double FitScale(double cardWidthDips, double cardHeightDips, RectInt work, double dpiScale)
     {
         double edge = PopupPlacement.EdgeMargin * dpiScale * 2;
-        return Math.Min(1, Math.Min(
+        return Math.Min(SizeScale, Math.Min(
             (work.Width - edge) / (cardWidthDips * dpiScale),
             (work.Height - edge) / (cardHeightDips * dpiScale)));
     }

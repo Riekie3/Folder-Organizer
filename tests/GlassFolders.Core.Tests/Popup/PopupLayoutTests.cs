@@ -41,10 +41,10 @@ public class PopupMetricsTests
     }
 
     [Fact]
-    public void CardThatFitsIsNotScaled()
+    public void CardThatFitsIsDrawnAtTheSizeScale()
     {
         var work = new RectInt(0, 0, 1920, 1032);
-        Assert.Equal(1, PopupMetrics.FitScale(864, 536, work, 1.25));
+        Assert.Equal(PopupMetrics.SizeScale, PopupMetrics.FitScale(864, 536, work, 1.25));
     }
 
     [Fact]
