@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-11-10
+
+### Added
+- **Drag to reorder inside a folder popup.** Press and drag an icon; a highlight shows the cell it will land in and slides between cells, and on drop the icons glide to their new places. The order is saved. It works within the page you are viewing (expand the popup to move across a larger area). The motion follows the drag setting under Animations and the reduce-motion option.
+
 ## [1.1.0] - 2026-11-10
 
 ### Changed (size)
