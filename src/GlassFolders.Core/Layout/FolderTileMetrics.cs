@@ -39,9 +39,9 @@ public readonly record struct FolderTileMetrics(
 
     public static double IconSizeFor(FolderSize size) => size switch
     {
-        FolderSize.Small => 40,
-        FolderSize.Large => 64,
-        _ => 52,
+        FolderSize.Small => 36,
+        FolderSize.Large => 56,
+        _ => 46,
     };
 
     public static double ScaleFor(FolderSize size) => IconSizeFor(size) / 64.0;
@@ -51,7 +51,7 @@ public readonly record struct FolderTileMetrics(
     {
         double icon = IconSizeFor(size);
         double iconHeight = Math.Round(icon * ArtAspect, 1);
-        double font = size switch { FolderSize.Small => 11.5, FolderSize.Large => 14, _ => 12.5 };
+        double font = size switch { FolderSize.Small => 10.5, FolderSize.Large => 13, _ => 11.5 };
         double line = Math.Ceiling(font * 1.34);
 
         // Labels are as wide as a grid cell, like Windows' own, but never narrower than the art.

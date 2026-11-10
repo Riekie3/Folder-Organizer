@@ -130,8 +130,8 @@ public class FolderTileMetricsTests
     {
         var m = FolderTileMetrics.For(Models.FolderSize.Medium, CellW, CellH);
 
-        Assert.Equal(52, m.IconWidth);
-        Assert.Equal(43.9, m.IconHeight);
+        Assert.Equal(46, m.IconWidth);
+        Assert.Equal(38.8, m.IconHeight);
         Assert.True(m.BoxWidth <= CellW, $"box {m.BoxWidth} wide");
         Assert.True(m.BoxHeight <= CellH, $"box {m.BoxHeight} tall");
     }
@@ -140,7 +140,7 @@ public class FolderTileMetricsTests
     public void PlateIsTheReferenceSizeWhenThereIsRoom()
     {
         var m = FolderTileMetrics.For(Models.FolderSize.Medium, 120, 110);
-        double scale = 52 / 64.0;
+        double scale = 46 / 64.0;
         Assert.Equal((Math.Max(Math.Round(142 * scale), m.BoxWidth + 8), Math.Round(115 * scale)), (m.PlateWidth, m.PlateHeight));
         Assert.Equal((m.PlateWidth + 40, m.PlateHeight + 40), (m.WindowWidth, m.WindowHeight));
     }
@@ -148,9 +148,9 @@ public class FolderTileMetricsTests
     [Fact]
     public void PlateIsHeldBackOnATightGrid()
     {
-        var m = FolderTileMetrics.For(Models.FolderSize.Medium, CellW, CellH);
+        var m = FolderTileMetrics.For(Models.FolderSize.Large, CellW, CellH);
         Assert.Equal(CellW + FolderTileMetrics.PlateReachX, m.PlateWidth);
-        Assert.Equal(Math.Round(115 * 52 / 64.0), m.PlateHeight);
+        Assert.Equal(Math.Max(Math.Round(115 * 56 / 64.0), m.BoxHeight + 8), m.PlateHeight);
     }
 
     [Fact]
