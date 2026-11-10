@@ -2,7 +2,7 @@
 
 _Updated 2026-11-07. Goal: make the running app look as close as practical to `Referance/a226f8e2-….png`, then release as v1.1.0._
 
-**Status:** Stages 0, 1, 2, 3 and 4 merged to `main`. Stage 5 done on branch `stage/5-real-world-check`. Stage 6 not started. **Nothing is tagged or released until every stage is finished and the look is approved.**
+**Status:** Stages 0, 1, 2, 3, 4 and 5 merged to `main`. Stage 6 not started. **Nothing is tagged or released until every stage is finished and the look is approved.**
 
 ![Reference, current app and prototype side by side](parity/comparison.png)
 
@@ -275,7 +275,7 @@ Not tested on the live desktop: the controls with the real mouse, the Windows li
 ### Stage 5 – Real-world check · Small · Sonnet, high
 Test on the live desktop: 4 wallpapers (bright bloom, your ROG, busy photo, solid), 100/125/150 % scaling, light and dark mode, transparency off, high contrast, popup over an app window and near every screen edge, popup open while a video plays behind it. Re-measure idle CPU, memory and open time.
 
-**Result (branch `stage/5-real-world-check`):** run on the live desktop with a sandbox copy and the real mouse, with the user switching Windows settings. Details and numbers are in `DEVLOG.md`.
+**Result:** run on the live desktop with a sandbox copy and the real mouse, with the user switching Windows settings. Details and numbers are in `DEVLOG.md`.
 
 | Plan item | Result |
 |---|---|
