@@ -4,6 +4,30 @@ using GlassFolders.Core.Popup;
 
 namespace GlassFolders.Core.Tests.Popup;
 
+public class PopupDropIndexTests
+{
+    // A 4 x 2 grid, 400 x 200 units: each cell is 100 x 100.
+    [Theory]
+    [InlineData(10, 10, 0, 0)]
+    [InlineData(150, 10, 0, 1)]
+    [InlineData(350, 150, 0, 7)]
+    [InlineData(10, 150, 0, 4)]
+    [InlineData(10, 10, 1, 8)]      // second page starts at item 8
+    [InlineData(999, 999, 0, 7)]    // past the grid lands on the last cell
+    [InlineData(-5, -5, 0, 0)]
+    public void PointMapsToTheCellUnderIt(double x, double y, int page, int expected)
+    {
+        Assert.Equal(expected, PopupPaging.DropIndex(x, y, 400, 200, 4, 2, page, 8, 20));
+    }
+
+    [Fact]
+    public void EmptyCellsAfterTheLastItemLandOnTheLastItem()
+    {
+        // 5 items on one page: dropping on the 8th cell puts the item last.
+        Assert.Equal(4, PopupPaging.DropIndex(350, 150, 400, 200, 4, 2, 0, 8, 5));
+    }
+}
+
 public class PopupGridTests
 {
     [Fact]

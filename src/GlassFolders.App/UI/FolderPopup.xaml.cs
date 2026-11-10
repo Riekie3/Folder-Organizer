@@ -418,6 +418,31 @@ public partial class FolderPopup : Window
         button.Content = content;
 
         button.Click += (_, _) => LaunchAndDismiss(item);
+
+        // Press and drag an item to move it to another place in the folder.
+        button.PreviewMouseLeftButtonDown += (_, e) => _dragOrigin = e.GetPosition(this);
+        button.PreviewMouseMove += (_, e) =>
+        {
+            if (e.LeftButton != MouseButtonState.Pressed || _dragOrigin is not { } origin) return;
+            Vector moved = e.GetPosition(this) - origin;
+            if (Math.Abs(moved.X) < SystemParameters.MinimumHorizontalDragDistance
+                && Math.Abs(moved.Y) < SystemParameters.MinimumVerticalDragDistance) return;
+
+            _dragOrigin = null;
+            iconHost.Opacity = 0.4;
+            try
+            {
+                DragDrop.DoDragDrop(button, new DataObject(DragItemFormat, item.Id), DragDropEffects.Move);
+            }
+            finally
+            {
+                iconHost.Opacity = 1;
+                HideDropMarker();
+                button.ReleaseMouseCapture();
+            }
+        };
+        button.PreviewMouseLeftButtonUp += (_, _) => _dragOrigin = null;
+
         button.PreviewMouseLeftButtonDown += (_, _) => Animate.Scale(iconHost, 0.94, TimeSpan.FromMilliseconds(90), AnimationCategory.ItemPress);
         button.PreviewMouseLeftButtonUp += (_, _) => Animate.Scale(iconHost, 1, TimeSpan.FromMilliseconds(90), AnimationCategory.ItemPress);
         button.MouseLeave += (_, _) => Animate.Scale(iconHost, 1, TimeSpan.FromMilliseconds(90), AnimationCategory.ItemPress);
@@ -675,8 +700,59 @@ public partial class FolderPopup : Window
         }
     }
 
+    private const string DragItemFormat = "GlassFolders.FolderItemId";
+    private Point? _dragOrigin;
+    private Border? _dropMarker;
+
+    /// <summary>The item index under the pointer while an item from this folder is being dragged.</summary>
+    private int DropIndexAt(DragEventArgs e)
+    {
+        Point p = e.GetPosition(ItemsGrid);
+        return PopupPaging.DropIndex(p.X, p.Y, ItemsGrid.ActualWidth, ItemsGrid.ActualHeight,
+            ItemsGrid.Columns, ItemsGrid.Rows, _currentPage, ActiveGrid.PageSize, _folder.Items.Count);
+    }
+
+    private void ShowDropMarker(int index)
+    {
+        int pageSize = ActiveGrid.PageSize;
+        int local = index - _currentPage * pageSize;
+        if (local < 0 || local >= pageSize) { HideDropMarker(); return; }
+
+        double cellW = ItemsGrid.ActualWidth / ItemsGrid.Columns, cellH = ItemsGrid.ActualHeight / ItemsGrid.Rows;
+        if (_dropMarker is null)
+        {
+            _dropMarker = new Border
+            {
+                CornerRadius = new CornerRadius(24), BorderThickness = new Thickness(2),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(0xB0, 0xFF, 0xFF, 0xFF)),
+                Background = new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF)),
+                HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top,
+                IsHitTestVisible = false,
+            };
+            GridHost.Children.Add(_dropMarker);
+        }
+        _dropMarker.Width = cellW - 20;
+        _dropMarker.Height = cellH - 4;
+        _dropMarker.Margin = new Thickness((local % ItemsGrid.Columns) * cellW + 10, (local / ItemsGrid.Columns) * cellH, 0, 0);
+        _dropMarker.Visibility = Visibility.Visible;
+    }
+
+    private void OnDragLeave(object sender, DragEventArgs e) => HideDropMarker();
+
+    private void HideDropMarker()
+    {
+        if (_dropMarker is not null) _dropMarker.Visibility = Visibility.Collapsed;
+    }
+
     private void OnDragOver(object sender, DragEventArgs e)
     {
+        if (e.Data.GetDataPresent(DragItemFormat))
+        {
+            e.Effects = DragDropEffects.Move;
+            ShowDropMarker(DropIndexAt(e));
+            e.Handled = true;
+            return;
+        }
         if (e.Data.GetDataPresent(DataFormats.FileDrop))
         {
             e.Effects = DragDropEffects.Copy | DragDropEffects.Link;
@@ -686,6 +762,26 @@ public partial class FolderPopup : Window
 
     private void OnDrop(object sender, DragEventArgs e)
     {
+        if (e.Data.GetDataPresent(DragItemFormat))
+        {
+            HideDropMarker();
+            try
+            {
+                if (e.Data.GetData(DragItemFormat) is string id)
+                {
+                    int from = _folder.Items.FindIndex(i => i.Id == id);
+                    int to = DropIndexAt(e);
+                    if (from >= 0 && from != to && _folderManager.ReorderItem(_folder.Id, from, to))
+                        RenderItemsAndLayout();
+                }
+            }
+            catch (Exception ex)
+            {
+                DiagnosticService.Instance.LogError("Error reordering in FolderPopup", ex);
+            }
+            e.Handled = true;
+            return;
+        }
         if (!e.Data.GetDataPresent(DataFormats.FileDrop)) return;
         try
         {

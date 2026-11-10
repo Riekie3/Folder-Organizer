@@ -62,6 +62,20 @@ public static class PopupPaging
     /// <summary>The page showing an item, used to keep the same items in view when the page size changes.</summary>
     public static int PageOfItem(int itemIndex, int pageSize) => Math.Max(0, itemIndex) / pageSize;
 
+    /// <summary>
+    /// The item index a drop at a point on the grid lands on. The point is measured from the grid's top-left in
+    /// the same units as the grid size. A point past the last item on the page lands on the last one.
+    /// </summary>
+    public static int DropIndex(double x, double y, double gridWidth, double gridHeight, int columns, int rows,
+        int page, int pageSize, int itemCount)
+    {
+        if (itemCount <= 0 || columns <= 0 || rows <= 0 || gridWidth <= 0 || gridHeight <= 0) return 0;
+        int col = Math.Clamp((int)(x / (gridWidth / columns)), 0, columns - 1);
+        int row = Math.Clamp((int)(y / (gridHeight / rows)), 0, rows - 1);
+        int index = page * pageSize + row * columns + col;
+        return Math.Clamp(index, 0, itemCount - 1);
+    }
+
     /// <summary>Rows the card draws: only as many as the items use, so there is never an empty row.</summary>
     public static int VisibleRows(int itemCount, PopupGrid grid) =>
         Math.Clamp((int)Math.Ceiling(itemCount / (double)grid.Columns), 1, grid.Rows);

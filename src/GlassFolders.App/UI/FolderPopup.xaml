@@ -81,7 +81,7 @@
     <!-- The window also covers the folder, so the card can grow out of it. Empty parts let clicks through. -->
     <Canvas x:Name="Stage">
         <ui:GlassCard x:Name="PopupCard" CornerRadius="40" Opacity="0"
-                      AllowDrop="True" Drop="OnDrop" DragOver="OnDragOver" DragEnter="OnDragOver">
+                      AllowDrop="True" Drop="OnDrop" DragOver="OnDragOver" DragEnter="OnDragOver" DragLeave="OnDragLeave">
             <Grid x:Name="CardRoot" Background="Transparent">
                 <Grid.RowDefinitions>
                     <RowDefinition x:Name="HeaderRow"/>
