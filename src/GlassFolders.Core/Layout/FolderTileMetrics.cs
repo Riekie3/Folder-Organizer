@@ -37,11 +37,17 @@ public readonly record struct FolderTileMetrics(
     public double WindowWidth => PlateWidth + 2 * GlowMargin;
     public double WindowHeight => PlateHeight + 2 * GlowMargin;
 
+    /// <summary>
+    /// The size, in DIPs, of Windows' own desktop icons (48 for "Medium icons"). A medium folder is drawn this
+    /// size so it matches the icons around it. The app sets it from the desktop view each time it reads the grid.
+    /// </summary>
+    public static double DesktopIconSize { get; set; } = 48;
+
     public static double IconSizeFor(FolderSize size) => size switch
     {
-        FolderSize.Small => 36,
-        FolderSize.Large => 56,
-        _ => 46,
+        FolderSize.Small => Math.Round(DesktopIconSize * 0.75),
+        FolderSize.Large => Math.Round(DesktopIconSize * 1.25),
+        _ => DesktopIconSize,
     };
 
     public static double ScaleFor(FolderSize size) => IconSizeFor(size) / 64.0;
@@ -51,7 +57,7 @@ public readonly record struct FolderTileMetrics(
     {
         double icon = IconSizeFor(size);
         double iconHeight = Math.Round(icon * ArtAspect, 1);
-        double font = size switch { FolderSize.Small => 10.5, FolderSize.Large => 13, _ => 11.5 };
+        double font = size switch { FolderSize.Small => 11, FolderSize.Large => 13.5, _ => 12 };
         double line = Math.Ceiling(font * 1.34);
 
         // Labels are as wide as a grid cell, like Windows' own, but never narrower than the art.

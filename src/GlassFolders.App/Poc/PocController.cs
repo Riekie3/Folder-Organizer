@@ -407,6 +407,8 @@ public sealed class PocController : IDisposable
             cellW = snapshot.CellWidth;
             cellH = snapshot.CellHeight;
             iconCells = [.. snapshot.Cells];
+            // Medium folders are drawn the same size as Windows' own desktop icons.
+            FolderTileMetrics.DesktopIconSize = Math.Clamp(snapshot.IconSize, 16, 256);
             if (snapshot.AutoArrange)
                 DiagnosticService.Instance.LogInfo("Desktop 'Auto arrange icons' is on: Windows may later move its icons under a folder");
         }

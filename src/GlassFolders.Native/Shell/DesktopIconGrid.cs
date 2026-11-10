@@ -8,7 +8,8 @@ namespace GlassFolders.Native.Shell;
 /// </summary>
 /// <param name="AutoArrange">Windows re-flows icons by itself when this is on.</param>
 /// <param name="IconsHidden">"Show desktop icons" is off. The icons still own their cells.</param>
-public sealed record DesktopIconSnapshot(int CellWidth, int CellHeight, IReadOnlyList<RectInt> Cells, bool AutoArrange, bool IconsHidden);
+/// <param name="IconSize">Icon size in DIPs, 48 for "Medium icons".</param>
+public sealed record DesktopIconSnapshot(int CellWidth, int CellHeight, IReadOnlyList<RectInt> Cells, bool AutoArrange, bool IconsHidden, int IconSize = 48);
 
 /// <summary>
 /// Reads the desktop icon grid through the shell's documented <c>IFolderView</c>: the same view Explorer draws.
@@ -100,7 +101,7 @@ public static class DesktopIconGrid
                 }
             }
 
-            return new DesktopIconSnapshot(spacing.X, spacing.Y, icons, autoArrange, (flags & FWF_NOICONS) != 0);
+            return new DesktopIconSnapshot(spacing.X, spacing.Y, icons, autoArrange, (flags & FWF_NOICONS) != 0, iconSize);
         }
         catch (Exception ex) when (ex is COMException or InvalidCastException or UnauthorizedAccessException)
         {

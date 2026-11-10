@@ -243,7 +243,7 @@ Branch `main`.
 
 - `tools/ScreenshotCapture` rewritten: neutral drawn wallpaper window, real `FolderTile`, `FolderPopup`, `SettingsWindow` and `FolderEditorDialog` on it, pixels read from the screen. Six images replace the old off-screen renders in `docs/screenshots`. The popup crop is clamped to the monitor.
 - Sample folders use Windows' own programs, after the first run showed warning badges on programs this PC doesn't have.
-- Owner said the look was too big: popup scaled to 0.9, 0.8, then 0.7 on the owner's repeated requests (`PopupMetrics.SizeScale`), folder art 64 to 46 px, labels 15.5 to 11.5. Folder boxes still fit one desktop cell. Screenshots retaken.
+- Owner said the look was too big: popup scaled to 0.9, 0.8, then 0.7 on the owner's repeated requests (`PopupMetrics.SizeScale`), folder art 64 to 46 px; then medium folder art follows the desktop icon size (`FolderTileMetrics.DesktopIconSize`, 48 by default, read from `IFolderView2` in `ReadGrid`), labels 12. Folder boxes still fit one desktop cell. Screenshots retaken.
 - Version set to 1.1.0 (props, installer). README status, gallery note, CHANGELOG, KNOWN-ISSUES (untested list) and ARCHITECTURE updated.
 - Checked by eye: no personal data in any image (sandbox config, no desktop icons, taskbar left out).
 - Not done: the installer build and test, and the release. The release waits for the owner's approval of the look.
