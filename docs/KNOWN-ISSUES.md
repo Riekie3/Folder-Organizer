@@ -22,6 +22,17 @@
 - **The popup keeps its blue glass in light mode.** The Theme setting changes Settings, menus and dialogs only.
 - **The folder plate follows the wallpaper file.** It updates when Windows announces a wallpaper change. A wallpaper Windows doesn't report as a file, or a moved file with no saved copy, leaves the plate tinted without the blurred picture.
 
+## Not tested on a real desktop
+
+Stage 5 and Stage 6 did not cover these, so expect surprises:
+
+- **A second monitor**, including a popup that opens on it.
+- **A popup at the right edge of the screen.** Top-left and bottom-centre were checked; the right edge was hidden by another window.
+- **Other wallpapers.** The folder plate glass was checked on the PC's own wallpaper and on two drawn ones off-screen.
+- **Choose Picture with a real file** and the real Win+M shortcut.
+- **A video playing behind the popup**, which the snapshot freezes.
+- **Memory.** Private memory is about 110 MB after use, flat over 20 opens, against a 60 MB target.
+
 ## Not yet verified (Phase 1)
 
 | Item | Why | Plan |

@@ -172,6 +172,10 @@ Settings, the folder editor and the message boxes use the same snapshot glass (s
 
 ---
 
+### Screenshots (`tools/ScreenshotCapture`)
+
+The README images come from the real windows. The tool puts a full-screen window that paints a neutral, drawn wallpaper on the primary monitor, adds real `FolderTile` controls to it, opens the real `FolderPopup`, `SettingsWindow` and `FolderEditorDialog` on top, waits for the open animation and reads the screen with `ScreenCapture`. The windows take their glass from that screen exactly as they do on a desktop. Config is a throw-away folder, so the user's folders and settings are never touched. It needs the screen for about 15 seconds.
+
 ## 8. Animation Control & Zero-Wakeup Architecture
 
 - **Windows Accessibility Compliance:** Queries `SPI_GETCLIENTAREAANIMATION` via `SystemParametersInfoW`. When the user disables "Show animations in Windows", animations automatically shut off.

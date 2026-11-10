@@ -2,7 +2,7 @@
 
 _Updated 2026-11-07. Goal: make the running app look as close as practical to `Referance/a226f8e2-….png`, then release as v1.1.0._
 
-**Status:** Stages 0, 1, 2, 3, 4 and 5 merged to `main`. Stage 6 not started. **Nothing is tagged or released until every stage is finished and the look is approved.**
+**Status:** Stages 0, 1, 2, 3, 4 and 5 merged to `main`. Stage 6 is on branch `stage-6-proof-docs`: captures, docs and installer build done, release waiting for approval. **Nothing is tagged or released until every stage is finished and the look is approved.**
 
 ![Reference, current app and prototype side by side](parity/comparison.png)
 
@@ -298,6 +298,12 @@ Not covered, and left for the user's own eyes in Stage 6: the right-edge popup, 
 - Replace `ScreenshotCapture` with real on-screen captures on a neutral wallpaper. Personal desktop images stay out of the public repo.
 - Replace the README gallery; correct `ARCHITECTURE`, `PERFORMANCE`, `USER-GUIDE`, `KNOWN-ISSUES`, `DEVLOG`.
 - Build and test the installer; release **v1.1.0** after you approve the look.
+
+**Result so far:**
+- Real on-screen captures replace the six README images. The tool draws its own neutral wallpaper, so no personal or third-party picture is in the repo.
+- Docs updated: README status and gallery note, CHANGELOG, KNOWN-ISSUES (list of what was never tested on a real desktop), ARCHITECTURE, DEVLOG. Version is 1.1.0.
+- Build: 0 errors, 231/231 tests. Installer `GlassFolders-Setup-v1.1.0.exe` (2.8 MB) compiles, and reports product version 1.1.0 and publisher Rie-Sources.
+- Not done: running the installer (it shares an app ID with any installed GlassFolders, so it would replace the owner's copy) and the release itself. Nothing is tagged or published.
 
 ---
 

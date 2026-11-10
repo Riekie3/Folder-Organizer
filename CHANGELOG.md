@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Screenshot tool:** `tools/ScreenshotCapture` now takes real on-screen captures. It draws a neutral wallpaper full screen, opens the real popup, Settings and folder editor on it and reads the screen back, so the glass in the README is the app's real glass. It uses Windows' own programs for the sample items, so no icon shows a missing badge.
+
+### Version
+- **1.1.0** in `Directory.Build.props` and the installer. Not tagged or published; that waits for the owner's approval of the look.
+
 ### Changed
 - **Desktop folders:** redrawn as in the reference, as solid coloured folders with a white glyph, in its blue, purple, coral and green. Folders still on an old preset colour move to the matching new one once; colours chosen by hand are kept.
 - **Selected folder:** a larger frosted plate with a cyan glow, shown on hover and while the folder is open. Its glass is the wallpaper behind it, blurred, read from the wallpaper file rather than the screen.

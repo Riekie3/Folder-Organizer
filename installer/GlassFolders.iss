@@ -2,7 +2,7 @@
 ; Targets Windows 10/11 64-bit (Per-User Installation, No Administrator Privileges Required)
 
 #define MyAppName "GlassFolders"
-#define MyAppVersion "1.0.2"
+#define MyAppVersion "1.1.0"
 #define MyAppPublisher "Rie-Sources"
 #define MyAppURL "https://rie-sources.com/"
 #define MyAppExeName "GlassFolders.exe"

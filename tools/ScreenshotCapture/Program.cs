@@ -15,6 +15,7 @@ using GlassFolders.Core.Folders;
 using GlassFolders.Core.Models;
 using GlassFolders.Native;
 using GlassFolders.Native.Shell;
+using static GlassFolders.Native.NativeMethods;
 using Path = System.IO.Path;
 
 namespace ScreenshotCapture;
@@ -52,30 +53,31 @@ internal static class Program
             var gamesFolder = SetupGamesFolder(folderManager);
             var mediaFolder = SetupMediaFolder(folderManager);
 
-            // 1. Settings Window (General tab)
-            Console.WriteLine("Capturing Settings Window (General)...");
+            AppearanceService.Instance.Apply(new AppSettings { Theme = AppTheme.Dark });
+            nint primary = MonitorFromPoint(new POINT(0, 0), MONITOR_DEFAULTTOPRIMARY);
+            RECT monitor = Win32.MonitorInfo(primary).rcMonitor;
+            double scale = ScreenCapture.MonitorScale(primary);
+
+            // Needs the screen for about ten seconds: do not touch the mouse or keyboard meanwhile.
+            Console.WriteLine("Showing the neutral wallpaper window...");
+            var wallpaper = CreateWallpaper(monitor, scale);
+            wallpaper.Show();
+            wallpaper.Activate();
+            Pump(700);
+
+            Console.WriteLine("Capturing the desktop and the folder popup...");
+            CaptureDesktop(wallpaper, [workFolder, gamesFolder, mediaFolder], scale, monitor, folderManager, iconCache, resolver,
+                Path.Combine(outputDir, "hero-desktop.png"), Path.Combine(outputDir, "folder-popup.png"));
+
+            Console.WriteLine("Capturing Settings (General, Animations, About)...");
             CaptureSettingsWindow(configManager, folderManager, Path.Combine(outputDir, "settings.png"), "General");
-
-            // 2. Settings Window (Animations tab)
-            Console.WriteLine("Capturing Settings Window (Animations)...");
             CaptureSettingsWindow(configManager, folderManager, Path.Combine(outputDir, "settings-animations.png"), "Animations");
-
-            // 2b. Settings Window (About tab)
-            Console.WriteLine("Capturing Settings Window (About)...");
             CaptureSettingsWindow(configManager, folderManager, Path.Combine(outputDir, "settings-about.png"), "About");
 
-            // 3. Folder Customization Dialog
-            Console.WriteLine("Capturing Folder Customization Dialog...");
+            Console.WriteLine("Capturing the folder editor...");
             CaptureFolderEditor(workFolder, Path.Combine(outputDir, "folder-customization.png"));
 
-            // 4. Folder Popup
-            Console.WriteLine("Capturing Folder Popup...");
-            CaptureFolderPopup(workFolder, folderManager, iconCache, resolver, Path.Combine(outputDir, "folder-popup.png"));
-
-            // 5. Hero Desktop Showcase
-            Console.WriteLine("Capturing Hero Desktop Showcase...");
-            CaptureHeroDesktop(workFolder, gamesFolder, mediaFolder, folderManager, iconCache, resolver, Path.Combine(outputDir, "hero-desktop.png"));
-
+            wallpaper.Close();
             Console.WriteLine("All screenshots generated successfully in: " + outputDir);
             app.Shutdown();
         }
@@ -104,18 +106,19 @@ internal static class Program
         if (folder.Items.Count < 6)
         {
             folder.Items.Clear();
-            AddSystemApp(folder, "Visual Studio Code", @"Microsoft VS Code\Code.exe", "code.exe");
-            AddSystemApp(folder, "Windows Terminal", @"wt.exe", "wt.exe");
-            AddSystemApp(folder, "Google Chrome", @"Google\Chrome\Application\chrome.exe", "chrome.exe");
-            AddSystemApp(folder, "File Explorer", @"explorer.exe", "explorer.exe");
+            // Windows' own programs only, so every icon is real on any PC and none shows the missing badge.
             AddSystemApp(folder, "Notepad", @"notepad.exe", "notepad.exe");
-            AddSystemApp(folder, "Command Prompt", @"cmd.exe", "cmd.exe");
-            AddSystemApp(folder, "PowerShell", @"powershell.exe", "powershell.exe");
             AddSystemApp(folder, "Calculator", @"calc.exe", "calc.exe");
+            AddSystemApp(folder, "Command Prompt", @"cmd.exe", "cmd.exe");
             AddSystemApp(folder, "Task Manager", @"taskmgr.exe", "taskmgr.exe");
-            AddSystemApp(folder, "Snipping Tool", @"SnippingTool.exe", "SnippingTool.exe");
-            AddSystemApp(folder, "Settings", @"SystemSettings.exe", "SystemSettings.exe");
             AddSystemApp(folder, "Remote Desktop", @"mstsc.exe", "mstsc.exe");
+            AddSystemApp(folder, "Character Map", @"charmap.exe", "charmap.exe");
+            AddSystemApp(folder, "Magnifier", @"magnify.exe", "magnify.exe");
+            AddSystemApp(folder, "On-Screen Keyboard", @"osk.exe", "osk.exe");
+            AddSystemApp(folder, "File Explorer", @"explorer.exe", "explorer.exe", windowsDir: true);
+            AddSystemApp(folder, "System Info", @"msinfo32.exe", "msinfo32.exe");
+            AddSystemApp(folder, "Resource Monitor", @"resmon.exe", "resmon.exe");
+            AddSystemApp(folder, "Disk Cleanup", @"cleanmgr.exe", "cleanmgr.exe");
         }
         return folder;
     }
@@ -154,10 +157,10 @@ internal static class Program
         return folder;
     }
 
-    private static void AddSystemApp(FolderDef folder, string name, string relPath, string candidateName)
+    private static void AddSystemApp(FolderDef folder, string name, string relPath, string candidateName, bool windowsDir = false)
     {
         string sys32 = Environment.GetFolderPath(Environment.SpecialFolder.System);
-        string sys32Path = Path.Combine(sys32, candidateName);
+        string sys32Path = Path.Combine(windowsDir ? Environment.GetFolderPath(Environment.SpecialFolder.Windows) : sys32, candidateName);
         string progFilesPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), relPath);
         string path = File.Exists(sys32Path) ? sys32Path : (File.Exists(progFilesPath) ? progFilesPath : sys32Path);
 
@@ -170,16 +173,79 @@ internal static class Program
         });
     }
 
+    // ---- Real on-screen captures --------------------------------------------------------------------------
+    // A full-screen window paints a neutral wallpaper drawn here (no personal or third-party image). The real
+    // GlassFolders windows then open on top of it and take their glass from the screen like they do on a desktop,
+    // and the result is read back from the screen. Nothing is drawn to imitate the glass.
+
+    private static Window CreateWallpaper(RECT monitor, double scale)
+    {
+        double w = monitor.Width / scale, h = monitor.Height / scale;
+        var canvas = new Canvas { Width = w, Height = h, Background = new LinearGradientBrush(Color.FromRgb(0x14, 0x1E, 0x3C), Color.FromRgb(0x2A, 0x16, 0x4A), 35) };
+        void Bloom(double cx, double cy, double rx, double ry, Color c)
+        {
+            var e = new Ellipse
+            {
+                Width = rx * 2, Height = ry * 2,
+                Fill = new RadialGradientBrush(Color.FromArgb(0xB0, c.R, c.G, c.B), Color.FromArgb(0x00, c.R, c.G, c.B)),
+            };
+            Canvas.SetLeft(e, cx - rx); Canvas.SetTop(e, cy - ry);
+            canvas.Children.Add(e);
+        }
+        Bloom(w * 0.30, h * 0.35, w * 0.34, h * 0.55, Color.FromRgb(0x3B, 0x82, 0xF6));
+        Bloom(w * 0.72, h * 0.30, w * 0.30, h * 0.50, Color.FromRgb(0xA8, 0x55, 0xF7));
+        Bloom(w * 0.55, h * 0.85, w * 0.40, h * 0.40, Color.FromRgb(0x06, 0xB6, 0xD4));
+        Bloom(w * 0.12, h * 0.90, w * 0.25, h * 0.35, Color.FromRgb(0xEC, 0x48, 0x99));
+
+        return new Window
+        {
+            WindowStyle = WindowStyle.None,
+            ResizeMode = ResizeMode.NoResize,
+            ShowInTaskbar = false,
+            WindowStartupLocation = WindowStartupLocation.Manual,
+            Left = monitor.Left / scale, Top = monitor.Top / scale, Width = w, Height = h,
+            Content = canvas,
+        };
+    }
+
+    private static void Pump(int milliseconds)
+    {
+        var frame = new System.Windows.Threading.DispatcherFrame();
+        var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(milliseconds) };
+        timer.Tick += (_, _) => { timer.Stop(); frame.Continue = false; };
+        timer.Start();
+        System.Windows.Threading.Dispatcher.PushFrame(frame);
+    }
+
+    private static void SaveScreen(RECT area, string path)
+    {
+        // Never read past the monitor, which would add black bars.
+        RECT screen = Win32.MonitorInfo(MonitorFromPoint(new POINT(0, 0), MONITOR_DEFAULTTOPRIMARY)).rcMonitor;
+        area = new RECT(Math.Max(area.Left, screen.Left), Math.Max(area.Top, screen.Top), Math.Min(area.Right, screen.Right), Math.Min(area.Bottom, screen.Bottom));
+        bool ok = ScreenCapture.TryRead(area, (ReadOnlySpan<byte> px, int w, int h, int stride) =>
+        {
+            var copy = new byte[px.Length];
+            px.CopyTo(copy);
+            for (int i = 3; i < copy.Length; i += 4) copy[i] = 0xFF; // GDI leaves alpha undefined
+            var bmp = BitmapSource.Create(w, h, 96, 96, PixelFormats.Bgra32, null, copy, stride);
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(bmp));
+            using var fs = File.Create(path);
+            encoder.Save(fs);
+            return true;
+        }, out _);
+        Console.WriteLine(ok ? $"Saved: {path} ({area.Width}x{area.Height})" : $"FAILED to capture {path}");
+    }
+
+    private static RECT WindowArea(Window win, int margin)
+    {
+        GetWindowRect(new System.Windows.Interop.WindowInteropHelper(win).Handle, out RECT r);
+        return new RECT(r.Left - margin, r.Top - margin, r.Right + margin, r.Bottom + margin);
+    }
+
     private static void CaptureSettingsWindow(ConfigurationManager cm, FolderManager fm, string outputPath, string page)
     {
-        var win = new SettingsWindow(cm, fm)
-        {
-            WindowStartupLocation = WindowStartupLocation.Manual,
-            Left = -20000,
-            Top = -20000,
-            ShowInTaskbar = false
-        };
-
+        var win = new SettingsWindow(cm, fm);
         win.Show();
         string? handler = page switch
         {
@@ -192,214 +258,62 @@ internal static class Program
             win.GetType().GetMethod(handler, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?
                 .Invoke(win, [win, new RoutedEventArgs()]);
         }
-        win.UpdateLayout();
-
-        RenderElementToPng(win, (int)win.ActualWidth, (int)win.ActualHeight, outputPath);
+        Pump(900);
+        SaveScreen(WindowArea(win, 24), outputPath);
         win.Close();
+        Pump(150);
     }
 
     private static void CaptureFolderEditor(FolderDef folder, string outputPath)
     {
-        var win = new FolderEditorDialog(folder)
-        {
-            WindowStartupLocation = WindowStartupLocation.Manual,
-            Left = -20000,
-            Top = -20000,
-            ShowInTaskbar = false
-        };
-
+        var win = new FolderEditorDialog(folder);
         win.Show();
-        win.UpdateLayout();
-
-        RenderElementToPng(win, (int)win.ActualWidth, (int)win.ActualHeight, outputPath);
+        Pump(900);
+        SaveScreen(WindowArea(win, 24), outputPath);
         win.Close();
+        Pump(150);
     }
 
-    private static void CaptureFolderPopup(FolderDef folder, FolderManager fm, IconCacheService iconCache, IShortcutResolver resolver, string outputPath)
+    private static void CapturePopup(FolderDef folder, FolderManager fm, IconCacheService iconCache, IShortcutResolver resolver, RECT anchor, string popupPath, string? heroPath, RECT heroArea)
     {
-        var anchor = new RECT { Left = 200, Top = 200, Right = 304, Bottom = 312 };
-        var win = new FolderPopup(folder, fm, iconCache, resolver, anchor)
-        {
-            WindowStartupLocation = WindowStartupLocation.Manual,
-            Left = -20000,
-            Top = -20000,
-            ShowInTaskbar = false
-        };
-
-        win.Show();
-        win.UpdateLayout();
-
-        RenderElementToPng(win, (int)win.ActualWidth, (int)win.ActualHeight, outputPath);
-        win.Close();
+        var popup = new FolderPopup(folder, fm, iconCache, resolver, anchor);
+        popup.Show();
+        Pump(1100); // the open animation
+        if (heroPath is not null) SaveScreen(heroArea, heroPath);
+        // The card is the visible part; the window around it is transparent and only holds the shadow.
+        RECT crop = WindowArea(popup, 0);
+        if (typeof(FolderPopup).GetField("_cardRect", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(popup) is GlassFolders.Core.Layout.RectInt card && card.Width > 0)
+            crop = new RECT(card.Left - 48, card.Top - 48, card.Right + 72, card.Bottom + 96);
+        SaveScreen(crop, popupPath);
+        popup.Close();
+        Pump(150);
     }
 
-    private static void CaptureHeroDesktop(
-        FolderDef workFolder, FolderDef gamesFolder, FolderDef mediaFolder,
-        FolderManager fm, IconCacheService iconCache, IShortcutResolver resolver, string outputPath)
+    private static void CaptureDesktop(Window wallpaper, FolderDef[] folders, double scale, RECT monitor, FolderManager fm, IconCacheService iconCache, IShortcutResolver resolver, string heroPath, string popupPath)
     {
-        int canvasW = 1600;
-        int canvasH = 900;
-
-        var canvas = new Canvas
-        {
-            Width = canvasW,
-            Height = canvasH,
-            Background = new LinearGradientBrush(
-                Color.FromRgb(0x0C, 0x14, 0x24),
-                Color.FromRgb(0x03, 0x07, 0x12),
-                45)
-        };
-
-        // Ambient glowing orb in top center
-        var glow1 = new Ellipse
-        {
-            Width = 900,
-            Height = 700,
-            Fill = new RadialGradientBrush(
-                Color.FromArgb(0x40, 0x25, 0x63, 0xEB),
-                Color.FromArgb(0x00, 0x0C, 0x14, 0x24))
-        };
-        Canvas.SetLeft(glow1, 350);
-        Canvas.SetTop(glow1, 80);
-        canvas.Children.Add(glow1);
-
-        var glow2 = new Ellipse
-        {
-            Width = 600,
-            Height = 500,
-            Fill = new RadialGradientBrush(
-                Color.FromArgb(0x28, 0x06, 0xB6, 0xD4),
-                Color.FromArgb(0x00, 0x0C, 0x14, 0x24))
-        };
-        Canvas.SetLeft(glow2, 100);
-        Canvas.SetTop(glow2, 200);
-        canvas.Children.Add(glow2);
-
-        // Render desktop folder tiles
-        var tiles = new List<(FolderDef Folder, int X, int Y)>
-        {
-            (workFolder, 140, 160),
-            (gamesFolder, 140, 310),
-            (mediaFolder, 140, 460)
-        };
-
-        foreach (var (f, x, y) in tiles)
+        var canvas = (Canvas)wallpaper.Content;
+        RECT anchor = default;
+        int y = 90;
+        foreach (var f in folders)
         {
             var metrics = GlassFolders.Core.Layout.FolderTileMetrics.For(f.Size, 76, 97.6);
             var tile = new FolderTile(f.Id);
             tile.Apply(f, metrics, showCount: false);
-
             tile.Measure(new Size(metrics.WindowWidth, metrics.WindowHeight));
             tile.Arrange(new Rect(0, 0, metrics.WindowWidth, metrics.WindowHeight));
-            tile.UpdateLayout();
-
-            Canvas.SetLeft(tile, x);
+            Canvas.SetLeft(tile, 40);
             Canvas.SetTop(tile, y);
             canvas.Children.Add(tile);
+            if (anchor.Right == 0)
+                anchor = new RECT(
+                    monitor.Left + (int)Math.Round(40 * scale), monitor.Top + (int)Math.Round(y * scale),
+                    monitor.Left + (int)Math.Round((40 + metrics.WindowWidth) * scale),
+                    monitor.Top + (int)Math.Round((y + metrics.WindowHeight) * scale));
+            y += (int)Math.Ceiling(metrics.WindowHeight) + 24;
         }
-
-        // Render open Liquid Glass popup for Work folder
-        var anchor = new RECT { Left = 140, Top = 160, Right = 244, Bottom = 272 };
-        var popup = new FolderPopup(workFolder, fm, iconCache, resolver, anchor);
-        popup.Measure(new Size(420, 380));
-        popup.Arrange(new Rect(0, 0, 420, 380));
-        popup.UpdateLayout();
-
-        var popupRtb = new RenderTargetBitmap(420, 380, 96, 96, PixelFormats.Pbgra32);
-        popupRtb.Render(popup);
-
-        var popupImage = new Image
-        {
-            Source = popupRtb,
-            Width = 420,
-            Height = 380,
-            Effect = new System.Windows.Media.Effects.DropShadowEffect
-            {
-                BlurRadius = 36,
-                ShadowDepth = 12,
-                Opacity = 0.55,
-                Color = Colors.Black
-            }
-        };
-
-        Canvas.SetLeft(popupImage, 280);
-        Canvas.SetTop(popupImage, 140);
-        canvas.Children.Add(popupImage);
-
-        // Windows 11 centered taskbar mockup at bottom
-        var taskbar = new Border
-        {
-            Width = canvasW,
-            Height = 48,
-            Background = new SolidColorBrush(Color.FromArgb(0xDD, 0x0F, 0x17, 0x2A)),
-            BorderBrush = new SolidColorBrush(Color.FromArgb(0x33, 0xFF, 0xFF, 0xFF)),
-            BorderThickness = new Thickness(0, 1, 0, 0)
-        };
-
-        var tbGrid = new Grid();
-        var centerIcons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-
-        for (int i = 0; i < 7; i++)
-        {
-            var iconBox = new Border
-            {
-                Width = 34,
-                Height = 34,
-                CornerRadius = new CornerRadius(6),
-                Margin = new Thickness(4, 0, 4, 0),
-                Background = new SolidColorBrush(Color.FromArgb(0x20, 0xFF, 0xFF, 0xFF))
-            };
-            centerIcons.Children.Add(iconBox);
-        }
-        tbGrid.Children.Add(centerIcons);
-
-        // System tray at bottom right
-        var trayPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 16, 0) };
-        try
-        {
-            var trayIconImg = new Image
-            {
-                Source = new BitmapImage(new Uri("pack://application:,,,/GlassFolders;component/assets/app-icon.png")),
-                Width = 18,
-                Height = 18,
-                Margin = new Thickness(6, 0, 8, 0)
-            };
-            trayPanel.Children.Add(trayIconImg);
-        }
-        catch { }
-
-        var timeText = new TextBlock
-        {
-            Text = DateTime.Now.ToString("h:mm tt\nM/d/yyyy"),
-            FontSize = 10,
-            Foreground = new SolidColorBrush(Color.FromArgb(0xCC, 0xFF, 0xFF, 0xFF)),
-            VerticalAlignment = VerticalAlignment.Center,
-            TextAlignment = TextAlignment.Right
-        };
-        trayPanel.Children.Add(timeText);
-        tbGrid.Children.Add(trayPanel);
-
-        taskbar.Child = tbGrid;
-        Canvas.SetLeft(taskbar, 0);
-        Canvas.SetTop(taskbar, canvasH - 48);
-        canvas.Children.Add(taskbar);
-
-        canvas.Measure(new Size(canvasW, canvasH));
-        canvas.Arrange(new Rect(0, 0, canvasW, canvasH));
-        canvas.UpdateLayout();
-
-        RenderElementToPng(canvas, canvasW, canvasH, outputPath);
-    }
-
-    private static void RenderElementToPng(FrameworkElement element, int width, int height, string outputPath)
-    {
-        var rtb = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
-        rtb.Render(element);
-
-        var encoder = new PngBitmapEncoder();
-        encoder.Frames.Add(BitmapFrame.Create(rtb));
-        using var fs = File.Create(outputPath);
-        encoder.Save(fs);
-        Console.WriteLine($"Saved: {outputPath} ({width}x{height})");
+        Pump(400);
+        // Everything above the taskbar, which belongs to the user's PC and isn't part of the app.
+        RECT work = Win32.MonitorInfo(MonitorFromPoint(monitor.Center, MONITOR_DEFAULTTOPRIMARY)).rcWork;
+        CapturePopup(folders[0], fm, iconCache, resolver, anchor, popupPath, heroPath, work);
     }
 }

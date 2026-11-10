@@ -3,7 +3,7 @@
 Phone-style app folders on your real Windows 11 desktop, with a Liquid Glass popup.  
 Created & maintained by **[Rie-Sources](https://rie-sources.com/)**.
 
-> **Status: `v1.0.2`, working but still being polished.** Built for Windows 11 (tested on 25H2). 231/231 automated tests pass, Explorer recovery is event-driven, and there are no runtime dependencies beyond .NET 10. The popup does not yet look like the Liquid Glass design target; see [docs/VISUAL-PARITY-PLAN.md](docs/VISUAL-PARITY-PLAN.md).
+> **Status: `v1.1.0` is built and waiting for the owner's approval; it isn't published yet.** The latest published release is older and does not have this look. Built for Windows 11 (tested on 25H2). 231/231 automated tests pass, Explorer recovery is event-driven, and there are no runtime dependencies beyond .NET 10. See [docs/VISUAL-PARITY-PLAN.md](docs/VISUAL-PARITY-PLAN.md) for how the look was matched to the design target and what hasn't been tested.
 
 ![GlassFolders Desktop Experience](docs/screenshots/hero-desktop.png)
 
@@ -11,12 +11,12 @@ Created & maintained by **[Rie-Sources](https://rie-sources.com/)**.
 
 ## Screenshots
 
-> These images are rendered by `tools/ScreenshotCapture` from the real app windows, but off-screen, over a drawn background. They show layout and colours, **not** the real Windows glass blur, and the desktop and taskbar in the first image are drawn. Real on-desktop captures will replace them in a later release.
+> These are real captures of the running app. `tools/ScreenshotCapture` fills the screen with a neutral wallpaper it draws itself (no personal or third-party picture), opens the real windows on it and reads the pixels back from the screen, so the glass is the real glass. The folders and items are Windows' own programs on a throw-away config. Nothing is drawn to imitate the app, and the taskbar is left out of the first image.
 
 | Liquid Glass Folder Popup | Settings Dashboard |
 |:---:|:---:|
 | ![Liquid Glass Folder Popup](docs/screenshots/folder-popup.png) | ![Settings Dashboard](docs/screenshots/settings.png) |
-| *Folder popup with app icons, pagination, and category glyph (off-screen render)* | *Glass sidebar navigation with full personalization, layout, and recovery controls* |
+| *Folder popup with app icons, pagination, and category glyph * | *Glass sidebar navigation with full personalization, layout, and recovery controls* |
 
 | Folder Appearance Customization | Granular Animation Controls |
 |:---:|:---:|
@@ -30,7 +30,7 @@ Created & maintained by **[Rie-Sources](https://rie-sources.com/)**.
 **GlassFolders** brings the mobile home-screen folder experience to Windows 11 without hacky overlays or third-party bloat. Folders like *Work*, *Games*, *Media*, and *Utilities* sit directly on your desktop layer alongside standard icons. Clicking a folder opens a frosted glass panel displaying real application icons, shortcuts, and files.
 
 - **Native Desktop Integration:** Each folder is a small, borderless Progman-owned window pinned below normal applications. Desktop rubber-band selection, desktop icons, and Win+D ("Show Desktop") continue to work seamlessly.
-- **Liquid Glass Interface:** Frosted popup with smooth rounded corners, a tint that adapts to your wallpaper, light rims and customizable vector category glyphs. Settings, menus and dialogs use the same glass, with a light and a dark theme and Appearance sliders for transparency, blur, border, shadow and corners. A closer match to the design target is in progress.
+- **Liquid Glass Interface:** Frosted popup with smooth rounded corners, a tint that adapts to your wallpaper, light rims and customizable vector category glyphs. Settings, menus and dialogs use the same glass, with a light and a dark theme and Appearance sliders for transparency, blur, border, shadow and corners. Matched to the design target; see the parity plan for the details.
 - **Automated Explorer Recovery:** Event-driven state machine (`Healthy → ShellLost → WaitingForShell → Reattaching → Verifying`) automatically recovers desktop surfaces with exponential backoff on Explorer crashes, taskbar recreation, session locks, and power resumes.
 - **Multi-Monitor Layouts:** Position math uses work-area relative fractions and persistent monitor identities. When a secondary screen is unplugged, folders gracefully displace to the primary monitor and return to their home screen when reconnected.
 - **Portable Backup & Restore:** Self-contained `.zip` backup format with SHA-256 manifests, automated rolling pre-restore backups (max 10), collision-free merge mode, and intelligent path relinking for cross-PC migration.
