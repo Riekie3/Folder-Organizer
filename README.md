@@ -36,6 +36,7 @@ Created & maintained by **[Rie-Sources](https://rie-sources.com/)**.
 - **Portable Backup & Restore:** Self-contained `.zip` backup format with SHA-256 manifests, automated rolling pre-restore backups (max 10), collision-free merge mode, and intelligent path relinking for cross-PC migration.
 - **Desktop Folders:** solid coloured folders with white glyphs, or a Glass style, in three sizes, or with your own picture. New folders take free cells of the desktop icon grid, never an icon's spot, and a frosted plate made from your wallpaper lights up the open folder.
 - **Large Popup:** A 4 × 2 grid of 256 px icons with page dots, an expand button, and configurable columns and rows. It grows out of the clicked folder.
+- **Drag to Reorder:** Press and drag an icon inside a folder popup to move it. A highlight shows where it will land and the icons glide into their new places; the order is saved. You can also drag files in from Explorer or the desktop to add them. Reordering works within the page you are viewing.
 - **Animation Controls:** Master toggle, Windows reduced-motion (`SPI_GETCLIENTAREAANIMATION`) compliance, speed slider (0.5×–2.0×), and 8 category switches. Folder tiles and the popup both animate.
 - **Ultra-Lightweight & Zero-Polling:** 0.00% idle CPU overhead, no periodic timer wakeups, and automated working set memory trimming (~50–65 MB typical).
 - **System Tray Integration:** Runs quietly in the notification area; no taskbar button.
