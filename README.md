@@ -3,7 +3,7 @@
 Phone-style app folders on your real Windows 11 desktop, with a Liquid Glass popup.  
 Created & maintained by **[Rie-Sources](https://rie-sources.com/)**.
 
-> **Status: `v1.1.1`.** Built for Windows 11 (tested on 25H2). 239/239 automated tests pass, Explorer recovery is event-driven, and there are no runtime dependencies beyond .NET 10. See [docs/VISUAL-PARITY-PLAN.md](docs/VISUAL-PARITY-PLAN.md) for how the look was matched to the design target and [docs/KNOWN-ISSUES.md](docs/KNOWN-ISSUES.md) for what hasn't been tested.
+> **Status: `v1.1.2`.** Built for Windows 11 (tested on 25H2). 239/239 automated tests pass, Explorer recovery is event-driven, and there are no runtime dependencies beyond .NET 10. See [docs/VISUAL-PARITY-PLAN.md](docs/VISUAL-PARITY-PLAN.md) for how the look was matched to the design target and [docs/KNOWN-ISSUES.md](docs/KNOWN-ISSUES.md) for what hasn't been tested.
 
 ![GlassFolders Desktop Experience](docs/screenshots/hero-desktop.png)
 

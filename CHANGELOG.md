@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.2] - 2026-11-10
+
 ### Fixed
 - **The folder popup showed a solid navy panel instead of glass.** The glass was measured before the popup was placed on screen, so the card looked like it sat outside the captured area and fell back to the solid panel. The popup now measures again once it is in place, so it shows the blurred wallpaper and the Transparency, Blur and Border sliders in Settings take effect on it.
 
