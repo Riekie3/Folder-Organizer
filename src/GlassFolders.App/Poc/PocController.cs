@@ -146,7 +146,12 @@ public sealed class PocController : IDisposable
         _folderManager.Changed += OnFolderManagerChanged;
     }
 
-    private static double Scale => GetDpiForSystem() / 96.0;
+    // The primary monitor's scale. Set at start and again when the display or its scale changes, so the app
+    // keeps working after Windows' scaling is changed without signing out.
+    private static double s_scale = GetDpiForSystem() / 96.0;
+    private static double Scale => s_scale;
+
+    private DispatcherTimer? _rescaleTimer;
 
     private void OnFolderManagerChanged()
     {
@@ -198,6 +203,11 @@ public sealed class PocController : IDisposable
 
     private void OnMonitorsChanged(IReadOnlyList<MonitorDescriptor> monitors)
     {
+        double oldScale = s_scale;
+        double newScale = _monitorService.PrimaryMonitor.DpiScale;
+        if (newScale > 0) s_scale = newScale;
+        bool scaleChanged = Math.Abs(s_scale - oldScale) > 0.01;
+
         var (tileW, tileH) = WindowPx(MetricsFor(FolderSize.Medium));
         _displacementManager.UpdateMonitors(monitors, tileW, tileH);
 
@@ -209,9 +219,86 @@ public sealed class PocController : IDisposable
                 _host.Move(pair.Surface, p.AbsoluteX, p.AbsoluteY);
             }
         }
+        if (scaleChanged) RescaleTiles(oldScale, s_scale);
+
         _backdropTimer.Stop();
         _backdropTimer.Start();
         WriteState("MONITORS-CHANGED");
+    }
+
+    /// <summary>
+    /// Windows' scaling changed (100 % to 150 %, say). Folder positions are saved in pixels, so each folder on the
+    /// primary monitor keeps its place on screen by scaling its centre, then re-fits to the icon grid once Explorer
+    /// has laid its icons out again at the new scale.
+    /// </summary>
+    private void RescaleTiles(double oldScale, double newScale)
+    {
+        double ratio = newScale / oldScale;
+        var primary = _monitorService.PrimaryMonitor;
+        DiagnosticService.Instance.LogInfo($"Display scale changed from {oldScale * 100:0} % to {newScale * 100:0} %; moving the folders with it");
+
+        foreach (var (id, pair) in _tiles)
+        {
+            if (!pair.Surface.IsAlive) continue;
+            var m = pair.Tile.Metrics;
+            var r = pair.Surface.ScreenRect;
+            int oldW = (int)Math.Round(m.WindowWidth * oldScale), oldH = (int)Math.Round(m.WindowHeight * oldScale);
+            int cx = r.Left + oldW / 2, cy = r.Top + oldH / 2;
+            if (!primary.Bounds.Contains(cx, cy)) continue;
+
+            var (newW, newH) = WindowPx(m);
+            int x = (int)Math.Round(primary.Bounds.Left + (cx - primary.Bounds.Left) * ratio) - newW / 2;
+            int y = (int)Math.Round(primary.Bounds.Top + (cy - primary.Bounds.Top) * ratio) - newH / 2;
+            _host.Move(pair.Surface, x, y);
+            _displacementManager.SetPosition(id, x, y, _monitorService.Monitors, newW, newH);
+            SavePosition(id, x, y);
+        }
+
+        // Explorer re-flows its icons a moment after the change; fit to the grid when it has.
+        _rescaleTimer ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1800) };
+        _rescaleTimer.Tick -= OnRescaleSettled;
+        _rescaleTimer.Tick += OnRescaleSettled;
+        _rescaleTimer.Stop();
+        _rescaleTimer.Start();
+    }
+
+    private void OnRescaleSettled(object? sender, EventArgs e)
+    {
+        _rescaleTimer?.Stop();
+        try
+        {
+            var primary = _monitorService.PrimaryMonitor;
+            ReadGrid(ToRectInt(Win32.PrimaryWorkArea()), out _); // new cell size, so folder sizes follow it
+            foreach (var id in _tiles.Keys.ToList()) RefreshTile(id);
+
+            foreach (var (id, pair) in _tiles.ToList())
+            {
+                if (!pair.Surface.IsAlive) continue;
+                var r = pair.Surface.ScreenRect;
+                var box = BoxAt(r.Left, r.Top, pair.Tile.Metrics);
+                int cx = box.Left + box.Width / 2, cy = box.Top + box.Height / 2;
+                if (!primary.Bounds.Contains(cx, cy)) continue;
+
+                var grid = ReadGrid(primary.WorkArea, out var icons);
+                var obstacles = Obstacles(icons, except: id);
+                bool overlaps = obstacles.Any(o => o.Intersects(box));
+                if (!_settings.SnapToGrid && !overlaps) continue;
+
+                var (columns, rows) = grid.SpanFor(box.Width, box.Height);
+                if (grid.Columns < columns || grid.Rows < rows) continue;
+                var block = grid.NearestFreeBlock(cx, cy, columns, rows, obstacles);
+                var (nx, ny) = PositionFor(block, pair.Tile.Metrics);
+                var (w, h) = WindowPx(pair.Tile.Metrics);
+                _host.Move(pair.Surface, nx, ny);
+                _displacementManager.SetPosition(id, nx, ny, _monitorService.Monitors, w, h);
+                SavePosition(id, nx, ny);
+            }
+            RefreshAllBackdrops();
+        }
+        catch (Exception ex)
+        {
+            DiagnosticService.Instance.LogError("Could not fit the folders to the desktop grid after a scale change", ex);
+        }
     }
 
     public void OpenSettings(string? initialPage = null)

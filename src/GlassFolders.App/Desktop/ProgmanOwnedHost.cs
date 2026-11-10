@@ -14,6 +14,10 @@ namespace GlassFolders.App.Desktop;
 /// </summary>
 public sealed class ProgmanOwnedHost : IDesktopHost
 {
+    private const uint WmSize = 0x0005;
+    private const int SizeMinimized = 1;
+    private const int SwShowNoActivate = 4;
+
     public string Name => "owned";
     public DesktopWindows? Desktop { get; private set; }
 
@@ -69,6 +73,17 @@ public sealed class ProgmanOwnedHost : IDesktopHost
             case WM_MOUSEACTIVATE:
                 handled = true;
                 return MA_NOACTIVATE;
+
+            case WmSize when wParam == SizeMinimized:
+                // Something hid the folder the way it hides app windows (a "minimise all" tool, say). The folder
+                // is part of the desktop, so it is shown again at once.
+                nint h = hwnd;
+                System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
+                {
+                    ShowWindow(h, SwShowNoActivate);
+                    SetWindowPos(h, HWND_BOTTOM, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+                });
+                break;
 
             case WM_WINDOWPOSCHANGING:
                 // Never let the surface be raised above other windows (clicks, ShowWindow, drag loops).

@@ -239,6 +239,41 @@ Branch `main`.
 - Version 1.0.2 (props, installer); version text read from assembly; release zip name uses the tag.
 - README corrected. Not released: waiting for confirmation.
 
+## Stage 5 - Real-world check (branch `stage/5-real-world-check`)
+
+Run on the live desktop with a sandbox copy of the app (renamed exe plus `portable.flag`, its own data), driven with the real mouse. The user switched Windows settings when asked; nothing was changed by the tools. Screenshots of the desktop were deleted afterwards and are not in the repo.
+
+| Check | Result |
+|---|---|
+| Hover a folder, tooltip, plate | Works |
+| Click opens the popup; click outside closes it; X closes it | Works |
+| Right-click an app: Open, Open file location, Rename, Remove from folder | Works. Rename opens the glass box over the popup, takes typing, and saves |
+| Folder menu, Change Icon submenu, Settings | Work. Choosing a glyph changes the folder at once |
+| Choose Picture (file picker) | Not tried |
+| Drag a folder | Works; it snaps to the icon grid |
+| Settings: sliders, theme buttons, sidebar, window drag | Work. Glass follows the wallpaper as the window moves |
+| Windows light/dark switch while running | Settings, menus and dialogs followed at once |
+| Transparency effects off | New windows use the solid panel. An open one did not (fixed, below) |
+| High contrast on | Settings and the popup show solid panels, readable |
+| Display scale 125 to 150 %, 150 to 100 %, 100 to 125 % | Folders stacked on each other and on icons (fixed, below) |
+| Popup at top-left and bottom-centre folders | Stays inside the screen, above the taskbar |
+| Popup at a right-edge folder | Not tried: the Claude window covered that part of the screen |
+| Show Desktop | Folders stay |
+| Second monitor, Settings dragged across monitors | Not tried: one screen |
+| Wallpapers | Only the current one live; two Windows wallpapers were rendered off-screen in Stage 4 |
+
+Found and fixed:
+- `PocController` read the scale once, through `GetDpiForSystem`, which doesn't change until sign-out. After a scale change the folder windows resized themselves but all the placement maths used the old scale. It now follows the primary monitor's scale (`MonitorService` reads each monitor's own), moves each folder by the scale ratio, and a timer 1.8 s later re-fits every folder to the new icon grid, since Explorer re-flows its icons after the change. Tested live at 150, 100 and 125 %.
+- `GlassWindow` only checked for glass when it opened. `AppearanceService` now also raises `Changed` when transparency effects or high contrast change, and an open window drops to the solid panel. It does not take a new snapshot when glass is allowed again; that waits for the next open.
+- The test tools' "hide other apps" step minimised the folder windows. `ProgmanOwnedHost` now shows a folder again at once if anything minimises it. Checked with `ShowWindow` minimise and force-minimise.
+
+Performance, measured on the sandbox copy of this build:
+- Idle CPU: 0.000 % over 30 s.
+- Working set: 8-14 MB after the memory trim (it peaks higher while a popup is open).
+- Private memory: 55-68 MB at start, in every build from Stage 1 to Stage 4; about 110 MB after the first popups, and flat from then on (10 opens: 112 MB, 20 opens: 110 MB). No growth with use. That is over the 60 MB target in `PERFORMANCE.md`; the first use of WPF's rendering and text costs it.
+- GDI objects 83, USER objects 36, handles about 705 after Settings and popups had been used.
+- Popup, click to snapshot done: 28-168 ms over five opens (28, 29, 95, 135, 168 ms), the first being cold.
+
 ## Stage 4 - Settings, menus, dialogs (branch `stage/4-settings-menus-dialogs`)
 
 - Core: `AppSettings` gains `Theme`, `GlassTransparency`, `GlassBlur`, `GlassBorder`, `GlassShadow`, `CornerRadius`, `PopupIconSize`. `GlassAppearance` turns them into tint strength, blur radius, rim and shadow opacity, corner radius and icon size; its defaults reproduce the Stage 3 look exactly. `LogLevelSetting` normalises the saved level name. `GlassTint.ForBackdrop` takes a strength, `GlassTint.ForLightPanel` is the light theme's tint, and `BackdropAnalyzer` also reports the 10th percentile. 46 new unit tests (231 total).

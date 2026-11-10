@@ -60,7 +60,9 @@ public class GlassWindow : Window
         if (_card is null) return;
 
         var appearance = AppearanceService.Instance.Glass;
-        if (_card.Backdrop is { } current && current.BlurRadius != appearance.BlurRadius)
+        if (_card.Backdrop is not null && !BackdropSnapshot.IsGlassAllowed())
+            _card.SetBackdrop(null); // Transparency effects went off or high contrast came on: solid panel.
+        else if (_card.Backdrop is { } current && current.BlurRadius != appearance.BlurRadius)
         {
             // Window can't capture itself while open, so the unblurred copy kept at open is filtered again.
             var blurred = current.WithBlur(appearance.BlurRadius);

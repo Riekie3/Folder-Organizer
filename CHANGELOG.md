@@ -46,6 +46,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clicking the popup's shadow now closes it, like any other click outside.
 
 ### Fixed
+- **Changing Windows' display scale while GlassFolders runs** (100, 125, 150 %) used to leave the folders stacked on each other or on desktop icons, because the app kept the scale it started with. The folders now move with the scale and re-fit to the icon grid once Explorer has laid its icons out again.
+- **Transparency effects turned off, or high contrast turned on, while Settings or a dialog is open:** the window now drops to the solid panel at once. It used to stay glass until it was reopened.
+- **Folders hidden by a "minimise all" tool** come back at once.
 - The "Show a warning badge on shortcuts whose target is missing" setting did nothing. The popup now follows it.
 - The log level setting was ignored; logs were always written at Info.
 - Add Application keeps a shortcut as a shortcut, with its own icon and arguments, instead of adding its target.

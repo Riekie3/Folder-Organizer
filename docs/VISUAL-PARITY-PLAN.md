@@ -2,7 +2,7 @@
 
 _Updated 2026-11-07. Goal: make the running app look as close as practical to `Referance/a226f8e2-….png`, then release as v1.1.0._
 
-**Status:** Stages 0, 1, 2, 3 and 4 merged to `main`. Stages 5–6 not started. **Nothing is tagged or released until every stage is finished and the look is approved.**
+**Status:** Stages 0, 1, 2, 3 and 4 merged to `main`. Stage 5 done on branch `stage/5-real-world-check`. Stage 6 not started. **Nothing is tagged or released until every stage is finished and the look is approved.**
 
 ![Reference, current app and prototype side by side](parity/comparison.png)
 
@@ -274,6 +274,25 @@ Not tested on the live desktop: the controls with the real mouse, the Windows li
 
 ### Stage 5 – Real-world check · Small · Sonnet, high
 Test on the live desktop: 4 wallpapers (bright bloom, your ROG, busy photo, solid), 100/125/150 % scaling, light and dark mode, transparency off, high contrast, popup over an app window and near every screen edge, popup open while a video plays behind it. Re-measure idle CPU, memory and open time.
+
+**Result (branch `stage/5-real-world-check`):** run on the live desktop with a sandbox copy and the real mouse, with the user switching Windows settings. Details and numbers are in `DEVLOG.md`.
+
+| Plan item | Result |
+|---|---|
+| Hover, open, menus, rename, Change Icon glyph, drag and snap, Settings controls | Work with the real mouse |
+| Light and dark mode | Settings, menus and dialogs follow Windows while running |
+| 100 / 125 / 150 % scaling | **Found a bug**: folders stacked on each other and on icons after a change. Fixed and re-tested at 150, 100 and 125 % |
+| Transparency effects off, high contrast | Solid panels, readable. An already open window kept its glass; fixed |
+| Popup near screen edges | Top-left and bottom-centre checked; right edge not (another window covered it) |
+| Popup over an app window | Over Settings, which is an app window; not over a third-party app |
+| Four wallpapers | The user's current wallpaper live; two Windows wallpapers off-screen in Stage 4. Not four |
+| Video behind the popup | Not tried; the glass is a snapshot and doesn't change while the popup is open |
+| Second monitor, Settings across monitors | Not tried: one screen |
+| Idle CPU, memory, open time | 0.000 %; 8–14 MB working set, 55–110 MB private; popup 28–135 ms warm (median about 60). Private memory is over the 60 MB target after use, flat, no leak |
+
+Also fixed: a folder minimised by another tool shows again at once.
+
+Not covered, and left for the user's own eyes in Stage 6: the right-edge popup, a second monitor, the other wallpapers, Choose Picture with a real file.
 
 ### Stage 6 – Proof, docs, release · Small · Sonnet, medium
 - Replace `ScreenshotCapture` with real on-screen captures on a neutral wallpaper. Personal desktop images stay out of the public repo.

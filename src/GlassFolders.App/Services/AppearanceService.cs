@@ -21,6 +21,7 @@ public sealed class AppearanceService
     private AppTheme _mode = AppTheme.System;
     private bool _listening;
     private bool _themeApplied;
+    private bool _glassAllowed = true;
 
     public AppTheme Mode => _mode;
 
@@ -36,6 +37,7 @@ public sealed class AppearanceService
     {
         _mode = settings.Theme;
         Glass = GlassAppearance.From(settings);
+        _glassAllowed = BackdropSnapshot.IsGlassAllowed();
         Refresh();
 
         if (!_listening)
@@ -109,14 +111,28 @@ public sealed class AppearanceService
 
     private void OnUserPreferenceChanged(object? sender, UserPreferenceChangedEventArgs e)
     {
-        if (_mode != AppTheme.System || e.Category != UserPreferenceCategory.General) return;
+        if (e.Category is not (UserPreferenceCategory.General or UserPreferenceCategory.Color
+            or UserPreferenceCategory.Accessibility or UserPreferenceCategory.VisualStyle)) return;
         var dispatcher = Application.Current?.Dispatcher;
         dispatcher?.BeginInvoke(DispatcherPriority.Background, () =>
         {
-            if (ResolveLight(_mode) != IsLight)
+            if (_mode == AppTheme.System && ResolveLight(_mode) != IsLight)
             {
                 DiagnosticService.Instance.LogInfo("Windows colour mode changed; updating Settings, menus and dialogs");
                 Refresh();
+                _glassAllowed = BackdropSnapshot.IsGlassAllowed();
+                return;
+            }
+
+            // Transparency effects or high contrast changed: open windows drop to the solid panel.
+            bool allowed = BackdropSnapshot.IsGlassAllowed();
+            if (allowed != _glassAllowed)
+            {
+                _glassAllowed = allowed;
+                DiagnosticService.Instance.LogInfo(allowed
+                    ? "Glass is allowed again; windows opened from now on use it"
+                    : "Transparency effects are off or high contrast is on; windows use the solid panel");
+                Changed?.Invoke();
             }
         });
     }

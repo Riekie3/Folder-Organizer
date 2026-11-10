@@ -5,6 +5,7 @@
 - **Undocumented shell structure.** Desktop integration relies on Explorer's `Progman` / `SHELLDLL_DefView` windows, which Microsoft doesn't document and changed in 24H2. All of it is isolated in `GlassFolders.Native/DesktopWindows.cs` and the `IDesktopHost` implementations; `tools/DesktopProbe` shows the tree on any new build.
 - **Brief window during Explorer restart.** Between Explorer dying and the folders being re-owned (~0.75 s), the folder windows have no owner. They may briefly show above other windows during that gap.
 - **Windows doesn't know where the folders are.** New folders go into free cells of the desktop icon grid, but Windows can later put a new desktop icon under a folder, and **Auto arrange icons** can move icons under one. Drag the folder to move it; it snaps to a free cell.
+- **After a scale change Explorer re-flows its icons.** GlassFolders moves its folders with the scale and fits them to the new grid about two seconds later, so for a moment a folder can sit on an icon.
 - **Folders saved before Stage 3 keep their spot.** They are not placed again, even if they sit over icons, as the old default on the right edge did. Drag them to move them.
 - **Folder pictures aren't in backups.** A restored folder whose picture is missing shows the drawn folder instead.
 - **"Child of Progman" variant is broken on 25H2.** Folders are invisible but still capture clicks. Rejected; kept only as `--host=child-progman` for future comparison.
@@ -16,6 +17,7 @@
 - **No open or close animation?** GlassFolders follows Windows' animation effects setting by default. Turn that on in Windows, or turn off **Respect Windows 'Animation effects' setting** under **Settings → Animations**.
 - **Protected video may capture as black.** If the whole capture is black, the popup uses the solid panel. If only part of it is, that part of the glass is dark.
 - **Settings glass is a snapshot of one monitor.** Dragging Settings or a dialog to another monitor shows the solid panel until it comes back. Moving the window over other windows doesn't update the blur.
+- **A Settings window that was open when Transparency effects went off turns solid, and stays solid** until it is closed and opened again.
 - **Menus are not frosted.** They are small windows that can't carry a snapshot, so they use a nearly opaque tint.
 - **The popup keeps its blue glass in light mode.** The Theme setting changes Settings, menus and dialogs only.
 - **The folder plate follows the wallpaper file.** It updates when Windows announces a wallpaper change. A wallpaper Windows doesn't report as a file, or a moved file with no saved copy, leaves the plate tinted without the blurred picture.
@@ -25,7 +27,7 @@
 | Item | Why | Plan |
 |---|---|---|
 | Two or three monitors | Dev PC has one screen | Virtual display driver or a second screen (decision D1); Phase 5 |
-| Display scaling change at runtime (100/125/150 %) | Needs manual Settings change | Manual check; full handling in Phase 5 |
+| Display scaling change at runtime (100/125/150 %) | Checked live in Stage 5 (primary monitor) | Folders follow the scale and re-fit to the icon grid. A folder on a second monitor with a different scale isn't rescaled |
 | Task View / virtual desktops | Not automated | Manual check |
-| Win+M (minimise all) | Not automated | Manual check; expected unaffected (no minimise box) |
+| Win+M (minimise all) | Not tried with the real shortcut | A folder that gets minimised by any tool is shown again at once (checked with ShowWindow); Show Desktop leaves the folders alone |
 | Sleep / resume, sign-out / sign-in | Not automated | Phase 4 |

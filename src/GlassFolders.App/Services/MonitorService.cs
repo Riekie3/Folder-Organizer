@@ -71,7 +71,8 @@ public sealed class MonitorService : IDisposable
                     Bounds = new RectInt(ex.rcMonitor.Left, ex.rcMonitor.Top, ex.rcMonitor.Width, ex.rcMonitor.Height),
                     WorkArea = new RectInt(ex.rcWork.Left, ex.rcWork.Top, ex.rcWork.Width, ex.rcWork.Height),
                     IsPrimary = isPrimary,
-                    DpiScale = GetDpiForSystem() / 96.0
+                    // The monitor's own scale now, not the system scale from when the app started.
+                    DpiScale = ScreenCapture.MonitorScale(hMon)
                 });
             }
             return true;
