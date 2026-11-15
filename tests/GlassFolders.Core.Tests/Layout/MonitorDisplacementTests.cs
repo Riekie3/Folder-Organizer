@@ -156,4 +156,20 @@ public sealed class MonitorDisplacementTests
         Assert.False(p.IsDisplaced);
         Assert.True(p.AbsoluteX >= 1920);
     }
+
+    [Fact]
+    public void UnregisterFolder_forgets_only_the_deleted_folder()
+    {
+        var mgr = new MonitorDisplacementManager();
+        var monitors = new[] { Monitor1 };
+
+        mgr.RegisterFolder("work", Monitor1.Key, 0.5, 0.5, monitors, TileW, TileH);
+        mgr.RegisterFolder("games", Monitor1.Key, 0.2, 0.2, monitors, TileW, TileH);
+
+        Assert.True(mgr.UnregisterFolder("work"));
+
+        Assert.Null(mgr.GetPlacement("work"));
+        Assert.NotNull(mgr.GetPlacement("games"));
+        Assert.False(mgr.UnregisterFolder("work"));
+    }
 }

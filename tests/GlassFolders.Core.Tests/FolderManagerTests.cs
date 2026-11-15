@@ -141,6 +141,35 @@ public sealed class FolderManagerTests : IDisposable
     }
 
     [Fact]
+    public void Rename_item_changes_only_the_display_name_and_persists()
+    {
+        var work = _folderManager.GetFolder("work")!;
+        var item = work.Items[0];
+        string originalTarget = item.TargetPath;
+
+        bool renamed = _folderManager.RenameItem("work", item.Id, "  Renamed App  ");
+        Assert.True(renamed);
+        Assert.Equal("Renamed App", item.DisplayName);
+        Assert.Equal(originalTarget, item.TargetPath);
+
+        var freshManager = new FolderManager(_configManager);
+        var reloaded = freshManager.GetFolder("work")!.FindItem(item.Id);
+        Assert.Equal("Renamed App", reloaded!.DisplayName);
+    }
+
+    [Fact]
+    public void Rename_item_rejects_blank_names_and_unknown_items()
+    {
+        var work = _folderManager.GetFolder("work")!;
+        var item = work.Items[0];
+
+        Assert.False(_folderManager.RenameItem("work", item.Id, "   "));
+        Assert.False(_folderManager.RenameItem("work", "missing", "Name"));
+        Assert.False(_folderManager.RenameItem("missing", item.Id, "Name"));
+        Assert.Equal("File Explorer", item.DisplayName);
+    }
+
+    [Fact]
     public void Set_folder_position_updates_coordinates()
     {
         _folderManager.SetFolderPosition("games", 450, 600);

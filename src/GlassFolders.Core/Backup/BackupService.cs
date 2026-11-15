@@ -4,6 +4,7 @@ using System.Text.Json;
 using GlassFolders.Core.Config;
 using GlassFolders.Core.Folders;
 using GlassFolders.Core.Models;
+using GlassFolders.Core.Storage;
 
 namespace GlassFolders.Core.Backup;
 
@@ -18,10 +19,14 @@ public sealed class BackupService
 
     public string BackupsDirectory => _backupsDirectory;
 
+    /// <summary>Where imported folder pictures are written. The app reads folder pictures from the same folder.</summary>
+    public string FolderIconsDirectory { get; }
+
     public BackupService(string? baseDir = null)
     {
         string root = baseDir ?? AppPaths.BaseAppDataDir;
         _backupsDirectory = Path.Combine(root, "Backups");
+        FolderIconsDirectory = Path.Combine(root, "folder-icons");
         try { Directory.CreateDirectory(_backupsDirectory); } catch { }
     }
 
@@ -45,8 +50,8 @@ public sealed class BackupService
 
         var manifest = new BackupManifest
         {
-            AppVersion = "1.0.0",
-            SchemaVersion = 1,
+            AppVersion = CurrentAppVersion(),
+            SchemaVersion = BackupManifest.CurrentSchemaVersion,
             CreatedAt = DateTime.UtcNow,
             MachineName = Environment.MachineName,
             Monitors = monitorKeys?.ToList() ?? []
@@ -84,7 +89,37 @@ public sealed class BackupService
             }
         }
 
-        // 4. Write manifest.json
+        // 4. Write the pictures folders show instead of the drawn folder. The manifest maps folder id → entry,
+        // because the original path only makes sense on this PC.
+        foreach (var folder in foldersConfig.Folders)
+        {
+            string? picturePath = folder.CustomIconPath;
+            if (string.IsNullOrWhiteSpace(picturePath)) continue;
+
+            try
+            {
+                var info = new FileInfo(picturePath);
+                string extension = info.Extension.ToLowerInvariant();
+                if (!info.Exists || info.Length == 0 || info.Length > ZipSafety.MaxPictureBytes) continue;
+                if (!ZipSafety.IsPictureExtension(extension)) continue;
+
+                byte[] pictureBytes = File.ReadAllBytes(info.FullName);
+                string entryName = "folder-icons/" + PictureKey(folder.Id) + extension;
+                if (!manifest.FileChecksums.TryAdd(entryName, ZipSafety.ComputeSha256(pictureBytes))) continue;
+
+                manifest.FolderIcons[folder.Id] = entryName;
+                var pEntry = archive.CreateEntry(entryName, CompressionLevel.Optimal);
+                using var s = pEntry.Open();
+                s.Write(pictureBytes);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // A locked or unreadable picture should not fail the whole backup. The folder keeps its
+                // drawn look after a restore instead.
+            }
+        }
+
+        // 5. Write manifest.json
         string manifestJson = JsonSerializer.Serialize(manifest, ConfigurationJsonContext.Default.BackupManifest);
         byte[] manifestBytes = Encoding.UTF8.GetBytes(manifestJson);
         var mEntry = archive.CreateEntry("manifest.json", CompressionLevel.Optimal);
@@ -135,6 +170,14 @@ public sealed class BackupService
         // 1. Safety auto-backup before modifying state
         CreateAutoBackup(configManager, mode == ImportMode.Replace ? "replace" : "merge");
 
+        // 2. Restore any folder pictures into the app's own folder and point the imported folders at them.
+        // This happens before the configuration is saved, so a failed write leaves the old setup untouched.
+        foreach (var folder in plan.FoldersConfig.Folders)
+        {
+            if (plan.FolderPictures.TryGetValue(folder.Id, out var picture))
+                folder.CustomIconPath = SavePicture(folder.Id, picture);
+        }
+
         if (mode == ImportMode.Replace)
         {
             configManager.SaveFolders(plan.FoldersConfig);
@@ -143,13 +186,17 @@ public sealed class BackupService
             return;
         }
 
-        // 2. Merge mode: union folders and unique items
+        // 3. Merge mode: union folders and unique items
         var currentConfig = configManager.LoadFolders();
         foreach (var importedFolder in plan.FoldersConfig.Folders)
         {
             var existing = currentConfig.Folders.FirstOrDefault(f => f.Id == importedFolder.Id);
             if (existing != null)
             {
+                // Restore the imported picture too; a folder without one keeps the picture it already shows.
+                if (!string.IsNullOrEmpty(importedFolder.CustomIconPath))
+                    existing.CustomIconPath = importedFolder.CustomIconPath;
+
                 if (string.Equals(existing.Name, importedFolder.Name, StringComparison.OrdinalIgnoreCase))
                 {
                     // Same ID and same name: merge items
@@ -177,4 +224,23 @@ public sealed class BackupService
         configManager.SaveFolders(currentConfig);
         folderManager.Reload();
     }
+
+    private string SavePicture(string folderId, FolderPicture picture)
+    {
+        Directory.CreateDirectory(FolderIconsDirectory);
+        string extension = ZipSafety.IsPictureExtension(picture.Extension) ? picture.Extension : ".png";
+        string path = Path.Combine(FolderIconsDirectory, $"{PictureKey(folderId)}-{DateTime.UtcNow.Ticks}{extension}");
+        AtomicFile.WriteAllBytes(path, picture.Bytes);
+        return path;
+    }
+
+    // A short, filesystem-safe name derived from the folder id. Keeps archive entries independent of the
+    // user's own file names and safe even if an imported id contains path characters.
+    private static string PictureKey(string folderId) =>
+        ZipSafety.ComputeSha256(Encoding.UTF8.GetBytes(folderId))[..16];
+
+    private static string CurrentAppVersion() =>
+        typeof(BackupService).Assembly.GetName().Version is { } version
+            ? $"{version.Major}.{version.Minor}.{version.Build}"
+            : "0.0.0";
 }

@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Keyboard navigation in the folder popup.** Once an icon has focus, the arrow keys move between icons, Home and End go to the first and last icon on the page, and Enter opens the focused icon. With no icon focused, Left/Right and Home/End still change pages, so the old shortcuts keep working. Movement stays on the visible page, and Down stops on the last icon of a partly filled row instead of moving into an empty cell.
+- **Custom folder pictures are now in backups.** A backup stores the picture each folder shows under `folder-icons/`, with its SHA-256 checksum and a folder-id map in the manifest; a restore writes the picture into the app's own folder and points the restored folder at it. Merge restores a picture only when the archive has one, so a folder that already shows a picture keeps it. A picture that is unreadable, empty, larger than 10 MB or not a supported image is skipped without failing the backup. A folder whose picture was skipped no longer keeps a path from the exporting PC: Replace brings it back with its drawn look, and Merge keeps the picture it already shows.
+
+### Fixed
+- **A Settings window stayed in memory after it was closed.** It subscribed to the app-wide Explorer recovery and monitor services with lambdas that were never removed, so every Settings window ever opened was kept alive by them. It now unsubscribes when it closes, and its save timer stops.
+- **Renaming an item in the popup did not save the new name.** The rename changed the in-memory item and then "saved" by re-setting the folder's position, which only worked because that call happened to write the file. `FolderManager.RenameItem` now saves the rename itself and ignores empty names.
+- **Deleting a folder left its layout and monitor placement behind.** The saved tile layout entry and the displaced-monitor registration stayed in the config, and a popup already open for the folder stayed on screen. Deleting now closes the popup first, then removes the layout entry, saves the layout and unregisters the placement.
+- **A backup recorded `1.0.0` as its app version,** even in later releases. The manifest now takes the version from the assembly, so the file says which build made it.
+- **Backup import now enforces the limits it documents.** `ZipSafety` rejected traversal and executable payloads but accepted any other entry and never checked the compression ratio. It now allows only `manifest.json`, `folders.json`, `settings.json`, `icons/*.png|.ico` and `folder-icons/*` images, rejects an entry that expands more than 100:1, and caps a folder picture at 10 MB. The JSON files and pictures are read through a bounded stream rather than extracted to a staging folder, so an entry whose declared length lies cannot allocate past the limit. An archive whose manifest declares a newer schema version is refused with a clear message instead of being read as if it were this version.
+
 ## [1.1.2] - 2026-11-10
 
 ### Fixed

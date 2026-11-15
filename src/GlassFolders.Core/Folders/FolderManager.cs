@@ -155,6 +155,20 @@ public sealed class FolderManager
         return true;
     }
 
+    /// <summary>Changes only the name shown inside the folder. The target file or app is never renamed.</summary>
+    public bool RenameItem(string folderId, string itemId, string? newName)
+    {
+        var folder = GetFolder(folderId);
+        var item = folder?.FindItem(itemId);
+        string trimmed = newName?.Trim() ?? "";
+        if (item is null || trimmed.Length == 0) return false;
+        if (item.DisplayName == trimmed) return true;
+
+        item.DisplayName = trimmed;
+        Save();
+        return true;
+    }
+
     public bool ReorderItem(string folderId, int oldIndex, int newIndex)
     {
         var folder = GetFolder(folderId);

@@ -43,6 +43,7 @@ Folders appear on your desktop as coloured folders with a white glyph, lined up 
 - Click any folder tile on your desktop. Its popup grows out of the folder and opens beside it.
 - Click outside the popup, click ✕, or press `Escape` to close it.
 - With more items than fit, change page with the mouse wheel, the left and right arrow keys, or the dots at the bottom.
+- Once an icon has focus, the arrow keys move between icons, `Home` and `End` go to the first and last icon on the page, and `Enter` opens the focused icon. With no icon focused, `Left`/`Right` and `Home`/`End` change pages.
 - Click the expand button in the header to show one more row per page. Click it again to go back.
 - Set how many columns and rows a popup shows in **Settings → Appearance → Popup Layout**.
 
@@ -148,9 +149,11 @@ Open **Settings → Backup & Restore** to safeguard your desktop configuration:
 1. Click **Export Backup...**.
 2. Choose where to save your `.zip` archive (e.g. your OneDrive, Dropbox, or USB flash drive).
 3. The archive contains:
-   - `manifest.json`: Configuration metadata and SHA-256 integrity checksums.
+   - `manifest.json`: Configuration metadata, SHA-256 integrity checksums, and the folder-to-picture map.
    - `folders.json`: All folders, shortcuts, layout coordinates, and appearance settings.
+   - `settings.json`: Appearance, animation, layout and recovery settings.
    - `icons/`: All cached custom icons and extracted shortcut graphics.
+   - `folder-icons/`: The pictures your folders show instead of the drawn folder.
 
 ### Restoring from an Archive
 1. Click **Import Backup...**.

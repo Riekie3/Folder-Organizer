@@ -8,6 +8,7 @@ using GlassFolders.App.Services;
 using GlassFolders.Core.Backup;
 using GlassFolders.Core.Config;
 using GlassFolders.Core.Folders;
+using GlassFolders.Core.Layout;
 using GlassFolders.Core.Models;
 using GlassFolders.Native;
 using Microsoft.Win32;
@@ -67,13 +68,30 @@ public partial class SettingsWindow : GlassWindow
 
         if (_recoveryService != null)
         {
-            _recoveryService.StateChanged += _ => Dispatcher.Invoke(UpdateRecoveryUi);
+            _recoveryService.StateChanged += OnRecoveryStateChanged;
         }
 
         if (_monitorService != null)
         {
-            _monitorService.MonitorsChanged += _ => Dispatcher.Invoke(RefreshMonitorsList);
+            _monitorService.MonitorsChanged += OnMonitorsChanged;
         }
+
+        Closed += OnWindowClosed;
+    }
+
+    // These services live for the whole app. Without unsubscribing, every Settings window ever opened
+    // would be kept alive by them.
+    private void OnRecoveryStateChanged(RecoveryState state) =>
+        Dispatcher.BeginInvoke(new Action(UpdateRecoveryUi));
+
+    private void OnMonitorsChanged(IReadOnlyList<MonitorDescriptor> monitors) =>
+        Dispatcher.BeginInvoke(new Action(RefreshMonitorsList));
+
+    private void OnWindowClosed(object? sender, EventArgs e)
+    {
+        _saveTimer.Stop();
+        if (_recoveryService != null) _recoveryService.StateChanged -= OnRecoveryStateChanged;
+        if (_monitorService != null) _monitorService.MonitorsChanged -= OnMonitorsChanged;
     }
 
     private bool _loadingUi;

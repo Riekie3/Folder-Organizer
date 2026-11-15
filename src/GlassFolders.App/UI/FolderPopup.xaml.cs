@@ -586,8 +586,7 @@ public partial class FolderPopup : Window
                 string? newName = PromptRename(item.DisplayName, "Rename Item", this);
                 if (!string.IsNullOrWhiteSpace(newName) && newName != item.DisplayName)
                 {
-                    item.DisplayName = newName.Trim();
-                    _folderManager.SetFolderPosition(_folder.Id, _folder.X, _folder.Y); // triggers save
+                    _folderManager.RenameItem(_folder.Id, item.Id, newName.Trim());
                     RenderPage();
                 }
             }
@@ -611,6 +610,12 @@ public partial class FolderPopup : Window
 
     private void OnPreviewKeyDown(object sender, KeyEventArgs e)
     {
+        if (TryMoveItemFocus(e.Key))
+        {
+            e.Handled = true;
+            return;
+        }
+
         switch (e.Key)
         {
             case Key.Escape:
@@ -632,6 +637,42 @@ public partial class FolderPopup : Window
                 return;
         }
         e.Handled = true;
+    }
+
+    /// <summary>
+    /// Arrows and Home/End move focus between the tiles when a tile already has it. With no tile focused
+    /// they keep their old job of changing pages (Left/Right/Home/End), so both ways of browsing still work.
+    /// </summary>
+    private bool TryMoveItemFocus(Key key)
+    {
+        if (Keyboard.FocusedElement is not Button focused || !ItemsGrid.Children.Contains(focused)) return false;
+
+        PopupMove? move = key switch
+        {
+            Key.Left => PopupMove.Left,
+            Key.Right => PopupMove.Right,
+            Key.Up => PopupMove.Up,
+            Key.Down => PopupMove.Down,
+            Key.Home => PopupMove.Home,
+            Key.End => PopupMove.End,
+            _ => null,
+        };
+        if (move is null) return false;
+
+        int pageSize = ActiveGrid.PageSize;
+        int pageStart = _currentPage * pageSize;
+        int localIndex = ItemsGrid.Children.IndexOf(focused);
+        int target = PopupNavigation.Move(pageStart + localIndex, move.Value,
+            ItemsGrid.Columns, pageSize, _folder.Items.Count, pageStart);
+
+        int targetLocal = target - pageStart;
+        if (targetLocal != localIndex && targetLocal >= 0 && targetLocal < ItemsGrid.Children.Count
+            && ItemsGrid.Children[targetLocal] is Button targetButton)
+        {
+            targetButton.Focus();
+            Keyboard.Focus(targetButton);
+        }
+        return true;
     }
 
     // Touchpads send many small steps, so they add up to one notch before the page changes.

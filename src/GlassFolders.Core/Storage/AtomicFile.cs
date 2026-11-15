@@ -8,7 +8,10 @@ namespace GlassFolders.Core.Storage;
 /// </summary>
 public static class AtomicFile
 {
-    public static void WriteAllText(string path, string contents)
+    public static void WriteAllText(string path, string contents) =>
+        WriteAllBytes(path, new UTF8Encoding(false).GetBytes(contents));
+
+    public static void WriteAllBytes(string path, ReadOnlySpan<byte> contents)
     {
         string dir = Path.GetDirectoryName(Path.GetFullPath(path))!;
         Directory.CreateDirectory(dir);
@@ -17,8 +20,7 @@ public static class AtomicFile
 
         using (var fs = new FileStream(tmp, FileMode.Create, FileAccess.Write, FileShare.None, 4096, FileOptions.WriteThrough))
         {
-            var bytes = new UTF8Encoding(false).GetBytes(contents);
-            fs.Write(bytes);
+            fs.Write(contents);
             fs.Flush(true);
         }
 

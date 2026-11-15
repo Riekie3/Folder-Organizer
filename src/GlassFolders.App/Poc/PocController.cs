@@ -906,7 +906,7 @@ public sealed class PocController : IDisposable
                 if (frame.PixelWidth <= 0 || frame.PixelHeight <= 0) throw new InvalidDataException("The file has no picture in it.");
             }
 
-            string dir = Path.Combine(AppPaths.BaseAppDataDir, "folder-icons");
+            string dir = AppPaths.FolderIconsDir;
             Directory.CreateDirectory(dir);
             string copy = Path.Combine(dir, $"{id}-{DateTime.UtcNow.Ticks}{info.Extension.ToLowerInvariant()}");
             File.Copy(info.FullName, copy);
@@ -927,7 +927,7 @@ public sealed class PocController : IDisposable
     private static void DeletePictureCopy(string? path)
     {
         if (string.IsNullOrEmpty(path)) return;
-        string dir = Path.GetFullPath(Path.Combine(AppPaths.BaseAppDataDir, "folder-icons")) + Path.DirectorySeparatorChar;
+        string dir = Path.GetFullPath(AppPaths.FolderIconsDir) + Path.DirectorySeparatorChar;
         try
         {
             string full = Path.GetFullPath(path);
@@ -949,12 +949,16 @@ public sealed class PocController : IDisposable
         if (res != GlassMessageResult.Yes) return;
 
         string? picture = folder.CustomIconPath;
+        if (_popupFor == id) _popup?.Close();
         if (_tiles.TryGetValue(id, out var pair))
         {
             pair.Surface.Dispose();
             _tiles.Remove(id);
         }
         _folderManager.DeleteFolder(id);
+        _layout.Remove(id);
+        _store.Save(_layout);
+        _displacementManager.UnregisterFolder(id);
         DeletePictureCopy(picture);
     }
 

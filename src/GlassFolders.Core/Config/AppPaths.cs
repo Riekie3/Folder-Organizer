@@ -46,6 +46,7 @@ public static class AppPaths
     public static string FoldersPath => Path.Combine(BaseAppDataDir, "folders.json");
     public static string SettingsPath => Path.Combine(BaseAppDataDir, "settings.json");
     public static string BackupsDir => Path.Combine(BaseAppDataDir, "backups");
+    public static string FolderIconsDir => Path.Combine(BaseAppDataDir, "folder-icons");
     public static string LogsDir => Path.Combine(BaseLocalAppDataDir, "logs");
     public static string IconCacheDir => Path.Combine(BaseLocalAppDataDir, "IconCache");
 }

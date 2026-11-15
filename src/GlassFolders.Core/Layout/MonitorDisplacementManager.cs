@@ -119,6 +119,9 @@ public sealed class MonitorDisplacementManager
         }
     }
 
+    /// <summary>Forgets a deleted folder, so its home monitor and temporary placement don't linger.</summary>
+    public bool UnregisterFolder(string folderId) => _placements.Remove(folderId);
+
     /// <summary>
     /// Explicitly moves a folder to a target monitor ("Move to Monitor ▸"), updating its home assignment.
     /// </summary>

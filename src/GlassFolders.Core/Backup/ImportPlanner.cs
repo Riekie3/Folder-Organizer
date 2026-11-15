@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Text;
 using System.Text.Json;
 using GlassFolders.Core.Config;
 using GlassFolders.Core.Folders;
@@ -22,7 +23,13 @@ public sealed class ImportPlan
     public int MissingTargetsCount { get; set; }
     public int CollidingFoldersCount { get; set; }
     public List<string> CollidingFolderNames { get; set; } = [];
+
+    /// <summary>Folder id → picture bytes read from the archive. Applied by <see cref="BackupService.ApplyImport"/>.</summary>
+    public Dictionary<string, FolderPicture> FolderPictures { get; } = new(StringComparer.OrdinalIgnoreCase);
 }
+
+/// <summary>A folder picture from a backup, with the image extension it was stored under.</summary>
+public sealed record FolderPicture(byte[] Bytes, string Extension);
 
 public static class ImportPlanner
 {
@@ -42,11 +49,14 @@ public static class ImportPlanner
             ?? throw new InvalidOperationException("Backup archive is missing 'manifest.json'.");
 
         BackupManifest? manifest;
-        using (var reader = new StreamReader(manifestEntry.Open()))
+        string manifestJson = Encoding.UTF8.GetString(ZipSafety.ReadAllBytes(manifestEntry, ZipSafety.MaxTotalSizeBytes));
+        manifest = JsonSerializer.Deserialize(manifestJson, ConfigurationJsonContext.Default.BackupManifest)
+            ?? throw new InvalidOperationException("Failed to parse 'manifest.json' from backup archive.");
+
+        if (manifest.SchemaVersion < 1 || manifest.SchemaVersion > BackupManifest.CurrentSchemaVersion)
         {
-            string json = reader.ReadToEnd();
-            manifest = JsonSerializer.Deserialize(json, ConfigurationJsonContext.Default.BackupManifest)
-                ?? throw new InvalidOperationException("Failed to parse 'manifest.json' from backup archive.");
+            throw new InvalidOperationException(
+                $"Backup schema version {manifest.SchemaVersion} is not supported by this version of GlassFolders.");
         }
 
         // 2. Read folders.json
@@ -54,21 +64,17 @@ public static class ImportPlanner
             ?? throw new InvalidOperationException("Backup archive is missing 'folders.json'.");
 
         FoldersConfiguration? foldersConfig;
-        using (var reader = new StreamReader(foldersEntry.Open()))
-        {
-            string json = reader.ReadToEnd();
-            foldersConfig = JsonSerializer.Deserialize(json, ConfigurationJsonContext.Default.FoldersConfiguration)
-                ?? throw new InvalidOperationException("Failed to parse 'folders.json' from backup archive.");
-        }
+        string foldersJson = Encoding.UTF8.GetString(ZipSafety.ReadAllBytes(foldersEntry, ZipSafety.MaxTotalSizeBytes));
+        foldersConfig = JsonSerializer.Deserialize(foldersJson, ConfigurationJsonContext.Default.FoldersConfiguration)
+            ?? throw new InvalidOperationException("Failed to parse 'folders.json' from backup archive.");
 
         // 3. Read settings.json
         var settingsEntry = archive.GetEntry("settings.json");
         AppSettings settings = new();
         if (settingsEntry != null)
         {
-            using var reader = new StreamReader(settingsEntry.Open());
-            string json = reader.ReadToEnd();
-            settings = JsonSerializer.Deserialize(json, ConfigurationJsonContext.Default.AppSettings) ?? new();
+            string settingsJson = Encoding.UTF8.GetString(ZipSafety.ReadAllBytes(settingsEntry, ZipSafety.MaxTotalSizeBytes));
+            settings = JsonSerializer.Deserialize(settingsJson, ConfigurationJsonContext.Default.AppSettings) ?? new();
         }
 
         // 4. Verify file checksums from manifest
@@ -86,7 +92,31 @@ public static class ImportPlanner
             }
         }
 
-        // 5. Evaluate missing targets & ID collisions
+        // 5. Read folder pictures. Their paths are remapped when the plan is applied, so a backup
+        // restores the pictures even when the app folder is on another PC.
+        var folderPictures = new Dictionary<string, FolderPicture>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (folderId, entryName) in manifest.FolderIcons)
+        {
+            var entry = archive.GetEntry(entryName);
+            if (entry is null) continue;
+
+            string extension = Path.GetExtension(entryName).ToLowerInvariant();
+            if (!ZipSafety.IsPictureExtension(extension)) continue;
+            if (entry.Length <= 0 || entry.Length > ZipSafety.MaxPictureBytes) continue;
+
+            byte[] bytes = ZipSafety.ReadAllBytes(entry, ZipSafety.MaxPictureBytes);
+            if (bytes.Length == 0) continue;
+            folderPictures[folderId] = new FolderPicture(bytes, extension);
+        }
+
+        // A CustomIconPath from the exporting PC means nothing here. Only a picture that actually came with
+        // the archive can be restored; the rest fall back to the drawn folder (or, in Merge, keep theirs).
+        foreach (var folder in foldersConfig.Folders)
+        {
+            if (!folderPictures.ContainsKey(folder.Id)) folder.CustomIconPath = null;
+        }
+
+        // 6. Evaluate missing targets & ID collisions
         int missingCount = 0;
         foreach (var folder in foldersConfig.Folders)
         {
@@ -110,7 +140,7 @@ public static class ImportPlanner
             }
         }
 
-        return new ImportPlan
+        var plan = new ImportPlan
         {
             Manifest = manifest,
             FoldersConfig = foldersConfig,
@@ -119,5 +149,8 @@ public static class ImportPlanner
             CollidingFoldersCount = collidingNames.Count,
             CollidingFolderNames = collidingNames
         };
+        foreach (var (folderId, picture) in folderPictures)
+            plan.FolderPictures[folderId] = picture;
+        return plan;
     }
 }

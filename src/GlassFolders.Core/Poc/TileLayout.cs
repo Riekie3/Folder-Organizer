@@ -27,6 +27,9 @@ public sealed class TileLayout
         if (t is null) Tiles.Add(new TilePlacement { Id = id, X = x, Y = y });
         else { t.X = x; t.Y = y; }
     }
+
+    /// <summary>Forgets a folder's saved position, so deleting a folder doesn't leave a stale entry behind.</summary>
+    public bool Remove(string id) => Tiles.RemoveAll(t => t.Id == id) > 0;
 }
 
 public sealed class TilePlacement
