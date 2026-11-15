@@ -105,7 +105,7 @@ public static partial class NativeMethods
 
     public const uint WM_CLOSE = 0x0010, WM_DESTROY = 0x0002, WM_WINDOWPOSCHANGING = 0x0046,
         WM_MOUSEACTIVATE = 0x0021, WM_DISPLAYCHANGE = 0x007E, WM_DPICHANGED = 0x02E0,
-        WM_SETTINGCHANGE = 0x001A, WM_NCHITTEST = 0x0084;
+        WM_SETTINGCHANGE = 0x001A, WM_NCHITTEST = 0x0084, WM_TIMER = 0x0113;
     public const int MA_NOACTIVATE = 3;
 
     public const uint SMTO_NORMAL = 0x0;
@@ -263,6 +263,15 @@ public static partial class NativeMethods
 
     [LibraryImport("user32.dll", EntryPoint = "DispatchMessageW")]
     public static partial nint DispatchMessage(in MSG msg);
+
+    // A thread timer with no callback posts WM_TIMER, which keeps firing while a native drag loop
+    // (DragDrop.DoDragDrop) is pumping messages. A DispatcherTimer does not.
+    [LibraryImport("user32.dll", SetLastError = true)]
+    public static partial nint SetTimer(nint hwnd, nint id, uint elapse, nint timerProc);
+
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool KillTimer(nint hwnd, nint id);
 
     [LibraryImport("user32.dll", EntryPoint = "CreateWindowExW", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
     public static partial nint CreateWindowEx(uint exStyle, string className, string windowName, uint style,

@@ -3,7 +3,7 @@
 Phone-style app folders on your real Windows 11 desktop, with a Liquid Glass popup.  
 Created & maintained by **[Rie-Sources](https://rie-sources.com/)**.
 
-> **Status: `v1.1.3`.** Built for Windows 11 (tested on 25H2). 268/268 automated tests pass, Explorer recovery is event-driven, and there are no runtime dependencies beyond .NET 10. See [docs/VISUAL-PARITY-PLAN.md](docs/VISUAL-PARITY-PLAN.md) for how the look was matched to the design target and [docs/KNOWN-ISSUES.md](docs/KNOWN-ISSUES.md) for what hasn't been tested.
+> **Status: `v1.1.3`.** Built for Windows 11 (tested on 25H2). 282/282 automated tests pass, Explorer recovery is event-driven, and there are no runtime dependencies beyond .NET 10. See [docs/VISUAL-PARITY-PLAN.md](docs/VISUAL-PARITY-PLAN.md) for how the look was matched to the design target and [docs/KNOWN-ISSUES.md](docs/KNOWN-ISSUES.md) for what hasn't been tested.
 
 ![GlassFolders Desktop Experience](docs/screenshots/hero-desktop.png)
 
@@ -36,7 +36,7 @@ Created & maintained by **[Rie-Sources](https://rie-sources.com/)**.
 - **Portable Backup & Restore:** Self-contained `.zip` backup format holding your folders, settings, cached icons and custom folder pictures, with SHA-256 manifests, automated rolling pre-restore backups (max 10), collision-free merge mode, and intelligent path relinking for cross-PC migration.
 - **Desktop Folders:** solid coloured folders with white glyphs, or a Glass style, in three sizes, or with your own picture. New folders take free cells of the desktop icon grid, never an icon's spot, and a frosted plate made from your wallpaper lights up the open folder.
 - **Large Popup:** A 4 × 2 grid with page dots, an expand button, and configurable columns and rows. It is drawn at 70 % of the reference size (about 605 × 375 DIP) and shrinks further on small screens. It grows out of the clicked folder. Transparency, blur and border in Settings change its glass. Arrow keys move focus between icons (Home/End jump to the first and last), and with no icon focused Left/Right and Home/End still turn pages; Enter opens the focused icon.
-- **Drag to Reorder:** Press and drag an icon inside a folder popup to move it. A highlight shows where it will land and the icons glide into their new places; the order is saved. You can also drag files in from Explorer or the desktop to add them. Reordering works within the page you are viewing.
+- **Drag to Reorder:** Press and drag an icon inside a folder popup to move it. A highlight shows where it will land and the icons glide into their new places; the order is saved. Holding the icon at the left or right edge of the grid, or over a page dot, turns the page after a moment so items can move between pages. You can also drag files in from Explorer or the desktop to add them.
 - **Animation Controls:** Master toggle, Windows reduced-motion (`SPI_GETCLIENTAREAANIMATION`) compliance, speed slider (0.5×–2.0×), and 8 category switches. Folder tiles and the popup both animate.
 - **Ultra-Lightweight & Zero-Polling:** 0.00% idle CPU overhead, no periodic timer wakeups, and automated working set memory trimming (~50–65 MB typical).
 - **System Tray Integration:** Runs quietly in the notification area; no taskbar button.

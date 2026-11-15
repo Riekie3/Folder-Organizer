@@ -37,6 +37,11 @@ public partial class FolderPopup : Window
 
     private const int WheelNotch = 120;
 
+    // While an item is dragged, resting it in a turning zone flips the page after this hold. A window
+    // timer is used because DragDrop.DoDragDrop pumps a native loop that never ticks a DispatcherTimer.
+    private const uint PageFlipTimerId = 0x4746; // "GF"
+    private const uint PageFlipDelayMs = 550;
+
     private static readonly TimeSpan ResizeDuration = TimeSpan.FromMilliseconds(200);
 
     private static readonly Effect LabelShadow = CreateLabelShadow();
@@ -72,6 +77,13 @@ public partial class FolderPopup : Window
     private bool _closing;
     private bool _isShowingDialog;
 
+    private HwndSource? _hwndSource;
+    private nint _hwnd;
+    private bool _pageFlipTimerRunning;
+    private PopupDragPaging.Turn? _pageFlipPending;
+    private int? _pageFlipZone;
+    private bool _dragOverPopup;
+
     public FolderPopup(FolderDef folder, FolderManager folderManager, IconCacheService iconCache, IShortcutResolver resolver, RECT anchor, PopupGrid? grid = null, bool showMissingBadge = true)
     {
         InitializeComponent();
@@ -101,7 +113,13 @@ public partial class FolderPopup : Window
         {
             if (!_isShowingDialog) Dismiss();
         };
-        Closing += (_, _) => _closing = true;
+        Closing += (_, _) =>
+        {
+            _closing = true;
+            EndDragPaging();
+            _hwndSource?.RemoveHook(WndProc);
+            _hwndSource = null;
+        };
         Closed += (_, _) =>
         {
             _resizeFrame?.Invoke(completed: true);
@@ -110,7 +128,7 @@ public partial class FolderPopup : Window
         };
 
         // Runs while the window is still hidden, so the snapshot can't include the popup itself.
-        SourceInitialized += (_, _) => PrepareWindow();
+        SourceInitialized += (_, _) => OnSourceInitialized();
         ContentRendered += (_, _) => RevealCard();
         DpiChanged += (_, e) =>
         {
@@ -160,6 +178,14 @@ public partial class FolderPopup : Window
     private Point AnimationOrigin() => new(
         (_anchor.Left + _anchor.Width / 2.0 - _cardRect.Left) / Math.Max(1, _cardRect.Width),
         (_anchor.Top + _anchor.Height / 2.0 - _cardRect.Top) / Math.Max(1, _cardRect.Height));
+
+    private void OnSourceInitialized()
+    {
+        _hwnd = new WindowInteropHelper(this).Handle;
+        _hwndSource = HwndSource.FromHwnd(_hwnd);
+        _hwndSource?.AddHook(WndProc);
+        PrepareWindow();
+    }
 
     private void PrepareWindow()
     {
@@ -357,13 +383,13 @@ public partial class FolderPopup : Window
         }
     }
 
-    private void GoToPage(int page)
+    private void GoToPage(int page, bool animate = true)
     {
         int target = PopupPaging.ClampPage(page, _folder.Items.Count, ActiveGrid.PageSize);
         if (target == _currentPage) return;
         int direction = Math.Sign(target - _currentPage);
         _currentPage = target;
-        RenderPage(direction);
+        RenderPage(animate ? direction : 0);
     }
 
     private void ToggleExpanded()
@@ -440,6 +466,7 @@ public partial class FolderPopup : Window
             {
                 iconHost.Opacity = 1;
                 HideDropMarker();
+                EndDragPaging();
                 button.ReleaseMouseCapture();
             }
         };
@@ -755,6 +782,95 @@ public partial class FolderPopup : Window
             ItemsGrid.Columns, ItemsGrid.Rows, _currentPage, ActiveGrid.PageSize, _folder.Items.Count);
     }
 
+    /// <summary>The page dot the pointer is over, or null. The transparent padding around a dot counts.</summary>
+    private int? PageDotAt(DragEventArgs e)
+    {
+        if (TotalPages <= 1) return null;
+        for (int page = 0; page < PageDots.Children.Count; page++)
+        {
+            if (PageDots.Children[page] is not FrameworkElement dot) continue;
+            Point p = e.GetPosition(dot);
+            if (p.X >= 0 && p.Y >= 0 && p.X < dot.ActualWidth && p.Y < dot.ActualHeight) return page;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Starts, keeps or cancels the page turn for the point the drag is over. An edge or dot turns the
+    /// page once per entry; the pointer has to leave it before it can turn another page.
+    /// </summary>
+    private void UpdatePageFlip(DragEventArgs e)
+    {
+        Point p = e.GetPosition(ItemsGrid);
+        var turn = PopupDragPaging.Target(p.X, p.Y, ItemsGrid.ActualWidth, ItemsGrid.ActualHeight,
+            _currentPage, TotalPages, PageDotAt(e));
+
+        if (turn is not { } t || t.Zone == _pageFlipZone)
+        {
+            if (turn is null) _pageFlipZone = null;
+            StopPageFlipTimer();
+            return;
+        }
+
+        ArmPageFlip(t);
+    }
+
+    private void ArmPageFlip(PopupDragPaging.Turn turn)
+    {
+        if (_pageFlipPending == turn) return; // already counting down to this page
+        StopPageFlipTimer();
+        if (_hwnd == 0) return;
+
+        _pageFlipPending = turn;
+        _pageFlipTimerRunning = SetTimer(_hwnd, (nint)PageFlipTimerId, PageFlipDelayMs, 0) != 0;
+        if (!_pageFlipTimerRunning)
+        {
+            DiagnosticService.Instance.LogDebug("Could not start the drag page-flip timer.");
+            _pageFlipPending = null;
+        }
+    }
+
+    private void StopPageFlipTimer()
+    {
+        if (_pageFlipTimerRunning && _hwnd != 0)
+            KillTimer(_hwnd, (nint)PageFlipTimerId);
+        _pageFlipTimerRunning = false;
+        _pageFlipPending = null;
+    }
+
+    private void EndDragPaging()
+    {
+        StopPageFlipTimer();
+        _pageFlipZone = null;
+        _dragOverPopup = false;
+    }
+
+    /// <summary>The hold ran out: turn to the page the pointer asked for, without the page-in slide.</summary>
+    private void OnPageFlipTimer()
+    {
+        var turn = _pageFlipPending;
+        _pageFlipPending = null;
+        _pageFlipTimerRunning = false;
+        if (turn is not { } t || !_dragOverPopup || _closing) return;
+
+        _pageFlipZone = t.Zone;
+        // The grid is rebuilt under the pointer, so the old marker no longer points at a real cell.
+        HideDropMarker();
+        GoToPage(t.Page, animate: false);
+    }
+
+    private nint WndProc(nint hwnd, int msg, nint wParam, nint lParam, ref bool handled)
+    {
+        if ((uint)msg == WM_TIMER && (uint)wParam == PageFlipTimerId)
+        {
+            KillTimer(hwnd, (nint)PageFlipTimerId);
+            _pageFlipTimerRunning = false;
+            OnPageFlipTimer();
+            handled = true;
+        }
+        return 0;
+    }
+
     private void ShowDropMarker(int index)
     {
         int pageSize = ActiveGrid.PageSize;
@@ -792,7 +908,11 @@ public partial class FolderPopup : Window
         }
     }
 
-    private void OnDragLeave(object sender, DragEventArgs e) => HideDropMarker();
+    private void OnDragLeave(object sender, DragEventArgs e)
+    {
+        HideDropMarker();
+        EndDragPaging();
+    }
 
     private void HideDropMarker()
     {
@@ -816,8 +936,10 @@ public partial class FolderPopup : Window
     {
         if (e.Data.GetDataPresent(DragItemFormat))
         {
+            _dragOverPopup = true;
             e.Effects = DragDropEffects.Move;
             ShowDropMarker(DropIndexAt(e));
+            UpdatePageFlip(e);
             e.Handled = true;
             return;
         }
@@ -830,9 +952,10 @@ public partial class FolderPopup : Window
 
     private void OnDrop(object sender, DragEventArgs e)
     {
+        HideDropMarker();
+        EndDragPaging();
         if (e.Data.GetDataPresent(DragItemFormat))
         {
-            HideDropMarker();
             try
             {
                 if (e.Data.GetData(DragItemFormat) is string id)

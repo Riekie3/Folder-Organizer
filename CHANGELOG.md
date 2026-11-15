@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Drag an icon between pages in the folder popup.** Hold a dragged icon at the left or right edge of the grid, or over a page dot, and the popup turns the page after a moment. Each edge entry turns one page, so resting there does not run through the whole folder; a page dot targets its page directly. The drop lands on the page shown when the button is released, so an item can move from page 1 to page 3 without expanding the popup first.
+
 ## [1.1.3] - 2026-11-15
 
 ### Added

@@ -83,6 +83,8 @@ Right-click a folder:
 - The target application launches immediately using Windows Shell Execution.
 
 ### Reordering & Removing Items
+- Drag an icon onto another cell on the same page to reorder it; a highlight shows where it will land.
+- To move an item to another page, keep dragging and rest it at the left or right edge of the grid, or over a page dot. After a moment the popup turns the page; drop the icon in the cell you want. Each edge entry turns one page, while a page dot jumps straight to its page.
 - In the folder popup, right-click any item to view options:
   - **Launch**: Runs the item.
   - **Edit**: Adjust display name or target path.
