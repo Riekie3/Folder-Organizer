@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.3] - 2026-11-15
+
 ### Added
 - **Keyboard navigation in the folder popup.** Once an icon has focus, the arrow keys move between icons, Home and End go to the first and last icon on the page, and Enter opens the focused icon. With no icon focused, Left/Right and Home/End still change pages, so the old shortcuts keep working. Movement stays on the visible page, and Down stops on the last icon of a partly filled row instead of moving into an empty cell.
 - **Custom folder pictures are now in backups.** A backup stores the picture each folder shows under `folder-icons/`, with its SHA-256 checksum and a folder-id map in the manifest; a restore writes the picture into the app's own folder and points the restored folder at it. Merge restores a picture only when the archive has one, so a folder that already shows a picture keeps it. A picture that is unreadable, empty, larger than 10 MB or not a supported image is skipped without failing the backup. A folder whose picture was skipped no longer keeps a path from the exporting PC: Replace brings it back with its drawn look, and Merge keeps the picture it already shows.
