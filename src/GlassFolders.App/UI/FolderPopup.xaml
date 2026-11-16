@@ -144,5 +144,8 @@
                 <StackPanel x:Name="PageDots" Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,10,0,0"/>
             </Grid>
         </ui:GlassCard>
+
+        <!-- The lifted tile follows the pointer above the card and never takes part in hit testing. -->
+        <Canvas x:Name="DragLayer" IsHitTestVisible="False"/>
     </Canvas>
 </Window>

@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Drag an icon between pages in the folder popup.** Hold a dragged icon at the left or right edge of the grid, or over a page dot, and the popup turns the page after a moment. Each edge entry turns one page, so resting there does not run through the whole folder; a page dot targets its page directly. The drop lands on the page shown when the button is released, so an item can move from page 1 to page 3 without expanding the popup first.
+- **Dragging an icon now lifts it off the card.** While an item is dragged, a slightly enlarged copy with a soft shadow follows the pointer and the other icons slide aside to leave the drop cell open. On release the copy settles into the cell and the icons finish gliding to their places; cancelling the drag puts it back. This motion follows the drag setting under Animations and the reduce-motion option.
 
 ## [1.1.3] - 2026-11-15
 

@@ -41,4 +41,34 @@ public static class PopupDragPaging
 
         return null;
     }
+
+    /// <summary>
+    /// Where each tile on a page should sit while an item is dragged over it. The dragged item's
+    /// own cell is <c>-1</c>; the other tiles keep their place before the gap and move one slot
+    /// along after it, so the drop target opens up like a missing tile. <paramref name="source"/>
+    /// is the dragged tile's index on this page, or -1 when it comes from another page.
+    /// </summary>
+    public static int[] ReflowSlots(int tiles, int source, int gap)
+    {
+        if (tiles <= 0) return [];
+
+        var slots = new int[tiles];
+        bool sourceOnPage = source >= 0 && source < tiles;
+        int remaining = tiles - (sourceOnPage ? 1 : 0);
+        gap = Math.Clamp(gap, 0, remaining);
+
+        int ordinal = 0;
+        for (int i = 0; i < tiles; i++)
+        {
+            if (i == source)
+            {
+                slots[i] = -1;
+                continue;
+            }
+
+            slots[i] = ordinal < gap ? ordinal : ordinal + 1;
+            ordinal++;
+        }
+        return slots;
+    }
 }

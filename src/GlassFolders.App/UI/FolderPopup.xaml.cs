@@ -4,7 +4,9 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
+using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using GlassFolders.App.Services;
 using GlassFolders.App.Themes;
@@ -117,6 +119,7 @@ public partial class FolderPopup : Window
         {
             _closing = true;
             EndDragPaging();
+            CancelDragVisuals();
             _hwndSource?.RemoveHook(WndProc);
             _hwndSource = null;
         };
@@ -331,6 +334,8 @@ public partial class FolderPopup : Window
         ItemsGrid.Children.Clear();
         PageDots.Children.Clear();
         _iconHosts.Clear();
+        // Fresh tiles start in their cells; a drag that is still running reopens its gap on the next move.
+        _reflowOffsets.Clear();
         BtnExpand.IsEnabled = CanExpand;
         UpdateExpandButton();
 
@@ -413,6 +418,8 @@ public partial class FolderPopup : Window
     private UIElement CreateItemView(FolderItem item, List<FolderItem> missing)
     {
         var button = new Button { Style = (Style)Resources["ItemTileStyle"], ToolTip = item.TargetPath, Tag = item.Id };
+        // A page can be rebuilt under a drag (page turn or drop); its source tile stays out of the way.
+        if (item.Id == _dragItemId) button.Opacity = _dragGhost is null ? 0.4 : 0;
 
         var iconHost = new Grid { Width = IconSize, Height = IconSize, HorizontalAlignment = HorizontalAlignment.Center };
         _iconHosts[item.Id] = iconHost;
@@ -457,16 +464,14 @@ public partial class FolderPopup : Window
                 && Math.Abs(moved.Y) < SystemParameters.MinimumVerticalDragDistance) return;
 
             _dragOrigin = null;
-            iconHost.Opacity = 0.4;
+            BeginDragVisuals(button, item.Id, e.GetPosition(Stage));
             try
             {
                 DragDrop.DoDragDrop(button, new DataObject(DragItemFormat, item.Id), DragDropEffects.Move);
             }
             finally
             {
-                iconHost.Opacity = 1;
-                HideDropMarker();
-                EndDragPaging();
+                EndDragVisuals(button);
                 button.ReleaseMouseCapture();
             }
         };
@@ -774,6 +779,16 @@ public partial class FolderPopup : Window
     private Point? _dragOrigin;
     private Border? _dropMarker;
 
+    // While a tile is dragged, a captured copy of it rides above the card and the tiles on the page
+    // move apart to open the cell it would land in.
+    private string? _dragItemId;
+    private FrameworkElement? _dragGhost;
+    private Point _dragGrab;
+    private readonly Dictionary<string, Vector> _reflowOffsets = [];
+    private Rect? _dropSettle;
+
+    private static readonly IEasingFunction DragEase = new CubicEase { EasingMode = EasingMode.EaseOut };
+
     /// <summary>The item index under the pointer while an item from this folder is being dragged.</summary>
     private int DropIndexAt(DragEventArgs e)
     {
@@ -911,6 +926,7 @@ public partial class FolderPopup : Window
     private void OnDragLeave(object sender, DragEventArgs e)
     {
         HideDropMarker();
+        ResetDragReflow();
         EndDragPaging();
     }
 
@@ -923,12 +939,263 @@ public partial class FolderPopup : Window
         _dropMarker.Visibility = Visibility.Collapsed;
     }
 
-    /// <summary>Where each tile on this page sits now, by item, so a reorder can glide them to their new places.</summary>
+    /// <summary>Captures the tile and starts a lifted copy of it under the pointer.</summary>
+    private void BeginDragVisuals(FrameworkElement source, string itemId, Point pointer)
+    {
+        _dragItemId = itemId;
+        _reflowOffsets.Clear();
+        _dropSettle = null;
+
+        double fit = CardRoot.LayoutTransform is ScaleTransform scale ? scale.ScaleX : 1;
+        double width = source.ActualWidth * fit, height = source.ActualHeight * fit;
+        Point topLeft = source.TranslatePoint(new Point(0, 0), Stage);
+
+        if (CaptureTile(source) is { } capture && width > 1 && height > 1)
+        {
+            var image = new Image { Source = capture, Stretch = Stretch.Fill };
+            RenderOptions.SetBitmapScalingMode(image, BitmapScalingMode.HighQuality);
+
+            var ghost = new Grid
+            {
+                Width = width,
+                Height = height,
+                IsHitTestVisible = false,
+                Effect = new DropShadowEffect
+                {
+                    BlurRadius = 26,
+                    ShadowDepth = 9,
+                    Direction = 270,
+                    Opacity = 0.45,
+                    Color = Color.FromRgb(0x02, 0x0A, 0x24),
+                },
+            };
+            ghost.Children.Add(image);
+
+            _dragGrab = new Point(pointer.X - topLeft.X, pointer.Y - topLeft.Y);
+            ghost.RenderTransformOrigin = new Point(
+                Math.Clamp(_dragGrab.X / width, 0, 1), Math.Clamp(_dragGrab.Y / height, 0, 1));
+            ghost.RenderTransform = new ScaleTransform(1, 1);
+            Canvas.SetLeft(ghost, topLeft.X);
+            Canvas.SetTop(ghost, topLeft.Y);
+
+            _dragGhost = ghost;
+            DragLayer.Children.Add(ghost);
+            if (AnimationService.Instance.ShouldAnimate(AnimationCategory.DragGhost))
+                Animate.Scale(ghost, 1.06, TimeSpan.FromMilliseconds(140), AnimationCategory.DragGhost);
+        }
+
+        source.Opacity = _dragGhost is null ? 0.4 : 0;
+    }
+
+    private static ImageSource? CaptureTile(FrameworkElement source)
+    {
+        try
+        {
+            if (source.ActualWidth < 1 || source.ActualHeight < 1) return null;
+            double dpi = VisualTreeHelper.GetDpi(source).DpiScaleX;
+            int width = Math.Max(1, (int)Math.Ceiling(source.ActualWidth * dpi));
+            int height = Math.Max(1, (int)Math.Ceiling(source.ActualHeight * dpi));
+            var bitmap = new RenderTargetBitmap(width, height, 96 * dpi, 96 * dpi, PixelFormats.Pbgra32);
+            bitmap.Render(source);
+            bitmap.Freeze();
+            return bitmap;
+        }
+        catch (Exception ex)
+        {
+            DiagnosticService.Instance.LogError("Could not capture the dragged tile", ex);
+            return null;
+        }
+    }
+
+    private void PlaceDragGhost(Point pointer)
+    {
+        if (_dragGhost is null) return;
+        Canvas.SetLeft(_dragGhost, pointer.X - _dragGrab.X);
+        Canvas.SetTop(_dragGhost, pointer.Y - _dragGrab.Y);
+    }
+
+    /// <summary>
+    /// Opens the drop cell by sliding the page's tiles along, and hides the dragged tile's own cell.
+    /// The offsets are kept so a pointer that moves back and forth only animates tiles that move.
+    /// </summary>
+    private void ApplyDragReflow(int dropIndex)
+    {
+        if (_dragItemId is null || _dragGhost is null) return;
+
+        int tiles = ItemsGrid.Children.Count;
+        if (tiles == 0) return;
+
+        int source = -1;
+        for (int i = 0; i < tiles; i++)
+        {
+            if (ItemsGrid.Children[i] is FrameworkElement { Tag: string id } && id == _dragItemId)
+            {
+                source = i;
+                break;
+            }
+        }
+
+        int[] slots = PopupDragPaging.ReflowSlots(tiles, source, dropIndex - _currentPage * ActiveGrid.PageSize);
+        double cellW = ItemsGrid.ActualWidth / Math.Max(1, ItemsGrid.Columns);
+        double cellH = ItemsGrid.ActualHeight / Math.Max(1, ItemsGrid.Rows);
+
+        for (int i = 0; i < tiles; i++)
+        {
+            if (ItemsGrid.Children[i] is not FrameworkElement { Tag: string id } tile) continue;
+            if (i == source) { tile.Opacity = 0; continue; }
+            if (slots[i] < 0) continue;
+
+            int dx = slots[i] % ItemsGrid.Columns - i % ItemsGrid.Columns;
+            int dy = slots[i] / ItemsGrid.Columns - i / ItemsGrid.Columns;
+            int cells = ItemsGrid.Columns * ItemsGrid.Rows;
+            var offset = slots[i] >= cells
+                ? new Vector(cellW, 0) // pushed past the last cell, onto the next page
+                : new Vector(dx * cellW, dy * cellH);
+            if (_reflowOffsets.TryGetValue(id, out Vector was) && was == offset) continue;
+
+            _reflowOffsets[id] = offset;
+            Animate.Shift(tile, offset, TimeSpan.FromMilliseconds(170), AnimationCategory.DragGhost);
+        }
+    }
+
+    /// <summary>Lets the page's tiles glide back into their cells when the drop target goes away.</summary>
+    private void ResetDragReflow()
+    {
+        if (_reflowOffsets.Count == 0) return;
+
+        foreach (UIElement child in ItemsGrid.Children)
+        {
+            if (child is FrameworkElement tile && tile.RenderTransform is TranslateTransform)
+                Animate.Shift(tile, default, TimeSpan.FromMilliseconds(160), AnimationCategory.DragGhost);
+        }
+        _reflowOffsets.Clear();
+    }
+
+    /// <summary>Finds the tile on the current page for an item, if it is there.</summary>
+    private FrameworkElement? FindTile(string itemId)
+    {
+        foreach (UIElement child in ItemsGrid.Children)
+            if (child is FrameworkElement { Tag: string id } tile && id == itemId) return tile;
+        return null;
+    }
+
+    /// <summary>The tile's rectangle on the stage, including the popup's fit-to-screen scale.</summary>
+    private Rect TileRect(FrameworkElement tile)
+    {
+        double fit = CardRoot.LayoutTransform is ScaleTransform scale ? scale.ScaleX : 1;
+        return new Rect(tile.TranslatePoint(new Point(0, 0), Stage),
+            new Size(tile.ActualWidth * fit, tile.ActualHeight * fit));
+    }
+
+    /// <summary>
+    /// Ends the drag: the ghost either settles into a cell or fades where it was released, while the
+    /// real tile fades in underneath and the rest of the page finishes its move.
+    /// </summary>
+    private void EndDragVisuals(FrameworkElement source)
+    {
+        HideDropMarker();
+        EndDragPaging();
+        ResetDragReflow();
+
+        Rect? settle = _dropSettle;
+        _dropSettle = null;
+        FrameworkElement? tile = _dragItemId is { } id ? FindTile(id) : null;
+
+        // A cancelled drag goes back to the tile's own cell when that page is still showing.
+        if (settle is null && tile is not null) settle = TileRect(tile);
+
+        _dragItemId = null;
+
+        if (_dragGhost is null)
+        {
+            if (tile is not null) tile.Opacity = 1;
+            else source.Opacity = 1;
+            return;
+        }
+
+        if (settle is { } rect) SettleGhost(rect, tile);
+        else FadeGhostAway(tile);
+    }
+
+    /// <summary>Flies the lifted tile into its cell and fades it out as the real tile fades in.</summary>
+    private void SettleGhost(Rect target, FrameworkElement? tile)
+    {
+        var ghost = _dragGhost;
+        _dragGhost = null;
+        if (ghost is null)
+        {
+            if (tile is not null) tile.Opacity = 1;
+            return;
+        }
+
+        if (tile is not null) tile.Opacity = 0;
+        if (!AnimationService.Instance.ShouldAnimate(AnimationCategory.DragGhost))
+        {
+            DragLayer.Children.Remove(ghost);
+            if (tile is not null) tile.Opacity = 1;
+            return;
+        }
+
+        var duration = AnimationService.Instance.GetDuration(TimeSpan.FromMilliseconds(190), AnimationCategory.DragGhost);
+        var top = new DoubleAnimation(target.Top, duration) { EasingFunction = DragEase };
+        top.Completed += (_, _) => DragLayer.Children.Remove(ghost);
+        ghost.BeginAnimation(Canvas.LeftProperty, new DoubleAnimation(target.Left, duration) { EasingFunction = DragEase });
+        ghost.BeginAnimation(Canvas.TopProperty, top);
+        Animate.Scale(ghost, 1, duration, AnimationCategory.DragGhost);
+        Animate.Fade(ghost, 0, duration, AnimationCategory.DragGhost);
+        if (tile is not null) Animate.Fade(tile, 1, duration, AnimationCategory.DragGhost);
+    }
+
+    /// <summary>Fades the lifted tile where it is, for a drop that has no cell to return to.</summary>
+    private void FadeGhostAway(FrameworkElement? tile)
+    {
+        var ghost = _dragGhost;
+        _dragGhost = null;
+        if (ghost is null)
+        {
+            if (tile is not null) tile.Opacity = 1;
+            return;
+        }
+
+        if (!AnimationService.Instance.ShouldAnimate(AnimationCategory.DragGhost))
+        {
+            DragLayer.Children.Remove(ghost);
+            if (tile is not null) tile.Opacity = 1;
+            return;
+        }
+
+        Animate.Fade(ghost, 0, TimeSpan.FromMilliseconds(140), AnimationCategory.DragGhost,
+            () => DragLayer.Children.Remove(ghost));
+        if (tile is not null) Animate.Fade(tile, 1, TimeSpan.FromMilliseconds(140), AnimationCategory.DragGhost);
+    }
+
+    /// <summary>Drops every drag visual at once, for a popup that is closing.</summary>
+    private void CancelDragVisuals()
+    {
+        if (_dragGhost is not null)
+        {
+            DragLayer.Children.Remove(_dragGhost);
+            _dragGhost = null;
+        }
+        _dropSettle = null;
+        _dragItemId = null;
+        _reflowOffsets.Clear();
+    }
+
+    /// <summary>
+    /// Where each tile on this page sits now, by item, so a reorder can glide them to their new places.
+    /// <see cref="UIElement.TranslatePoint"/> leaves out the tile's own translation, so it is added here.
+    /// </summary>
     private Dictionary<string, Point> TilePositions()
     {
         var map = new Dictionary<string, Point>();
         foreach (UIElement child in ItemsGrid.Children)
-            if (child is FrameworkElement { Tag: string id } fe) map[id] = fe.TranslatePoint(new Point(0, 0), ItemsGrid);
+        {
+            if (child is not FrameworkElement { Tag: string id } tile) continue;
+            Point at = tile.TranslatePoint(new Point(0, 0), ItemsGrid);
+            if (tile.RenderTransform is TranslateTransform move) at += new Vector(move.X, move.Y);
+            map[id] = at;
+        }
         return map;
     }
 
@@ -938,7 +1205,10 @@ public partial class FolderPopup : Window
         {
             _dragOverPopup = true;
             e.Effects = DragDropEffects.Move;
-            ShowDropMarker(DropIndexAt(e));
+            int dropIndex = DropIndexAt(e);
+            ShowDropMarker(dropIndex);
+            ApplyDragReflow(dropIndex);
+            PlaceDragGhost(e.GetPosition(Stage));
             UpdatePageFlip(e);
             e.Handled = true;
             return;
@@ -962,19 +1232,27 @@ public partial class FolderPopup : Window
                 {
                     int from = _folder.Items.FindIndex(i => i.Id == id);
                     int to = DropIndexAt(e);
-                    if (from >= 0 && from != to)
+                    if (from >= 0)
                     {
                         var before = TilePositions();
-                        if (_folderManager.ReorderItem(_folder.Id, from, to))
+                        bool moved = from != to && _folderManager.ReorderItem(_folder.Id, from, to);
+                        if (moved)
                         {
                             RenderItemsAndLayout();
                             ItemsGrid.UpdateLayout();
+                            _reflowOffsets.Clear();
                             foreach (UIElement child in ItemsGrid.Children)
                             {
-                                if (child is not FrameworkElement { Tag: string moved } fe || !before.TryGetValue(moved, out Point old)) continue;
-                                Animate.Glide(fe, old - fe.TranslatePoint(new Point(0, 0), ItemsGrid), TimeSpan.FromMilliseconds(260), AnimationCategory.DragGhost);
+                                if (child is not FrameworkElement { Tag: string movedId } tile
+                                    || movedId == id
+                                    || !before.TryGetValue(movedId, out Point old)) continue;
+                                Animate.Glide(tile, old - tile.TranslatePoint(new Point(0, 0), ItemsGrid),
+                                    TimeSpan.FromMilliseconds(260), AnimationCategory.DragGhost);
                             }
                         }
+
+                        // The lifted tile lands in the cell the drop marker was holding open.
+                        if (FindTile(id) is { } settled) _dropSettle = TileRect(settled);
                     }
                 }
             }

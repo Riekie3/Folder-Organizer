@@ -80,4 +80,55 @@ public class PopupDragPagingTests
         Assert.Null(At(390, 100, 0, 1));
         Assert.Null(At(200, 500, 0, 1, dot: 0));
     }
+
+    [Fact]
+    public void DraggingForwardClosesTheSourcesCellAndOpensTheGap()
+    {
+        // Five tiles, the second one dragged to the fourth cell: tiles 3–5 move back one.
+        Assert.Equal(new[] { 0, -1, 1, 2, 4 }, PopupDragPaging.ReflowSlots(5, 1, 3));
+    }
+
+    [Fact]
+    public void DraggingBackwardPushesTheTilesBetweenTheGapAndTheSource()
+    {
+        // Five tiles, the fourth one dragged to the second cell: tiles 2–4 move on one.
+        Assert.Equal(new[] { 0, 2, 3, -1, 4 }, PopupDragPaging.ReflowSlots(5, 3, 1));
+    }
+
+    [Fact]
+    public void DroppingBackOnItsOwnCellMovesNothing()
+    {
+        Assert.Equal(new[] { 0, 1, -1, 3, 4 }, PopupDragPaging.ReflowSlots(5, 2, 2));
+    }
+
+    [Fact]
+    public void AnItemFromAnotherPageOpensAGapWithoutHidingATile()
+    {
+        Assert.Equal(new[] { 0, 1, 3, 4, 5 }, PopupDragPaging.ReflowSlots(5, -1, 2));
+    }
+
+    [Fact]
+    public void ADropPastTheLastTileLeavesThePageAlone()
+    {
+        Assert.Equal(new[] { 0, 1, 2 }, PopupDragPaging.ReflowSlots(3, -1, 3));
+        Assert.Equal(new[] { 0, 1, 2 }, PopupDragPaging.ReflowSlots(3, -1, 99));
+    }
+
+    [Fact]
+    public void AGapBeforeTheFirstTilePushesEveryTileOn()
+    {
+        Assert.Equal(new[] { 1, 2, 3, 4 }, PopupDragPaging.ReflowSlots(4, -1, -5));
+    }
+
+    [Fact]
+    public void TheOnlyTileOnAPageIsJustHidden()
+    {
+        Assert.Equal(new[] { -1 }, PopupDragPaging.ReflowSlots(1, 0, 0));
+    }
+
+    [Fact]
+    public void AnEmptyPageHasNothingToReflow()
+    {
+        Assert.Empty(PopupDragPaging.ReflowSlots(0, -1, 0));
+    }
 }

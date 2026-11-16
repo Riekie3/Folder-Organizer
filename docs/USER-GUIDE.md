@@ -83,7 +83,7 @@ Right-click a folder:
 - The target application launches immediately using Windows Shell Execution.
 
 ### Reordering & Removing Items
-- Drag an icon onto another cell on the same page to reorder it; a highlight shows where it will land.
+- Drag an icon onto another cell on the same page to reorder it. The icon lifts under the pointer and the other icons slide aside to open the cell it will land in; on release it settles there. Press `Esc` while dragging to put it back.
 - To move an item to another page, keep dragging and rest it at the left or right edge of the grid, or over a page dot. After a moment the popup turns the page; drop the icon in the cell you want. Each edge entry turns one page, while a page dot jumps straight to its page.
 - In the folder popup, right-click any item to view options:
   - **Launch**: Runs the item.
@@ -138,7 +138,7 @@ Open **Settings → Animations** to adjust motion dynamics:
   - Tile Press Feedback
   - Item Launch Bounce
   - Settings Dialog Fade
-  - Drag Physics & Snap
+  - Dragging a folder and popup items
 - **Zero-Wakeup Architecture**: When animations are disabled, UI elements snap immediately without running background timer threads, guaranteeing 0.00% idle CPU usage.
 
 ---

@@ -91,6 +91,35 @@ public static class Animate
         move.BeginAnimation(TranslateTransform.YProperty, y);
     }
 
+    /// <summary>
+    /// Slides an element by an offset, reusing its translation so a drag can keep changing the target.
+    /// The offset is held afterwards, ready to be replaced or animated back to zero.
+    /// </summary>
+    public static void Shift(UIElement element, Vector to, TimeSpan baseDuration, AnimationCategory category)
+    {
+        if (element.RenderTransform is not TranslateTransform move)
+        {
+            if (to.X == 0 && to.Y == 0) return;
+            move = new TranslateTransform();
+            element.RenderTransform = move;
+        }
+
+        if (!AnimationService.Instance.ShouldAnimate(category))
+        {
+            move.BeginAnimation(TranslateTransform.XProperty, null);
+            move.BeginAnimation(TranslateTransform.YProperty, null);
+            move.X = to.X;
+            move.Y = to.Y;
+            return;
+        }
+
+        var duration = AnimationService.Instance.GetDuration(baseDuration, category);
+        move.BeginAnimation(TranslateTransform.XProperty,
+            new DoubleAnimation(to.X, duration) { EasingFunction = DefaultEase, FillBehavior = FillBehavior.HoldEnd });
+        move.BeginAnimation(TranslateTransform.YProperty,
+            new DoubleAnimation(to.Y, duration) { EasingFunction = DefaultEase, FillBehavior = FillBehavior.HoldEnd });
+    }
+
     /// <summary>Slides an element's margin to a new value, or sets it at once when animations are off.</summary>
     public static void SlideMargin(FrameworkElement element, Thickness to, TimeSpan baseDuration, AnimationCategory category)
     {
