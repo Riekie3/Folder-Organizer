@@ -32,7 +32,7 @@ The manifest is camelCase JSON and carries the archive's integrity records and m
 
 ```json
 {
-  "appVersion": "1.1.3",
+  "appVersion": "1.2.0",
   "schemaVersion": 1,
   "createdAt": "2026-11-07T03:30:00.0000000Z",
   "machineName": "DESKTOP-RIEKIE",
