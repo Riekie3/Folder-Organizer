@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-11-17
+
+### Changed (build and release)
+- The build and release workflows use current action versions (`actions/checkout` v7, `actions/setup-dotnet` v6), which removes the "Node.js 20 is deprecated" warning from every run.
+- The release workflow no longer downloads Inno Setup files it never used. It compiles the installer with the Inno Setup that the build machine already has.
+- The release workflow now stops with an error if the installer cannot be compiled, instead of publishing a zip in its place.
+- The release workflow can be started by hand as a dry run. It builds, tests, compiles the installer and writes checksums, but publishes nothing unless a version tag started it.
+- No change to the app itself.
+
 ## [1.2.1] - 2026-11-17
 
 ### Added
