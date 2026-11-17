@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-11-17
+
 ### Added
 - **Dragging a desktop folder now lifts it off the desktop.** While it is dragged, the folder grows slightly, its hover plate fades away and a soft shadow follows it. On release it shrinks back and glides into its snapped grid cell instead of jumping there. As with the popup icons, this motion follows the drag setting under Animations and the reduce-motion option; with animations off, the folder snaps at once.
 
