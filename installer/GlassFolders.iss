@@ -17,7 +17,10 @@ AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
 DefaultDirName={localappdata}\Programs\{#MyAppName}
+DisableDirPage=auto
 DisableProgramGroupPage=yes
+UsePreviousAppDir=yes
+UsePreviousTasks=yes
 PrivilegesRequired=lowest
 OutputDir=..\artifacts
 OutputBaseFilename=GlassFolders-Setup-v{#MyAppVersion}
@@ -50,25 +53,70 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
 
 [Code]
-// Closes running instance before installation
-function InitializeSetup(): Boolean;
+const
+  AppMutexName = 'Local\GlassFolders.SingleInstance';
+  AppExitEventName = 'Local\GlassFolders.Exit';
+  EventModifyState = $0002;
+
+function OpenEventW(DesiredAccess: Cardinal; InheritHandle: Boolean; EventName: String): THandle;
+  external 'OpenEventW@kernel32.dll stdcall';
+function SetEvent(EventHandle: THandle): Boolean;
+  external 'SetEvent@kernel32.dll stdcall';
+function CloseHandle(ObjectHandle: THandle): Boolean;
+  external 'CloseHandle@kernel32.dll stdcall';
+
+function GlassFoldersRunning(): Boolean;
+begin
+  Result := CheckForMutexes(AppMutexName);
+end;
+
+procedure WaitForGlassFoldersToExit(TimeoutMs: Integer);
 var
+  Waited: Integer;
+begin
+  Waited := 0;
+  while (Waited < TimeoutMs) and GlassFoldersRunning() do
+  begin
+    Sleep(100);
+    Waited := Waited + 100;
+  end;
+end;
+
+// Closes the running app before files are replaced, so an update can be installed in place.
+procedure CloseRunningGlassFolders();
+var
+  ExitEvent: THandle;
   ErrorCode: Integer;
 begin
-  Result := True;
-  if CheckForMutexes('Local\GlassFolders.SingleInstance') then
+  if not GlassFoldersRunning() then
+    Exit;
+
+  // The app watches this event and exits through its normal tray path, which saves settings
+  // and removes its desktop windows and tray icon before the setup replaces any files.
+  ExitEvent := OpenEventW(EventModifyState, False, AppExitEventName);
+  if ExitEvent <> 0 then
   begin
-    if MsgBox('GlassFolders is currently running. Would you like to close it to continue the installation?', mbConfirmation, MB_YESNO) = IDYES then
-    begin
-      // Terminate running process via taskkill
-      Exec('taskkill.exe', '/f /im GlassFolders.exe', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
-      Sleep(500);
-    end
-    else
-    begin
-      Result := False;
-    end;
+    SetEvent(ExitEvent);
+    CloseHandle(ExitEvent);
+    WaitForGlassFoldersToExit(5000);
   end;
+
+  // A hung or older instance may not answer the event; end it and wait for it to go.
+  if GlassFoldersRunning() then
+  begin
+    Exec('taskkill.exe', '/f /im GlassFolders.exe', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
+    WaitForGlassFoldersToExit(5000);
+  end;
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+begin
+  NeedsRestart := False;
+  CloseRunningGlassFolders();
+  if GlassFoldersRunning() then
+    Result := 'GlassFolders could not be closed. Close it from the system tray, then click Install again.'
+  else
+    Result := '';
 end;
 
 // Asks user on uninstall if they also want to remove their folders and settings

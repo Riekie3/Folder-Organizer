@@ -20,9 +20,14 @@ Welcome to **GlassFolders**, a native Windows 11 desktop organizer that brings e
 ## 1. Getting Started
 
 ### Installation
-- Run `GlassFolders-Setup-1.0.0.exe`.
+- Run `GlassFolders-Setup-v<version>.exe`.
 - The installer installs per-user into `%LOCALAPPDATA%\Programs\GlassFolders` without requiring administrative privileges (UAC).
 - Optionally check **Start GlassFolders when Windows starts** during installation.
+
+### Updating
+- Run the new setup over the installed copy. You do not need to uninstall the old version first.
+- Setup closes the running app cleanly, replaces the program files in place, and keeps your folders, layouts, settings and custom icons. Your **Start with Windows** and desktop shortcut choices are remembered.
+- If GlassFolders cannot close by itself, Setup asks you to close it before continuing, so files that are still in use are never overwritten.
 
 ### Launching
 - Launch **GlassFolders** from your Start Menu or Desktop shortcut.
@@ -48,8 +53,9 @@ Folders appear on your desktop as coloured folders with a white glyph, lined up 
 - Set how many columns and rows a popup shows in **Settings → Appearance → Popup Layout**.
 
 ### Moving Folders
-- **Click and hold** a folder and drag it where you want it.
-- When you let go, it snaps to the nearest free cell of your desktop's icon grid, as desktop icons do. Turn this off with **Settings → General → Snap folders to the desktop icon grid when dragging**.
+- **Click and hold** a folder and drag it where you want it. The folder lifts slightly under the pointer with a soft shadow, so it reads as floating above the desktop.
+- When you let go, it glides into the nearest free cell of your desktop's icon grid and settles there, as desktop icons do. Turn the snapping off with **Settings → General → Snap folders to the desktop icon grid when dragging**.
+- This motion follows the drag setting under **Settings → Animations**. With animations turned off or reduced motion enabled, the folder snaps to its cell at once.
 
 ### Creating a New Folder
 1. Right-click the **GlassFolders System Tray icon** and select **New Folder...**, OR open **Settings → Folders → Create New Folder**.

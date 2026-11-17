@@ -322,7 +322,7 @@
                                     <Rectangle Style="{StaticResource Divider}"/>
                                     <CheckBox x:Name="ChkAnimWindowTrans" Content="Popup growing and shrinking" Checked="OnAnimationSettingChanged" Unchecked="OnAnimationSettingChanged"/>
                                     <Rectangle Style="{StaticResource Divider}"/>
-                                    <CheckBox x:Name="ChkAnimDragGhost" Content="Dragging a folder" Checked="OnAnimationSettingChanged" Unchecked="OnAnimationSettingChanged"/>
+                                    <CheckBox x:Name="ChkAnimDragGhost" Content="Dragging folders and icons" Checked="OnAnimationSettingChanged" Unchecked="OnAnimationSettingChanged"/>
                                     <Rectangle Style="{StaticResource Divider}"/>
                                     <CheckBox x:Name="ChkAnimShimmer" Content="A soft glint when the popup opens (plays once)" Checked="OnAnimationSettingChanged" Unchecked="OnAnimationSettingChanged"/>
                                     <Rectangle Style="{StaticResource Divider}"/>

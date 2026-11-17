@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Effects;
 using GlassFolders.App.Services;
 using GlassFolders.App.Themes;
 using GlassFolders.Core.Glass;
@@ -34,7 +35,8 @@ public partial class FolderTile : UserControl
 
     private POINT _pressCursor;
     private RECT _pressRect;
-    private bool _pressed, _dragging, _dragOver;
+    private bool _pressed, _dragging, _dragOver, _lifted;
+    private DropShadowEffect? _dragShadow;
     private double _luminance;
     private FolderTileMetrics _metrics;
 
@@ -116,13 +118,47 @@ public partial class FolderTile : UserControl
         UpdatePlate();
     }
 
-    private bool PlateShown => IsOpen || _dragOver || IsMouseOver;
+    private bool PlateShown => !_lifted && (IsOpen || _dragOver || IsMouseOver);
 
     private void UpdatePlate()
     {
-        double target = IsOpen || _dragOver ? 1.0 : IsMouseOver ? HoverPlateOpacity : 0.0;
+        // While a folder is lifted, its hover plate would look like it is still sitting in a cell.
+        double target = _lifted ? 0.0 : IsOpen || _dragOver ? 1.0 : IsMouseOver ? HoverPlateOpacity : 0.0;
         Animate.Fade(Plate, target, TimeSpan.FromMilliseconds(150), AnimationCategory.TileHover);
         UpdateLabel();
+    }
+
+    /// <summary>Lifts the folder off the desktop and gives it a shadow while it is dragged.</summary>
+    public void BeginDragLift()
+    {
+        if (_lifted) return;
+        _lifted = true;
+        UpdatePlate();
+
+        _dragShadow = new DropShadowEffect
+        {
+            BlurRadius = 24,
+            ShadowDepth = 8,
+            Direction = 270,
+            Opacity = 0.42,
+            Color = Color.FromRgb(0x02, 0x0A, 0x24),
+        };
+        Box.Effect = _dragShadow;
+        Animate.Scale(Box, 1.06, TimeSpan.FromMilliseconds(140), AnimationCategory.DragGhost);
+    }
+
+    /// <summary>Sets the folder back down, shrinking it and dropping the shadow as it settles.</summary>
+    public void EndDragLift()
+    {
+        if (!_lifted) return;
+        _lifted = false;
+        UpdatePlate();
+        Animate.Scale(Box, 1.0, TimeSpan.FromMilliseconds(160), AnimationCategory.DragGhost, () =>
+        {
+            if (_lifted) return; // another drag started before this one finished settling
+            Box.Effect = null;
+            _dragShadow = null;
+        });
     }
 
     private void UpdateLabel()
@@ -158,6 +194,7 @@ public partial class FolderTile : UserControl
         if (!_dragging && (Math.Abs(dx) >= DragThreshold || Math.Abs(dy) >= DragThreshold))
         {
             _dragging = true;
+            BeginDragLift();
             Trace?.Invoke($"DRAG-START {Id}");
         }
         if (_dragging)
@@ -169,8 +206,6 @@ public partial class FolderTile : UserControl
 
     protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
     {
-        Animate.Scale(Box, 1.0, TimeSpan.FromMilliseconds(100), AnimationCategory.ItemPress);
-
         if (!_pressed) return;
         bool wasDragging = _dragging;
         _pressed = false;
@@ -184,9 +219,11 @@ public partial class FolderTile : UserControl
             int dy = cur.Y - _pressCursor.Y;
             Trace?.Invoke($"DRAG-END {Id} dx={dx} dy={dy}");
             DragEnded?.Invoke(this, _pressRect.Left + dx, _pressRect.Top + dy);
+            EndDragLift();
         }
         else
         {
+            Animate.Scale(Box, 1.0, TimeSpan.FromMilliseconds(100), AnimationCategory.ItemPress);
             Trace?.Invoke($"CLICK {Id}");
             Clicked?.Invoke(this);
         }
@@ -195,9 +232,11 @@ public partial class FolderTile : UserControl
 
     protected override void OnLostMouseCapture(MouseEventArgs e)
     {
-        Animate.Scale(Box, 1.0, TimeSpan.FromMilliseconds(100), AnimationCategory.ItemPress);
+        bool settledByDrag = _dragging || _lifted;
         _pressed = false;
         _dragging = false;
+        if (settledByDrag) EndDragLift();
+        else Animate.Scale(Box, 1.0, TimeSpan.FromMilliseconds(100), AnimationCategory.ItemPress);
         base.OnLostMouseCapture(e);
     }
 

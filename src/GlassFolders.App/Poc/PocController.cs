@@ -32,6 +32,9 @@ public sealed class PocController : IDisposable
     /// <summary>Folder window size before Stage 3, in DIPs. Used once to move old saved positions.</summary>
     private const double V1TileWidth = 104, V1TileHeight = 112;
 
+    /// <summary>How long a dropped folder takes to glide into its cell.</summary>
+    private static readonly TimeSpan TileSettleDuration = TimeSpan.FromMilliseconds(200);
+
     /// <summary>Windows' medium desktop grid in DIPs, used if the desktop's own grid can't be read.</summary>
     private const double FallbackCellWidth = 76, FallbackCellHeight = 98;
 
@@ -66,6 +69,15 @@ public sealed class PocController : IDisposable
     private SettingsWindow? _activeSettingsWindow;
     private bool _areFoldersHidden;
     private bool _exiting;
+
+    // The folder being settled into a cell after a drop, driven per frame because it moves a native window.
+    private EventHandler? _tileSettleFrame;
+    private DesktopSurface? _tileSettleSurface;
+    private RectInt _tileSettleFrom;
+    private Point _tileSettleTo;
+    private TimeSpan _tileSettleFor;
+    private long _tileSettleStart;
+    private Action? _tileSettleCompleted;
 
     public PocController(DesktopHostKind kind, bool resetLayout)
     {
@@ -203,6 +215,7 @@ public sealed class PocController : IDisposable
 
     private void OnMonitorsChanged(IReadOnlyList<MonitorDescriptor> monitors)
     {
+        FinishTileSettle();
         double oldScale = s_scale;
         double newScale = _monitorService.PrimaryMonitor.DpiScale;
         if (newScale > 0) s_scale = newScale;
@@ -233,6 +246,7 @@ public sealed class PocController : IDisposable
     /// </summary>
     private void RescaleTiles(double oldScale, double newScale)
     {
+        FinishTileSettle();
         double ratio = newScale / oldScale;
         var primary = _monitorService.PrimaryMonitor;
         DiagnosticService.Instance.LogInfo($"Display scale changed from {oldScale * 100:0} % to {newScale * 100:0} %; moving the folders with it");
@@ -267,6 +281,7 @@ public sealed class PocController : IDisposable
         _rescaleTimer?.Stop();
         try
         {
+            FinishTileSettle();
             var primary = _monitorService.PrimaryMonitor;
             ReadGrid(ToRectInt(Win32.PrimaryWorkArea()), out _); // new cell size, so folder sizes follow it
             foreach (var id in _tiles.Keys.ToList()) RefreshTile(id);
@@ -347,6 +362,7 @@ public sealed class PocController : IDisposable
 
     public void ToggleHideAll()
     {
+        FinishTileSettle();
         _areFoldersHidden = !_areFoldersHidden;
         _tray.AreFoldersHidden = _areFoldersHidden;
 
@@ -555,7 +571,12 @@ public sealed class PocController : IDisposable
         var surface = _host.CreateSurface(folder.Id, tile, x, y);
         tile.GetScreenRect = () => surface.ScreenRect;
         tile.Clicked += OnTileClicked;
-        tile.DragMoved += (t, nx, ny) => _host.Move(_tiles[t.Id].Surface, nx, ny);
+        tile.DragMoved += (_, nx, ny) =>
+        {
+            // A new drag takes over from a folder that is still settling into its last cell.
+            FinishTileSettle();
+            _host.Move(surface, nx, ny);
+        };
         tile.DragEnded += OnTileDragEnded;
 
         tile.FilesDropped += (t, files) =>
@@ -606,21 +627,108 @@ public sealed class PocController : IDisposable
             {
                 var block = grid.NearestFreeBlock(cx, cy, columns, rows, Obstacles(icons, except: t.Id));
                 (nx, ny) = PositionFor(block, t.Metrics);
-                _host.Move(pair.Surface, nx, ny);
             }
         }
 
         var (tileW, tileH) = WindowPx(t.Metrics);
         _displacementManager.SetPosition(t.Id, nx, ny, _monitorService.Monitors, tileW, tileH);
         SavePosition(t.Id, nx, ny);
-        RefreshBackdrop(t.Id);
+
+        // Let the folder glide into the cell instead of jumping there. The backdrop is read once it arrives.
+        SettleTile(pair.Surface, nx, ny, () => RefreshBackdrop(t.Id));
+
         DiagnosticService.Instance.LogDebug($"Tile moved: {t.Id} -> ({nx}, {ny})");
         WriteState("MOVED");
+    }
+
+    /// <summary>Glides a dropped folder into its cell, keeping it under the pointer until the drop settles.</summary>
+    private void SettleTile(DesktopSurface surface, int x, int y, Action? completed = null)
+    {
+        FinishTileSettle();
+        RECT from = surface.ScreenRect;
+        if (from.Left == x && from.Top == y)
+        {
+            completed?.Invoke();
+            return;
+        }
+
+        if (!AnimationService.Instance.ShouldAnimate(AnimationCategory.DragGhost))
+        {
+            _host.Move(surface, x, y);
+            completed?.Invoke();
+            return;
+        }
+
+        _tileSettleSurface = surface;
+        _tileSettleFrom = new RectInt(from.Left, from.Top, from.Width, from.Height);
+        _tileSettleTo = new Point(x, y);
+        _tileSettleStart = 0;
+        _tileSettleFor = AnimationService.Instance.GetDuration(TileSettleDuration, AnimationCategory.DragGhost);
+        _tileSettleCompleted = completed;
+        _tileSettleFrame = OnTileSettleFrame;
+        CompositionTarget.Rendering += _tileSettleFrame;
+    }
+
+    private void OnTileSettleFrame(object? sender, EventArgs e)
+    {
+        if (_tileSettleSurface is not { } surface)
+        {
+            StopTileSettle();
+            return;
+        }
+        if (!surface.IsAlive)
+        {
+            StopTileSettle();
+            return;
+        }
+
+        if (_tileSettleStart == 0) _tileSettleStart = Stopwatch.GetTimestamp();
+        double progress = Math.Min(1, Stopwatch.GetElapsedTime(_tileSettleStart).TotalMilliseconds
+            / Math.Max(1, _tileSettleFor.TotalMilliseconds));
+        double eased = 1 - Math.Pow(1 - progress, 3);
+
+        _host.Move(surface,
+            _tileSettleFrom.Left + (int)Math.Round((_tileSettleTo.X - _tileSettleFrom.Left) * eased),
+            _tileSettleFrom.Top + (int)Math.Round((_tileSettleTo.Y - _tileSettleFrom.Top) * eased));
+
+        if (progress < 1) return;
+
+        int x = (int)_tileSettleTo.X, y = (int)_tileSettleTo.Y;
+        var completed = _tileSettleCompleted;
+        StopTileSettle();
+        _host.Move(surface, x, y);
+        completed?.Invoke();
+    }
+
+    /// <summary>Puts a folder that is still settling at its cell, so a new move starts from a known place.</summary>
+    private void FinishTileSettle()
+    {
+        if (_tileSettleSurface is not { } surface)
+        {
+            StopTileSettle();
+            return;
+        }
+
+        int x = (int)_tileSettleTo.X, y = (int)_tileSettleTo.Y;
+        var completed = _tileSettleCompleted;
+        StopTileSettle();
+        if (surface.IsAlive) _host.Move(surface, x, y);
+        completed?.Invoke();
+    }
+
+    /// <summary>Cancels a settle in progress, leaving the folder where it currently is.</summary>
+    private void StopTileSettle()
+    {
+        if (_tileSettleFrame is not null) CompositionTarget.Rendering -= _tileSettleFrame;
+        _tileSettleFrame = null;
+        _tileSettleSurface = null;
+        _tileSettleCompleted = null;
     }
 
     /// <summary>Redraws a folder from its settings. A new size keeps the folder's centre where it was.</summary>
     private void RefreshTile(string id)
     {
+        FinishTileSettle();
         if (!_tiles.TryGetValue(id, out var pair)) return;
         var folder = _folderManager.GetFolder(id);
         if (folder is null) return;
@@ -802,6 +910,7 @@ public sealed class PocController : IDisposable
                     var p = _displacementManager.GetPlacement(folder.Id);
                     if (p != null)
                     {
+                        FinishTileSettle();
                         _host.Move(pair.Surface, p.AbsoluteX, p.AbsoluteY);
                         SavePosition(folder.Id, p.AbsoluteX, p.AbsoluteY);
                         RefreshBackdrop(folder.Id);
@@ -950,6 +1059,7 @@ public sealed class PocController : IDisposable
 
         string? picture = folder.CustomIconPath;
         if (_popupFor == id) _popup?.Close();
+        FinishTileSettle();
         if (_tiles.TryGetValue(id, out var pair))
         {
             pair.Surface.Dispose();
@@ -964,6 +1074,7 @@ public sealed class PocController : IDisposable
 
     private void OnTileClicked(FolderTile tile)
     {
+        FinishTileSettle();
         DiagnosticService.Instance.LogDebug($"Clicked folder tile: {tile.Id}");
         bool sameFolder = _popupFor == tile.Id && _popup is not null;
         bool justDeactivated = _lastClosedPopupId == tile.Id && Stopwatch.GetElapsedTime(_lastClosedPopupTimestamp).TotalMilliseconds < 350;
@@ -1005,6 +1116,7 @@ public sealed class PocController : IDisposable
     {
         if (_exiting || _recoveryService.IsPaused) return true;
 
+        FinishTileSettle();
         DiagnosticService.Instance.LogInfo("Executing shell reattach sequence...");
         if (!_host.RefreshDesktop())
         {
@@ -1123,6 +1235,7 @@ public sealed class PocController : IDisposable
         if (_exiting) return;
         _exiting = true;
 
+        StopTileSettle();
         DiagnosticService.Instance.LogInfo("Beginning clean ordered shutdown of GlassFolders...");
         _memoryTrimTimer.Stop();
         _backdropTimer.Stop();

@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Dragging a desktop folder now lifts it off the desktop.** While it is dragged, the folder grows slightly, its hover plate fades away and a soft shadow follows it. On release it shrinks back and glides into its snapped grid cell instead of jumping there. As with the popup icons, this motion follows the drag setting under Animations and the reduce-motion option; with animations off, the folder snaps at once.
+
+### Changed
+- **Updating no longer needs an uninstall.** Running the new setup over an installed copy now closes the running app through its normal exit path, waits for it to finish, then replaces the program files in place. It keeps the previous install folder and task choices, so your folders, layouts, settings and custom icons stay untouched. If the app cannot close, Setup asks you to close it instead of overwriting files that are still in use.
+
 ## [1.2.0] - 2026-11-16
 
 ### Added
