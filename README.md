@@ -41,6 +41,10 @@ Created & maintained by **[Rie-Sources](https://rie-sources.com/)**.
 - **Ultra-Lightweight & Zero-Polling:** 0.00% idle CPU overhead, no periodic timer wakeups, and automated working set memory trimming (~50–65 MB typical).
 - **System Tray Integration:** Runs quietly in the notification area; no taskbar button.
 
+### Planned
+
+- **Change an item's icon.** Items in a folder can currently be renamed, but they always show the icon Windows gives them. Choosing your own icon (a 256 x 256 px transparent PNG is recommended) is planned and not built yet. See [docs/PLAN-ITEM-ICONS.md](docs/PLAN-ITEM-ICONS.md).
+
 > **Safety Guarantee:** Removing an item or deleting a folder from GlassFolders **never** deletes the original application or file from your computer.
 
 ---
@@ -66,7 +70,7 @@ cd "Folder-Organizer"
 # Build solution in Release mode
 dotnet build GlassFolders.sln --configuration Release -warnaserror
 
-# Run the test suite (268 tests)
+# Run the test suite (290 tests)
 dotnet test GlassFolders.sln --configuration Release
 
 # Launch GlassFolders
@@ -81,6 +85,7 @@ dotnet test GlassFolders.sln --configuration Release
 - [Architecture Documentation](docs/ARCHITECTURE.md) — Window hierarchy, Progman ownership, and DWM composition details.
 - [Backup & Restore Guide](docs/BACKUP-RESTORE.md) — Portable ZIP schema, zip safety, and path relinking.
 - [Performance & Stability Report](docs/PERFORMANCE.md) — Benchmarks, working set metrics, and idle CPU analysis.
+- [Plan: change an item's icon](docs/PLAN-ITEM-ICONS.md) — Planned feature, recommended icon size and work list (not started).
 - [Known Issues & Quirks](docs/KNOWN-ISSUES.md) — Windows 11 25H2 desktop behavior and workarounds.
 - [Changelog](CHANGELOG.md) — Complete milestone release history.
 - [Development Log](DEVLOG.md) — Phase-by-phase implementation journal.
