@@ -1,6 +1,6 @@
 # Plan: change an item's icon inside a folder
 
-**Status: built and tested in code (320 automated tests pass); not yet released. On-screen check: see "Result" at the end.**
+**Status: built, tested (320 automated tests) and released in v1.3.0.** Checked on screen in a test copy: choose an icon, restart, the small-picture warning with Cancel, and Reset. Backup and restore of item icons is covered by automated tests only, not tried on screen. See "Result" below for what differs from the plan.
 
 ## Result
 

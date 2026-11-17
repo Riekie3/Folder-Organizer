@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-17
+
 ### Added
 - **Change the icon of an item inside a folder.** Right-click an item and choose **Change icon...** to show a picture of your choice instead of the icon Windows gives it; **Reset icon** (shown when an item has one) brings the Windows icon back. Recommended: a square PNG, 256 x 256 px, with a transparent background. PNG, ICO, JPG, BMP, GIF and TIFF files up to 2 MB are accepted, a picture under 128 px gets a warning and can still be used, a non-square picture is fitted inside a square rather than stretched, and an `.ico` uses its largest image. GlassFolders keeps its own copy in `item-icons`, so moving or deleting the original does not break the icon; the copy is removed when the icon is reset or changed, or when the item or its folder is deleted. The chosen icon survives renaming.
 - **Item icons are in backups.** A backup stores them under `item-icons/` with SHA-256 checksums and an item-id map in the manifest, and a restore writes them into the app's own folder. Merge gives an existing item the archive's icon only when the archive has one for it. A backup that holds item icons is written as schema 2; a backup without any stays schema 1, so earlier releases still open it. Import enforces a 2 MB limit and the same picture-type allow-list as folder pictures.
