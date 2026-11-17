@@ -36,12 +36,21 @@ Why that size:
 
 A custom icon is treated as full-size artwork. The automatic "low resolution" handling that puts tiny app icons on a tile does not apply to it.
 
+## Where people will see the size
+
+The recommendation has to be where someone is about to pick a picture, not only in a document:
+
+1. **In the Change icon dialog**, as a line of text under the file picker: "Recommended: a square PNG, 256 x 256 px, transparent background." This is the main place.
+2. **When a picture is too small** (under 128 px), the dialog says so and still lets the user use it. It never blocks.
+3. **In the User Guide**, in a short "Changing an item's icon" section with the size, the padding advice and how to reset.
+4. **In the README feature list**, once the feature is built. Until then the README's Planned section already names the size.
+
 ## Work to do
 
 1. **Model:** add `CustomIconPath` to `FolderItem` and bump the folders schema version with a migration that leaves old files unchanged.
 2. **Storage:** a small store that validates the file (size limit, real image, decodable), copies it into the app data folder under an id, and removes it when the item or folder is deleted or the icon is reset.
 3. **Icon cache:** include the custom icon in the cache key, so changing it refreshes only that item, and load it ahead of the shell icon.
-4. **Popup menu:** **Change icon...** and **Reset icon**, with the file picker and the icon list for `.exe` / `.dll`.
+4. **Popup menu:** **Change icon...** and **Reset icon**, with the file picker and the icon list for `.exe` / `.dll`, the size hint under the picker and the too-small warning.
 5. **Backup and restore:** write and read `item-icons/` in the archive with manifest checksums; extend the zip safety rules to allow only that folder's image types.
 6. **Tests:** model migration, validation (oversize, not an image, empty), cache key changes, backup round trip, merge versus replace.
 7. **Docs:** User Guide, Backup & Restore guide, README and CHANGELOG.
