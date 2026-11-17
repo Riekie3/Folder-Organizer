@@ -26,6 +26,9 @@ public sealed class ImportPlan
 
     /// <summary>Folder id → picture bytes read from the archive. Applied by <see cref="BackupService.ApplyImport"/>.</summary>
     public Dictionary<string, FolderPicture> FolderPictures { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Item id → icon bytes read from the archive. Applied by <see cref="BackupService.ApplyImport"/>.</summary>
+    public Dictionary<string, FolderPicture> ItemPictures { get; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
 /// <summary>A folder picture from a backup, with the image extension it was stored under.</summary>
@@ -116,6 +119,27 @@ public static class ImportPlanner
             if (!folderPictures.ContainsKey(folder.Id)) folder.CustomIconPath = null;
         }
 
+        // Item icons work the same way, with the smaller limit that applies to them.
+        var itemPictures = new Dictionary<string, FolderPicture>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (itemId, entryName) in manifest.ItemIcons)
+        {
+            var entry = archive.GetEntry(entryName);
+            if (entry is null) continue;
+
+            string extension = Path.GetExtension(entryName).ToLowerInvariant();
+            if (!ZipSafety.IsPictureExtension(extension)) continue;
+            if (entry.Length <= 0 || entry.Length > Icons.ItemIconFiles.MaxBytes) continue;
+
+            byte[] bytes = ZipSafety.ReadAllBytes(entry, Icons.ItemIconFiles.MaxBytes);
+            if (bytes.Length == 0) continue;
+            itemPictures[itemId] = new FolderPicture(bytes, extension);
+        }
+
+        foreach (var item in foldersConfig.Folders.SelectMany(f => f.Items))
+        {
+            if (!itemPictures.ContainsKey(item.Id)) item.CustomIconPath = null;
+        }
+
         // 6. Evaluate missing targets & ID collisions
         int missingCount = 0;
         foreach (var folder in foldersConfig.Folders)
@@ -151,6 +175,8 @@ public static class ImportPlanner
         };
         foreach (var (folderId, picture) in folderPictures)
             plan.FolderPictures[folderId] = picture;
+        foreach (var (itemId, picture) in itemPictures)
+            plan.ItemPictures[itemId] = picture;
         return plan;
     }
 }

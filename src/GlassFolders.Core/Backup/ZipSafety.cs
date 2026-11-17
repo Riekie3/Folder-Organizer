@@ -87,10 +87,11 @@ public static class ZipSafety
     private static bool IsAllowedEntry(string name)
     {
         if (AllowedRootEntries.Contains(name)) return true;
-        if (name is "icons/" or "folder-icons/") return true;
+        if (name is "icons/" or "folder-icons/" or "item-icons/") return true;
 
         return IsFileIn(name, "icons/", AllowedIconExtensions)
-            || IsFileIn(name, "folder-icons/", AllowedPictureExtensions);
+            || IsFileIn(name, "folder-icons/", AllowedPictureExtensions)
+            || IsFileIn(name, "item-icons/", AllowedPictureExtensions);
     }
 
     private static bool IsFileIn(string name, string folder, HashSet<string> extensions) =>

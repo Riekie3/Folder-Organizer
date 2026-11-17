@@ -26,4 +26,10 @@ public sealed class FolderItem
     public string? IconLocation { get; set; }
     public int IconIndex { get; set; }
     public string? Aumid { get; set; }
+
+    /// <summary>
+    /// A picture the user chose to show in place of the icon Windows gives this item. It is a copy kept in the
+    /// app's own folder, so moving or deleting the original does not break it. Null means the Windows icon.
+    /// </summary>
+    public string? CustomIconPath { get; set; }
 }

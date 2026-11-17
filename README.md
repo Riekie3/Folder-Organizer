@@ -3,7 +3,7 @@
 Phone-style app folders on your real Windows 11 desktop, with a Liquid Glass popup.  
 Created & maintained by **[Rie-Sources](https://rie-sources.com/)**.
 
-> **Status: `v1.2.2`.** Built for Windows 11 (tested on 25H2). 290/290 automated tests pass, Explorer recovery is event-driven, and there are no runtime dependencies beyond .NET 10. See [docs/VISUAL-PARITY-PLAN.md](docs/VISUAL-PARITY-PLAN.md) for how the look was matched to the design target and [docs/KNOWN-ISSUES.md](docs/KNOWN-ISSUES.md) for what hasn't been tested.
+> **Status: `v1.2.2`.** Built for Windows 11 (tested on 25H2). 320/320 automated tests pass, Explorer recovery is event-driven, and there are no runtime dependencies beyond .NET 10. See [docs/VISUAL-PARITY-PLAN.md](docs/VISUAL-PARITY-PLAN.md) for how the look was matched to the design target and [docs/KNOWN-ISSUES.md](docs/KNOWN-ISSUES.md) for what hasn't been tested.
 
 ![GlassFolders Desktop Experience](docs/screenshots/hero-desktop.png)
 
@@ -37,13 +37,10 @@ Created & maintained by **[Rie-Sources](https://rie-sources.com/)**.
 - **Desktop Folders:** solid coloured folders with white glyphs, or a Glass style, in three sizes, or with your own picture. New folders take free cells of the desktop icon grid, never an icon's spot, and a frosted plate made from your wallpaper lights up the open folder. Dragging a folder lifts it with a soft shadow and lets it settle into its grid cell on release.
 - **Large Popup:** A 4 × 2 grid with page dots, an expand button, and configurable columns and rows. It is drawn at 70 % of the reference size (about 605 × 375 DIP) and shrinks further on small screens. It grows out of the clicked folder. Transparency, blur and border in Settings change its glass. Arrow keys move focus between icons (Home/End jump to the first and last), and with no icon focused Left/Right and Home/End still turn pages; Enter opens the focused icon.
 - **Drag to Reorder:** Press and drag an icon inside a folder popup to move it. The icon lifts under the pointer, the other icons slide aside to show where it will land, and it settles into the cell on release; the order is saved. Holding the icon at the left or right edge of the grid, or over a page dot, turns the page after a moment so items can move between pages. You can also drag files in from Explorer or the desktop to add them.
+- **Custom Item Icons (built, not yet in a release):** Right-click an item in a folder and choose **Change icon...** to show your own picture instead of the icon Windows gives it, or **Reset icon** to go back. **Recommended: a square PNG, 256 x 256 px, with a transparent background** (128 x 128 px is the smallest that looks good; PNG, ICO, JPG, BMP, GIF and TIFF up to 2 MB are accepted). GlassFolders keeps its own copy, so moving the original does not break the icon, and chosen icons are included in backups. Picking an icon out of an `.exe` or `.dll` is not available yet.
 - **Animation Controls:** Master toggle, Windows reduced-motion (`SPI_GETCLIENTAREAANIMATION`) compliance, speed slider (0.5×–2.0×), and 8 category switches. Folder tiles and the popup both animate.
 - **Ultra-Lightweight & Zero-Polling:** 0.00% idle CPU overhead, no periodic timer wakeups, and automated working set memory trimming (~50–65 MB typical).
 - **System Tray Integration:** Runs quietly in the notification area; no taskbar button.
-
-### Planned
-
-- **Change an item's icon.** Items in a folder can currently be renamed, but they always show the icon Windows gives them. Choosing your own icon (a 256 x 256 px transparent PNG is recommended) is planned and not built yet. See [docs/PLAN-ITEM-ICONS.md](docs/PLAN-ITEM-ICONS.md).
 
 > **Safety Guarantee:** Removing an item or deleting a folder from GlassFolders **never** deletes the original application or file from your computer.
 
@@ -70,7 +67,7 @@ cd "Folder-Organizer"
 # Build solution in Release mode
 dotnet build GlassFolders.sln --configuration Release -warnaserror
 
-# Run the test suite (290 tests)
+# Run the test suite (320 tests)
 dotnet test GlassFolders.sln --configuration Release
 
 # Launch GlassFolders
@@ -85,7 +82,7 @@ dotnet test GlassFolders.sln --configuration Release
 - [Architecture Documentation](docs/ARCHITECTURE.md) — Window hierarchy, Progman ownership, and DWM composition details.
 - [Backup & Restore Guide](docs/BACKUP-RESTORE.md) — Portable ZIP schema, zip safety, and path relinking.
 - [Performance & Stability Report](docs/PERFORMANCE.md) — Benchmarks, working set metrics, and idle CPU analysis.
-- [Plan: change an item's icon](docs/PLAN-ITEM-ICONS.md) — Planned feature, recommended icon size and work list (not started).
+- [Plan: change an item's icon](docs/PLAN-ITEM-ICONS.md) — How custom item icons were planned and built, the recommended size, and what is left.
 - [Known Issues & Quirks](docs/KNOWN-ISSUES.md) — Windows 11 25H2 desktop behavior and workarounds.
 - [Changelog](CHANGELOG.md) — Complete milestone release history.
 - [Development Log](DEVLOG.md) — Phase-by-phase implementation journal.

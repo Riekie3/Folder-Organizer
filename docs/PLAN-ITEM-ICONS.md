@@ -1,6 +1,18 @@
 # Plan: change an item's icon inside a folder
 
-**Status: planned, not started.** Nothing in this plan is built. It is written down so the work can be agreed before any code changes.
+**Status: built and tested in code (320 automated tests pass); not yet released. On-screen check: see "Result" at the end.**
+
+## Result
+
+Built as planned, with these differences:
+
+- **Not built: picking an icon out of an `.exe` or `.dll`.** This needs a second dialog to list and choose from the icons inside the file. It is the largest remaining piece and is left for a later release. Save the icon as a PNG or ICO first.
+- **`.webp` is not accepted.** The backup and folder-picture allow-list does not include it, and Windows only decodes it with an optional add-on. The accepted types are PNG, ICO, JPG, JPEG, BMP, GIF, TIF and TIFF.
+- **No folders schema bump.** The new `customIconPath` field is optional, so existing `folders.json` files load unchanged and need no migration. The backup format does change: a backup that holds item icons is written as schema 2, and one without any stays schema 1 so earlier releases still open it.
+- **Open questions, answered with the proposals:** the icon is changed afterwards from the menu only (not when adding an item), there is no tile behind the icon, and the limit is 2 MB.
+- **Where the size is shown:** the picker's title bar carries the recommendation (a native file dialog has no room for a line under the picker), a picture under 128 px gets a warning that still lets the user continue, and the User Guide and README state the size.
+
+## Plan as written
 
 ## What exists today
 

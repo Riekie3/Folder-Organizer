@@ -1,4 +1,5 @@
 using GlassFolders.Core.Config;
+using GlassFolders.Core.Icons;
 using GlassFolders.Core.Models;
 
 namespace GlassFolders.Core.Folders;
@@ -13,6 +14,9 @@ public sealed class FolderManager
     private FoldersConfiguration _config;
 
     public event Action? Changed;
+
+    /// <summary>Where the app keeps copies of item icons. Tests point this at a temporary folder.</summary>
+    public string ItemIconsDirectory { get; set; } = AppPaths.ItemIconsDir;
 
     public FolderManager(ConfigurationManager configManager)
     {
@@ -132,6 +136,7 @@ public sealed class FolderManager
         if (folder is null) return false;
         _config.Folders.Remove(folder);
         Save();
+        foreach (var item in folder.Items) ItemIconFiles.DeleteCopy(item.CustomIconPath, ItemIconsDirectory);
         return true;
     }
 
@@ -152,6 +157,25 @@ public sealed class FolderManager
         if (item is null) return false;
         folder.Items.Remove(item);
         Save();
+        ItemIconFiles.DeleteCopy(item.CustomIconPath, ItemIconsDirectory);
+        return true;
+    }
+
+    /// <summary>
+    /// Shows a picture in place of the item's Windows icon. <paramref name="path"/> must already be the app's own copy
+    /// (see <see cref="ItemIconFiles.Store"/>); the copy it replaces is removed. Null goes back to the Windows icon.
+    /// </summary>
+    public bool SetItemIcon(string folderId, string itemId, string? path)
+    {
+        var item = GetFolder(folderId)?.FindItem(itemId);
+        if (item is null) return false;
+
+        string? old = item.CustomIconPath;
+        if (string.Equals(old, path, StringComparison.OrdinalIgnoreCase)) return true;
+
+        item.CustomIconPath = string.IsNullOrWhiteSpace(path) ? null : path;
+        Save();
+        ItemIconFiles.DeleteCopy(old, ItemIconsDirectory);
         return true;
     }
 

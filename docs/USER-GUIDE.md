@@ -92,9 +92,25 @@ Right-click a folder:
 - Drag an icon onto another cell on the same page to reorder it. The icon lifts under the pointer and the other icons slide aside to open the cell it will land in; on release it settles there. Press `Esc` while dragging to put it back.
 - To move an item to another page, keep dragging and rest it at the left or right edge of the grid, or over a page dot. After a moment the popup turns the page; drop the icon in the cell you want. Each edge entry turns one page, while a page dot jumps straight to its page.
 - In the folder popup, right-click any item to view options:
-  - **Launch**: Runs the item.
-  - **Edit**: Adjust display name or target path.
-  - **Remove**: Deletes the item from the folder (does not delete the application from your PC).
+  - **Open**: Runs the item.
+  - **Open file location**: Shows where the item lives in File Explorer.
+  - **Rename...**: Changes the name shown in the folder. The app or file itself is not renamed.
+  - **Change icon...**: Shows a picture of your choice instead of the icon Windows gives the item (see below).
+  - **Reset icon**: Appears when an item has a chosen icon, and brings back the Windows icon.
+  - **Remove from folder**: Takes the item out of the folder (does not delete the application from your PC).
+
+### Changing an Item's Icon
+Right-click an item and choose **Change icon...**, then pick a picture (`.png`, `.ico`, `.jpg`, `.jpeg`, `.bmp`, `.gif`, `.tif` or `.tiff`, up to 2 MB).
+
+**Recommended: a square PNG, 256 x 256 px, with a transparent background.**
+- 256 px stays sharp on every display scale, up to about 350 %. The popup draws icons at roughly 70 to 145 px on screen depending on your scaling.
+- 128 x 128 px is the smallest that looks good. A smaller picture gets a warning, and you can still use it.
+- Keep the artwork inside the middle 90 % of the square so it does not touch the edge. A transparent background lets the glass show through.
+- A picture that is not square is fitted inside a square, not stretched. An `.ico` file uses its largest image.
+
+GlassFolders keeps its own copy of the picture and only ever displays it, so moving or deleting the original does not affect the icon. The icon stays when you rename the item, is included in backups, and is removed together with the item. **Reset icon** goes back to the Windows icon.
+
+Picking an icon out of an `.exe` or `.dll` is not available yet; save it as a PNG or ICO first.
 
 ---
 
@@ -157,11 +173,12 @@ Open **Settings → Backup & Restore** to safeguard your desktop configuration:
 1. Click **Export Backup...**.
 2. Choose where to save your `.zip` archive (e.g. your OneDrive, Dropbox, or USB flash drive).
 3. The archive contains:
-   - `manifest.json`: Configuration metadata, SHA-256 integrity checksums, and the folder-to-picture map.
+   - `manifest.json`: Configuration metadata, SHA-256 integrity checksums, and the folder-to-picture and item-to-icon maps.
    - `folders.json`: All folders, shortcuts, layout coordinates, and appearance settings.
    - `settings.json`: Appearance, animation, layout and recovery settings.
    - `icons/`: All cached custom icons and extracted shortcut graphics.
    - `folder-icons/`: The pictures your folders show instead of the drawn folder.
+   - `item-icons/`: The icons you chose for items inside folders.
 
 ### Restoring from an Archive
 1. Click **Import Backup...**.

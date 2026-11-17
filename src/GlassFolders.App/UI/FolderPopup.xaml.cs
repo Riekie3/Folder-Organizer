@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -11,6 +12,7 @@ using System.Windows.Shapes;
 using GlassFolders.App.Services;
 using GlassFolders.App.Themes;
 using GlassFolders.Core.Folders;
+using GlassFolders.Core.Icons;
 using GlassFolders.Core.Layout;
 using GlassFolders.Core.Models;
 using GlassFolders.Core.Popup;
@@ -630,6 +632,21 @@ public partial class FolderPopup : Window
         };
         menu.Items.Add(rename);
 
+        var changeIcon = new MenuItem { Header = "Change icon..." };
+        changeIcon.Click += (_, _) => ChangeItemIcon(item);
+        menu.Items.Add(changeIcon);
+
+        if (!string.IsNullOrEmpty(item.CustomIconPath))
+        {
+            var resetIcon = new MenuItem { Header = "Reset icon" };
+            resetIcon.Click += (_, _) =>
+            {
+                _folderManager.SetItemIcon(_folder.Id, item.Id, null);
+                RenderPage();
+            };
+            menu.Items.Add(resetIcon);
+        }
+
         var remove = new MenuItem { Header = "Remove from folder" };
         remove.Click += (_, _) =>
         {
@@ -638,6 +655,62 @@ public partial class FolderPopup : Window
             RenderItemsAndLayout();
         };
         menu.Items.Add(remove);
+    }
+
+    /// <summary>
+    /// Change icon...: copies a picture the user picks into the app's own folder and shows it for this item. The file is only
+    /// ever decoded as a picture; nothing is run. A picture under 128 px gets a warning but can still be used.
+    /// </summary>
+    private void ChangeItemIcon(FolderItem item)
+    {
+        _isShowingDialog = true;
+        string? copy = null;
+        try
+        {
+            var ofd = new OpenFileDialog
+            {
+                Title = $"Choose an icon for {item.DisplayName}. {ItemIconFiles.RecommendationText}",
+                Filter = "Pictures (*.png;*.ico;*.jpg;*.jpeg;*.bmp;*.gif;*.tif;*.tiff)|*.png;*.ico;*.jpg;*.jpeg;*.bmp;*.gif;*.tif;*.tiff",
+            };
+            if (ofd.ShowDialog(this) != true) return;
+
+            // Copy first (this also checks the type and the size limit), then make sure the copy really is a picture.
+            copy = ItemIconFiles.Store(ofd.FileName, item.Id, _folderManager.ItemIconsDirectory);
+
+            int largest;
+            using (var stream = File.OpenRead(copy))
+            {
+                var decoder = BitmapDecoder.Create(stream, BitmapCreateOptions.DelayCreation, BitmapCacheOption.None);
+                largest = decoder.Frames.Max(f => Math.Max(f.PixelWidth, f.PixelHeight));
+            }
+            if (largest <= 0) throw new InvalidDataException("The file has no picture in it.");
+
+            if (largest < ItemIconFiles.MinRecommendedPixels)
+            {
+                var answer = GlassMessageBox.Show(this, "Small picture",
+                    $"This picture is only {largest} px across, so it may look soft.\n\n{ItemIconFiles.RecommendationText}\n\nUse it anyway?",
+                    GlassMessageButtons.YesNo, GlassMessageKind.Question, yesLabel: "Use it", noLabel: "Cancel");
+                if (answer != GlassMessageResult.Yes) return; // the copy is removed below
+            }
+
+            if (_folderManager.SetItemIcon(_folder.Id, item.Id, copy))
+            {
+                DiagnosticService.Instance.LogInfo($"Item '{item.DisplayName}' now shows a chosen icon");
+                copy = null; // now owned by the item
+                RenderPage();
+            }
+        }
+        catch (Exception ex) when (ex is IOException or NotSupportedException or UnauthorizedAccessException or InvalidDataException or ArgumentException or FileFormatException)
+        {
+            DiagnosticService.Instance.LogWarn($"Icon for '{item.DisplayName}' rejected: {ex.Message}");
+            GlassMessageBox.Show(this, "Change icon", $"That picture can't be used.\n\n{ex.Message}", kind: GlassMessageKind.Warning);
+        }
+        finally
+        {
+            ItemIconFiles.DeleteCopy(copy, _folderManager.ItemIconsDirectory); // only set when the icon was not applied
+            _isShowingDialog = false;
+            Activate();
+        }
     }
 
     private void OnPreviewKeyDown(object sender, KeyEventArgs e)

@@ -17,12 +17,14 @@ GlassFolders-Backup-2026-11-07.zip
 │   ├── 61664BB521B5BA46.png
 │   ├── 9A91AEC6F3E189D1.png
 │   └── AB21FF4B8F55884F.png
-└── folder-icons/       # Pictures a folder shows instead of the drawn folder
-    ├── 4F2A9C0E7B1D3358.png
-    └── C81B6D4A2E90F7AC.jpg
+├── folder-icons/       # Pictures a folder shows instead of the drawn folder
+│   ├── 4F2A9C0E7B1D3358.png
+│   └── C81B6D4A2E90F7AC.jpg
+└── item-icons/         # Icons the user chose for items inside folders
+    └── 0B7E5D2A91C4F836.png
 ```
 
-`settings.json`, `icons/` and `folder-icons/` are optional. An archive without `settings.json`, such as one from an older release, imports with the built-in defaults. Pictures are named after a hash of the folder id rather than the user's own file name, and `manifest.json` maps each folder to its picture, so a restore does not depend on paths from the exporting PC.
+`settings.json`, `icons/`, `folder-icons/` and `item-icons/` are optional. An archive without `settings.json`, such as one from an older release, imports with the built-in defaults. Pictures are named after a hash of the folder id rather than the user's own file name, and `manifest.json` maps each folder to its picture, so a restore does not depend on paths from the exporting PC. Item icons follow the same rule, keyed by item id.
 
 ---
 
@@ -45,18 +47,24 @@ The manifest is camelCase JSON and carries the archive's integrity records and m
   },
   "folderIcons": {
     "3fa2c1d9": "folder-icons/4F2A9C0E7B1D3358.png"
+  },
+  "itemIcons": {
+    "9d41c0b7e2a84f1c8e3b6a5d70f29c14": "item-icons/0B7E5D2A91C4F836.png"
   }
 }
 ```
 
+The example above is a backup that holds an item icon, so its `schemaVersion` is `2`. A backup with no item icons is written as `1`.
+
 ### Manifest Fields
 - **`appVersion`**: The version of GlassFolders that produced the backup, read from the assembly.
-- **`schemaVersion`**: The backup format version. Currently `1`; an archive from a newer format is refused rather than partially read.
+- **`schemaVersion`**: The backup format version. `2` when the archive holds item icons, otherwise `1`, so a backup without them still opens in earlier releases (which read only `1`). An archive from a newer format than this release knows is refused rather than partially read.
 - **`createdAt`**: ISO 8601 UTC timestamp of creation.
 - **`machineName`**: The exporting PC's name, shown in the import confirmation.
 - **`monitors`**: The monitor keys the layout was saved against (for example `DISPLAY1`). Informational; the layout is stored as relative positions, so it does not need the same screens to import.
 - **`fileChecksums`**: Dictionary mapping relative entry paths to their SHA-256 hashes. Every listed entry that is present in the archive is verified before import.
 - **`folderIcons`**: Dictionary mapping a folder id to the archive entry holding the picture the folder shows. Empty for folders that use a drawn icon.
+- **`itemIcons`**: Dictionary mapping an item id to the archive entry holding the icon the user chose for it. Empty when no item has one.
 
 `folders.json` and `settings.json` use the same models and schema version fields as the app's own configuration files.
 
@@ -74,7 +82,7 @@ Untrusted ZIP archives pose distinct security risks. `ZipSafety.ValidateArchive`
 - **Max Uncompressed Size:** 50 MB total uncompressed volume across the entire archive.
 - **Max Entry Count:** 500 files maximum.
 - **Max Ratio:** any entry whose declared uncompressed size is more than 100 times its compressed size is rejected as a bomb.
-- **Bounded Reads:** `ZipSafety.ReadAllBytes` counts while it reads instead of trusting the declared length, so a hand-made entry cannot expand past its limit (50 MB for JSON, 10 MB for a folder picture).
+- **Bounded Reads:** `ZipSafety.ReadAllBytes` counts while it reads instead of trusting the declared length, so a hand-made entry cannot expand past its limit (50 MB for JSON, 10 MB for a folder picture, 2 MB for an item icon).
 
 ### 3. Allowed Entry Types
 GlassFolders backup archives hold configuration data and pictures only. An entry with any other name or extension rejects the archive instead of being skipped:
@@ -82,10 +90,13 @@ GlassFolders backup archives hold configuration data and pictures only. An entry
 - **Root:** `manifest.json`, `folders.json`, `settings.json`
 - **`icons/`:** `.png`, `.ico`
 - **`folder-icons/`:** `.png`, `.jpg`, `.jpeg`, `.bmp`, `.gif`, `.ico`, `.tif`, `.tiff`
+- **`item-icons/`:** the same picture types, directly inside the folder (no sub-folders)
 
 Executable and script extensions are also rejected explicitly: `.exe`, `.dll`, `.com`, `.scr`, `.msi`, `.bat`, `.cmd`, `.ps1`, `.vbs`, `.cpl`, `.sys`, `.drv`. The allow-list rejects the rest, including `.js`, `.wsf` and `.lnk`.
 
 A folder picture is capped at 10 MB, the same limit Choose Picture uses. Export leaves out a larger or unreadable picture; import ignores such an entry. A folder whose picture was skipped comes back with its drawn icon in Replace mode, and keeps the picture it already shows in Merge mode.
+
+An item icon is capped at 2 MB, the same limit Change icon uses, and is handled the same way: export leaves out a larger, missing or unreadable one, import ignores such an entry, and the item comes back with its Windows icon (Replace) or keeps the icon it already shows (Merge).
 
 ---
 
@@ -119,16 +130,16 @@ The import workflow follows a strict two-stage process:
 2. Run `ZipSafety` on every entry.
 3. Read and deserialize `manifest.json` and `folders.json`, then `settings.json` when present. A manifest from a newer schema version is refused rather than partially read.
 4. Verify the SHA-256 hash of every entry listed in `manifest.fileChecksums`.
-5. Read the pictures listed in `manifest.folderIcons` (up to 10 MB each) into memory. A folder without a picture entry has its saved path cleared, because a picture path from another PC is not usable here.
+5. Read the pictures listed in `manifest.folderIcons` (up to 10 MB each) into memory. A folder without a picture entry has its saved path cleared, because a picture path from another PC is not usable here. Item icons listed in `manifest.itemIcons` (up to 2 MB each) are read the same way, and an item without an entry has its icon path cleared.
 6. Execute `PathRelinker` on all items, compiling a report of resolved vs. missing items.
 7. Identify folder ID collisions against the active configuration.
 
 ### Stage 2: Application Mode
 1. Write an automatic pre-import backup of the current setup.
-2. Write imported pictures into the app's data folder (`%APPDATA%\GlassFolders\folder-icons`, or `data\folder-icons` in portable mode) and point the imported folders at those copies, before any configuration is saved. A failed write leaves the current configuration unchanged.
+2. Write imported pictures into the app's data folder (`%APPDATA%\GlassFolders\folder-icons` and `item-icons`, or `data\folder-icons` and `data\item-icons` in portable mode) and point the imported folders and items at those copies, before any configuration is saved. A failed write leaves the current configuration unchanged.
 3. Apply the import:
    - **Replace Mode:** replaces the current folders and settings with the archive contents, then reloads. This is the mode that restores Settings along with the desktop.
-   - **Merge Mode:** keeps the current folders and settings. A folder with the same ID and name merges the archive's unique items into the existing folder. A folder with the same ID but a different name gets a new ID so it cannot overwrite the existing one. An imported picture replaces the existing picture only when the archive has one.
+   - **Merge Mode:** keeps the current folders and settings. A folder with the same ID and name merges the archive's unique items into the existing folder. A folder with the same ID but a different name gets a new ID so it cannot overwrite the existing one. An imported picture replaces the existing picture only when the archive has one. Items work the same way: a new item arrives with its icon, an item that is already there takes the archive's icon only when the archive has one for it, and otherwise keeps the icon it shows.
 
 ---
 

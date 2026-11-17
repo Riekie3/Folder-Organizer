@@ -57,6 +57,15 @@ public sealed partial class IconCacheService
         string memoryKey = $"{key}@{pixelSize}";
         if (MemoryCache.TryGetValue(memoryKey, out var cached)) return cached;
 
+        // A picture the user chose wins over the Windows icon. It is a small file read straight from the app's own
+        // folder, so it is quick enough for the UI thread. If the file has gone missing the Windows icon shows instead.
+        if (!string.IsNullOrEmpty(item.CustomIconPath) && File.Exists(item.CustomIconPath)
+            && LoadCustomPicture(item.CustomIconPath, pixelSize) is { } custom)
+        {
+            MemoryCache[memoryKey] = custom;
+            return custom;
+        }
+
         foreach (bool lowResolution in new[] { false, true })
         {
             string path = DiskPath(key, lowResolution);
@@ -203,8 +212,44 @@ public sealed partial class IconCacheService
 
     private static string GetCacheKey(FolderItem item)
     {
-        string source = $"{item.Type}:{item.TargetPath}:{item.ShortcutPath}:{item.Aumid}:{item.IconLocation}:{item.IconIndex}";
+        // The custom picture's own file name is part of the key (it is new every time the picture changes),
+        // so choosing or resetting an icon refreshes only that item.
+        string source = $"{item.Type}:{item.TargetPath}:{item.ShortcutPath}:{item.Aumid}:{item.IconLocation}:{item.IconIndex}:{item.CustomIconPath}";
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(source)))[..16];
+    }
+
+    /// <summary>
+    /// Draws a chosen picture into a square of <paramref name="pixelSize"/>. The largest image in the file is used (an .ico
+    /// holds several), a picture that is not square is fitted inside the square rather than stretched, and the result
+    /// is never marked low resolution, so it is not put on a tile.
+    /// </summary>
+    private static AppIcon? LoadCustomPicture(string path, int pixelSize)
+    {
+        try
+        {
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            var decoder = BitmapDecoder.Create(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
+            var frame = decoder.Frames.OrderByDescending(f => (long)f.PixelWidth * f.PixelHeight).FirstOrDefault();
+            if (frame is null || frame.PixelWidth <= 0 || frame.PixelHeight <= 0 || pixelSize <= 0) return null;
+
+            double scale = Math.Min((double)pixelSize / frame.PixelWidth, (double)pixelSize / frame.PixelHeight);
+            double width = frame.PixelWidth * scale, height = frame.PixelHeight * scale;
+
+            var visual = new DrawingVisual();
+            RenderOptions.SetBitmapScalingMode(visual, BitmapScalingMode.HighQuality);
+            using (var dc = visual.RenderOpen())
+                dc.DrawImage(frame, new Rect((pixelSize - width) / 2, (pixelSize - height) / 2, width, height));
+
+            var target = new RenderTargetBitmap(pixelSize, pixelSize, 96, 96, PixelFormats.Pbgra32);
+            target.Render(visual);
+            target.Freeze();
+            return new AppIcon(target, IsLowResolution: false);
+        }
+        catch (Exception ex) when (ex is IOException or NotSupportedException or FileFormatException or UnauthorizedAccessException or InvalidOperationException or ArgumentException)
+        {
+            DiagnosticService.Instance.LogWarn($"Unreadable custom icon {Path.GetFileName(path)}: {ex.Message}");
+            return null;
+        }
     }
 
     private static BitmapSource? LoadBitmap(string path, int pixelSize)

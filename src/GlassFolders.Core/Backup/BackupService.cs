@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using GlassFolders.Core.Config;
 using GlassFolders.Core.Folders;
+using GlassFolders.Core.Icons;
 using GlassFolders.Core.Models;
 using GlassFolders.Core.Storage;
 
@@ -22,11 +23,15 @@ public sealed class BackupService
     /// <summary>Where imported folder pictures are written. The app reads folder pictures from the same folder.</summary>
     public string FolderIconsDirectory { get; }
 
+    /// <summary>Where imported item icons are written. The app reads item icons from the same folder.</summary>
+    public string ItemIconsDirectory { get; }
+
     public BackupService(string? baseDir = null)
     {
         string root = baseDir ?? AppPaths.BaseAppDataDir;
         _backupsDirectory = Path.Combine(root, "Backups");
         FolderIconsDirectory = Path.Combine(root, "folder-icons");
+        ItemIconsDirectory = Path.Combine(root, "item-icons");
         try { Directory.CreateDirectory(_backupsDirectory); } catch { }
     }
 
@@ -51,7 +56,7 @@ public sealed class BackupService
         var manifest = new BackupManifest
         {
             AppVersion = CurrentAppVersion(),
-            SchemaVersion = BackupManifest.CurrentSchemaVersion,
+            SchemaVersion = 1,
             CreatedAt = DateTime.UtcNow,
             MachineName = Environment.MachineName,
             Monitors = monitorKeys?.ToList() ?? []
@@ -119,7 +124,39 @@ public sealed class BackupService
             }
         }
 
-        // 5. Write manifest.json
+        // 5. Write the icons chosen for items. Same idea: the manifest maps item id → entry, because the original
+        // path only makes sense on this PC. A picture that is missing, empty, too large or not an image type is skipped.
+        foreach (var item in foldersConfig.Folders.SelectMany(f => f.Items))
+        {
+            string? picturePath = item.CustomIconPath;
+            if (string.IsNullOrWhiteSpace(picturePath)) continue;
+
+            try
+            {
+                var info = new FileInfo(picturePath);
+                string extension = info.Extension.ToLowerInvariant();
+                if (!info.Exists || info.Length == 0 || info.Length > ItemIconFiles.MaxBytes) continue;
+                if (!ZipSafety.IsPictureExtension(extension)) continue;
+
+                byte[] pictureBytes = File.ReadAllBytes(info.FullName);
+                string entryName = "item-icons/" + PictureKey(item.Id) + extension;
+                if (!manifest.FileChecksums.TryAdd(entryName, ZipSafety.ComputeSha256(pictureBytes))) continue;
+
+                manifest.ItemIcons[item.Id] = entryName;
+                var pEntry = archive.CreateEntry(entryName, CompressionLevel.Optimal);
+                using var s = pEntry.Open();
+                s.Write(pictureBytes);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // A locked or unreadable picture should not fail the whole backup. The item shows its Windows icon after a restore.
+            }
+        }
+
+        // Older releases only know schema 1, so a backup without item icons keeps that number and still opens there.
+        if (manifest.ItemIcons.Count > 0) manifest.SchemaVersion = BackupManifest.ItemIconsSchemaVersion;
+
+        // 6. Write manifest.json
         string manifestJson = JsonSerializer.Serialize(manifest, ConfigurationJsonContext.Default.BackupManifest);
         byte[] manifestBytes = Encoding.UTF8.GetBytes(manifestJson);
         var mEntry = archive.CreateEntry("manifest.json", CompressionLevel.Optimal);
@@ -180,6 +217,8 @@ public sealed class BackupService
 
         if (mode == ImportMode.Replace)
         {
+            foreach (var item in plan.FoldersConfig.Folders.SelectMany(f => f.Items))
+                RestoreItemIcon(plan, item);
             configManager.SaveFolders(plan.FoldersConfig);
             configManager.SaveSettings(plan.Settings);
             folderManager.Reload();
@@ -202,9 +241,21 @@ public sealed class BackupService
                     // Same ID and same name: merge items
                     foreach (var item in importedFolder.Items)
                     {
-                        if (!existing.Items.Any(i => string.Equals(i.TargetPath, item.TargetPath, StringComparison.OrdinalIgnoreCase)))
+                        var match = existing.Items.FirstOrDefault(i => string.Equals(i.TargetPath, item.TargetPath, StringComparison.OrdinalIgnoreCase));
+                        if (match is null)
                         {
+                            RestoreItemIcon(plan, item);
                             existing.Items.Add(item);
+                        }
+                        else if (plan.ItemPictures.ContainsKey(item.Id))
+                        {
+                            // The archive supplies an icon for an item that is already here, so it takes the archive's.
+                            // An item the archive has no icon for keeps the one it already shows.
+                            string? old = match.CustomIconPath;
+                            RestoreItemIcon(plan, item);
+                            match.CustomIconPath = item.CustomIconPath;
+                            if (!string.Equals(old, match.CustomIconPath, StringComparison.OrdinalIgnoreCase))
+                                ItemIconFiles.DeleteCopy(old, ItemIconsDirectory);
                         }
                     }
                 }
@@ -212,17 +263,35 @@ public sealed class BackupService
                 {
                     // Same ID but different name: regenerate ID
                     importedFolder.Id = Guid.NewGuid().ToString("N")[..8];
+                    foreach (var item in importedFolder.Items) RestoreItemIcon(plan, item);
                     currentConfig.Folders.Add(importedFolder);
                 }
             }
             else
             {
+                foreach (var item in importedFolder.Items) RestoreItemIcon(plan, item);
                 currentConfig.Folders.Add(importedFolder);
             }
         }
 
         configManager.SaveFolders(currentConfig);
         folderManager.Reload();
+    }
+
+    /// <summary>Writes the icon the archive holds for this item into the app's own folder and points the item at it.</summary>
+    private void RestoreItemIcon(ImportPlan plan, FolderItem item)
+    {
+        if (!plan.ItemPictures.TryGetValue(item.Id, out var picture))
+        {
+            item.CustomIconPath = null; // a path from the exporting PC means nothing here
+            return;
+        }
+
+        Directory.CreateDirectory(ItemIconsDirectory);
+        string extension = ZipSafety.IsPictureExtension(picture.Extension) ? picture.Extension : ".png";
+        string path = Path.Combine(ItemIconsDirectory, $"{PictureKey(item.Id)}-{DateTime.UtcNow.Ticks}{extension}");
+        AtomicFile.WriteAllBytes(path, picture.Bytes);
+        item.CustomIconPath = path;
     }
 
     private string SavePicture(string folderId, FolderPicture picture)
